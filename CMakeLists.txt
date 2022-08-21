@@ -9,6 +9,7 @@ project(acl_exploration)
 ## is used, also find other catkin packages	
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  exploration
   ufomap_msgs
   ufomap_ros
   tf2_ros
@@ -16,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
 )
 find_package(ufomap REQUIRED)
+
 
 include_directories(${catkin_INCLUDE_DIRS}) 
 

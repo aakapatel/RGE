@@ -55,9 +55,11 @@
 <build_depend>ufomap_msgs</build_depend>
 <build_depend>ufomap_ros</build_depend>
 <build_depend>dynamic_reconfigure</build_depend>
+<build_depend>exploration</build_depend>
 <exec_depend>ufomap</exec_depend>
 <exec_depend>ufomap_msgs</exec_depend>
 <exec_depend>ufomap_ros</exec_depend>
+<exec_depend>exploration</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
