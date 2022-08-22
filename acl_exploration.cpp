@@ -66,8 +66,11 @@ double RESOLUTION;
 double roll = 0;
 double pitch = 0;
 double yaw = 0;
+double md;
 double head_ref;
 bool firstTime = true;
+bool start_flag = true;
+bool move_flag = false;
 // double heading = 0;
 
 bool frontiers_received;
@@ -75,9 +78,14 @@ Frontier_main all;
 Frontier_main local;
 Frontier_main global;
 Frontier_main current;
+Frontier_main old_poses;
 ufo::math::Vector3 selectedfrontier;
 ufo::math::Vector3 selectedgfrontier;
+ufo::math::Vector3 nearest_to_global;
 geometry_msgs::PoseStamped best_frontier;
+nav_msgs::Odometry m_currentPose;
+nav_msgs::Odometry m_prevPose;
+
 
 ufo::map::OccupancyMapColor myMap(RESOLUTION);
 
@@ -85,6 +93,7 @@ ufo::map::OccupancyMapColor myMap(RESOLUTION);
 // std::list<ufo::math::Vector3> extracted;
 std::list<ufo::math::Vector3> ext;
 std::list<ufo::math::Vector3> accessible;
+std::list<ufo::math::Vector3> positionslist;
 
 // Functions
 
@@ -231,7 +240,7 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
     double distance = calculateDistance(localfrontier, position);
     double angle = calculateAngle(localfrontier, position, heading);
 
-    if (((angle < 40) && (angle > -40)) && distance < 10) {
+    if (((angle < 10) && (angle > -10)) && distance < 10) {
 
       cost = angle;
       if ( (localfrontier.z() > 3) || (localfrontier.z() < 0.8)) {
@@ -299,83 +308,49 @@ bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
 
 }
 
+ufo::math::Vector3 visitedToGlobal(std::list<ufo::math::Vector3> visited, ufo::math::Vector3 global_fronier,
+                                          ufo::map::OccupancyMapColor const& map) {
+  double num;
+  double mynum = 10000000;
+  ufo::math::Vector3 cp;
+  std::list<ufo::math::Vector3>::iterator it;
+  for (it = visited.begin(); it != visited.end(); it++) {
 
 
+    // The direction from position to goal
+    ufo::math::Vector3 direction = *it - global_fronier;
+    // The center between position and goal
+    ufo::math::Vector3 center = global_fronier + (direction / 2.0);
+    // The distance between position and goal
+    double distance = direction.norm();
+    // Normalize direction
+    direction /= distance;
 
-// Publish all visualization messages here.
-
-void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Publisher* map_pub, 
-                                                      ros::Publisher* hits_pub, ros::Publisher* local_nodes_pub){
-  visualization_msgs::Marker POSITION_point, HITS_points, local_frontier_nodes;
-
-  if(position_received){
-    POSITION_point.header.frame_id = "world";
-    POSITION_point.ns = "points";
-    POSITION_point.action = visualization_msgs::Marker::ADD;
-    POSITION_point.pose.orientation.w = 1.0;
-    POSITION_point.id = 0;
-    POSITION_point.type = visualization_msgs::Marker::POINTS;
-    POSITION_point.scale.x = 0.2;
-    POSITION_point.scale.y = 0.2;
-    POSITION_point.color.g = 1.0f;
-    POSITION_point.color.a = 1.0;
-    geometry_msgs::Point p;
-    p.x = position_x;
-    p.y = position_y;
-    p.z = position_z;
-    POSITION_point.points.push_back(p);
-    position_pub->publish(POSITION_point);
-  }
+    // Calculate yaw, pitch and roll for oriented bounding box
+    double yaw = -atan2(direction[1], direction[0]);
+    double pitch = -asin(direction[2]);
+    double roll = 0;  // TODO: Fix
+    
+    // Create an oriented bounding box between position and goal, with a size radius.
+    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.25, 0.25),
+            ufo::math::Quaternion(roll, pitch, yaw));
 
 
-  if(ext.size() != 0){
-    // extracted.clear();
-    // goalNode->addHits(&hits);
-    HITS_points.header.frame_id = "world";
-    HITS_points.ns = "points";
-    HITS_points.action = visualization_msgs::Marker::ADD;
-    HITS_points.pose.orientation.w = 1.0;
-    HITS_points.id = 0;
-    HITS_points.type = visualization_msgs::Marker::POINTS;
-    HITS_points.scale.x = 0.2;
-    HITS_points.scale.y = 0.2;
-    HITS_points.color.r = 1.0f;
-    HITS_points.color.a = 1.0;
-    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer4;	
-    for(it_comeon_visualizer4 = ext.begin(); it_comeon_visualizer4 != ext.end(); it_comeon_visualizer4++){
-      geometry_msgs::Point p;
-      p.x = it_comeon_visualizer4->x();
-      p.y = it_comeon_visualizer4->y();
-      p.z = it_comeon_visualizer4->z();
-      HITS_points.points.push_back(p);
+    double m = calculateDistance(*it, global_fronier);
+    num = m;
+    if (num < mynum && !isInCollision(map, obb, true, false, false, 0)) {
+      mynum = num;
+      cp = *it;
     }
-    hits_pub->publish(HITS_points);
   }
+  return cp;
 
-  if(local.list.size() != 0){
-    // extracted.clear();
-    // goalNode->addHits(&hits);
-    local_frontier_nodes.header.frame_id = "world";
-    local_frontier_nodes.ns = "points";
-    local_frontier_nodes.action = visualization_msgs::Marker::ADD;
-    local_frontier_nodes.pose.orientation.w = 1.0;
-    local_frontier_nodes.id = 0;
-    local_frontier_nodes.type = visualization_msgs::Marker::POINTS;
-    local_frontier_nodes.scale.x = 0.4;
-    local_frontier_nodes.scale.y = 0.4;
-    local_frontier_nodes.color.g = 0.7f;
-    local_frontier_nodes.color.a = 0.6;
-    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer4;	
-    for(it_comeon_visualizer4 = local.list.begin(); it_comeon_visualizer4 != local.list.end(); it_comeon_visualizer4++){
-      geometry_msgs::Point p;
-      p.x = it_comeon_visualizer4->x();
-      p.y = it_comeon_visualizer4->y();
-      p.z = it_comeon_visualizer4->z();
-      local_frontier_nodes.points.push_back(p);
-    }
-    local_nodes_pub->publish(local_frontier_nodes);
-  }
 }
+
+
+
+
+
 
 
 // End of functions
@@ -410,12 +385,47 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   position_received = true;
+  ufo::math::Vector3 oldPoint;
+  ufo::math::Vector3 newPoint;
+  
   position_x = msg->pose.pose.position.x;
   position_y = msg->pose.pose.position.y;
   position_z = msg->pose.pose.position.z;
   velocity_x = msg->twist.twist.linear.x;
   velocity_y = msg->twist.twist.linear.y;
   velocity_z = msg->twist.twist.linear.z;
+
+  if (start_flag) {
+    m_prevPose = *msg;
+    start_flag = false;
+  } else {
+
+    m_currentPose = *msg;
+    newPoint = ufo::math::Vector3(msg->pose.pose.position.x, 
+                                      msg->pose.pose.position.y, 
+                                            msg->pose.pose.position.z);
+    oldPoint = ufo::math::Vector3(m_prevPose.pose.pose.position.x, 
+                                      m_prevPose.pose.pose.position.y, 
+                                            m_prevPose.pose.pose.position.z);
+
+    
+    if (calculateDistance(newPoint, oldPoint) > 2) {
+      m_prevPose = *msg;
+      positionslist.push_back(oldPoint);
+      
+    }
+    if (calculateDistance(newPoint, oldPoint) > 1.8) {
+      move_flag = true;
+      
+      
+    } else {
+      move_flag = false;
+    }
+
+    old_poses.list = positionslist;
+
+  }
+
   current.position = ufo::math::Vector3(position_x, position_y, position_z);
   tf::Quaternion q(
     msg->pose.pose.orientation.x,
@@ -454,6 +464,134 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
 
 }
 
+// Publish all visualization messages here.
+
+void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Publisher* map_pub, 
+                                                      ros::Publisher* hits_pub, ros::Publisher* local_nodes_pub,
+                                                              ros::Publisher global_connection_visualization_pub,
+                                                                    ros::Publisher global_connection_line_pub){
+  visualization_msgs::Marker POSITION_point, HITS_points, local_frontier_nodes, global_connection_points, global_connection_line_list;
+
+  if(old_poses.list.size() >= 0){
+    POSITION_point.header.frame_id = "world";
+    POSITION_point.ns = "points";
+    POSITION_point.action = visualization_msgs::Marker::ADD;
+    POSITION_point.pose.orientation.w = 1.0;
+    POSITION_point.id = 0;
+    POSITION_point.type = visualization_msgs::Marker::POINTS;
+    POSITION_point.scale.x = 0.25;
+    POSITION_point.scale.y = 0.25;
+    // POSITION_point.scale.z = 0.25;
+    POSITION_point.color.r = 1.0f;
+    POSITION_point.color.g = 1.0f;
+    POSITION_point.color.b = 1.0f;
+    POSITION_point.color.a = 1.0;
+    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer1;	
+    for(it_comeon_visualizer1 = old_poses.list.begin(); it_comeon_visualizer1 != old_poses.list.end(); it_comeon_visualizer1++){
+      geometry_msgs::Point p;
+      p.x = it_comeon_visualizer1->x();
+      p.y = it_comeon_visualizer1->y();
+      p.z = it_comeon_visualizer1->z();
+      POSITION_point.points.push_back(p);
+    }
+    position_pub->publish(POSITION_point);
+    
+  }
+
+
+  if(ext.size() != 0){
+    HITS_points.header.frame_id = "world";
+    HITS_points.ns = "points";
+    HITS_points.action = visualization_msgs::Marker::ADD;
+    HITS_points.pose.orientation.w = 1.0;
+    HITS_points.id = 0;
+    HITS_points.type = visualization_msgs::Marker::POINTS;
+    HITS_points.scale.x = 0.2;
+    HITS_points.scale.y = 0.2;
+    HITS_points.color.r = 1.0f;
+    HITS_points.color.a = 1.0;
+    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer2;	
+    for(it_comeon_visualizer2 = ext.begin(); it_comeon_visualizer2 != ext.end(); it_comeon_visualizer2++){
+      geometry_msgs::Point p;
+      p.x = it_comeon_visualizer2->x();
+      p.y = it_comeon_visualizer2->y();
+      p.z = it_comeon_visualizer2->z();
+      HITS_points.points.push_back(p);
+    }
+    hits_pub->publish(HITS_points);
+  }
+
+  if(local.list.size() != 0){
+    local_frontier_nodes.header.frame_id = "world";
+    local_frontier_nodes.ns = "points";
+    local_frontier_nodes.action = visualization_msgs::Marker::ADD;
+    local_frontier_nodes.pose.orientation.w = 1.0;
+    local_frontier_nodes.id = 0;
+    local_frontier_nodes.type = visualization_msgs::Marker::POINTS;
+    local_frontier_nodes.scale.x = 0.4;
+    local_frontier_nodes.scale.y = 0.4;
+    local_frontier_nodes.color.g = 0.7f;
+    local_frontier_nodes.color.a = 0.6;
+    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer3;	
+    for(it_comeon_visualizer3 = local.list.begin(); it_comeon_visualizer3 != local.list.end(); it_comeon_visualizer3++){
+      geometry_msgs::Point p;
+      p.x = it_comeon_visualizer3->x();
+      p.y = it_comeon_visualizer3->y();
+      p.z = it_comeon_visualizer3->z();
+      local_frontier_nodes.points.push_back(p);
+    }
+    local_nodes_pub->publish(local_frontier_nodes);
+  }
+
+
+  if(1==1){
+    global_connection_points.header.frame_id = global_connection_line_list.header.frame_id = "world";
+    global_connection_points.ns = "points";
+    global_connection_points.action = visualization_msgs::Marker::ADD;
+    global_connection_points.pose.orientation.w = 1.0;
+    global_connection_points.id = 0;
+    global_connection_line_list.id = 1;
+    global_connection_points.type = visualization_msgs::Marker::POINTS;
+    global_connection_line_list.type = visualization_msgs::Marker::LINE_LIST;
+    global_connection_points.scale.x = 0.2;
+    global_connection_points.scale.y = 0.2;
+    global_connection_line_list.scale.x = 0.1;
+    global_connection_points.color.b = 1.0f;
+    global_connection_points.color.a = 1.0;
+    global_connection_line_list.color.r = 1.0;
+    global_connection_line_list.color.g = 1.0;
+    global_connection_line_list.color.b = 1.0;
+    global_connection_line_list.color.a = 1.0;
+    // selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
+    // nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
+    geometry_msgs::Point p2;
+      p2.x = nearest_to_global.x();
+      p2.y = nearest_to_global.y();
+      p2.z = nearest_to_global.z();
+      global_connection_points.points.push_back(p2);
+      
+        
+          global_connection_line_list.points.push_back(p2);
+          p2.x = selectedgfrontier.x();
+          p2.y = selectedgfrontier.y();
+          p2.z = selectedgfrontier.z();
+          global_connection_line_list.points.push_back(p2);
+        
+      
+    
+    global_connection_visualization_pub.publish(global_connection_points);
+    global_connection_line_pub.publish(global_connection_line_list);
+  }
+
+
+
+
+
+
+
+
+}
+
 
 // End of callback functions
 // -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- //
@@ -465,10 +603,11 @@ int main(int argc, char *argv[])
   // Subscribers and publishers
   ros::init(argc, argv, "ACL_EXPLORATION");
   ros::NodeHandle nh;
-  ros::Publisher points_pub = nh.advertise<visualization_msgs::Marker>("NODES", 1);
+  ros::Publisher points_pub = nh.advertise<visualization_msgs::Marker>("visited_nodes", 1);
   ros::Publisher position_pub = nh.advertise<visualization_msgs::Marker>("POSITION", 1);
   ros::Publisher best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
-  // ros::Publisher chosen_path_pub = nh.advertise<nav_msgs::Odometry>("/pelican/reference", 1);
+  ros::Publisher global_connection_visualization_pub = nh.advertise<visualization_msgs::Marker>("/points_global_connection", 1);
+  ros::Publisher global_connection_line_pub = nh.advertise<visualization_msgs::Marker>("/line_global_connection", 1);
   ros::Publisher hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   ros::Publisher local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   ros::Publisher map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
@@ -502,9 +641,12 @@ int main(int argc, char *argv[])
 
     ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
     cout << "Accessible frontiers array size is " << ext.size() << endl;
-    cout << "Local frontiers array size is " << local.list.size() << endl;
-    cout << "Global frontiers array size is " << global.list.size() << endl;
+    // cout << "Local frontiers array size is " << local.list.size() << endl;
+    // cout << "Global frontiers array size is " << global.list.size() << endl;
     
+    // cout << "poselist size is " << positionslist.size() << endl;
+    // cout << "old poses array size is " << old_poses.list.size() << endl;
+
 
     if (firstTime) {
       firstTime = false;
@@ -538,6 +680,10 @@ int main(int argc, char *argv[])
           ROS_INFO("Local Frontier Published");
       } else {
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
+          nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
+          cout << "Nearest to global frontier X: " << nearest_to_global.x() << endl;
+          cout << "Nearest to global frontier Y: " << nearest_to_global.y() << endl;
+          cout << "Nearest to global frontier Z: " << nearest_to_global.z() << endl;
           head_ref = atan2((selectedgfrontier.y() - current.position.y()), (selectedgfrontier.x() - current.position.x()));
           best_frontier.pose.position.x = selectedgfrontier.x();
           best_frontier.pose.position.y = selectedgfrontier.y();
@@ -559,7 +705,8 @@ int main(int argc, char *argv[])
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     cout << "\nExecution time: " << duration_total.count() << " ms " << endl;
-    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub);
+    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
+                                                                    global_connection_line_pub);
     ros::spinOnce();
     rate.sleep();
   }
