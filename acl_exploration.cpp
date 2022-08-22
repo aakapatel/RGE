@@ -66,6 +66,8 @@ double RESOLUTION;
 double roll = 0;
 double pitch = 0;
 double yaw = 0;
+double head_ref;
+bool firstTime = true;
 // double heading = 0;
 
 bool frontiers_received;
@@ -73,8 +75,9 @@ Frontier_main all;
 Frontier_main local;
 Frontier_main global;
 Frontier_main current;
-ufo::math::Vector3 selectedlocalfrontier;
-ufo::math::Vector3 selectedglobalfrontier;
+ufo::math::Vector3 selectedfrontier;
+ufo::math::Vector3 selectedgfrontier;
+geometry_msgs::PoseStamped best_frontier;
 
 ufo::map::OccupancyMapColor myMap(RESOLUTION);
 
@@ -258,26 +261,42 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
 ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global, 
                                                 ufo::math::Vector3 position, double heading) {
 
-  double cost;
-  double mycost = 100000000;
-  ufo::math::Vector3 select;
+  double score;
+  double myScore = 100000000;
+  ufo::math::Vector3 selectg;
   for (ufo::math::Vector3 globalfrontier : global) {
 
     double distance = calculateDistance(globalfrontier, position);
 
-      cost = distance;
+      score = distance;
       if ( (globalfrontier.z() > 3) || (globalfrontier.z() < 0.8)) {
-          cost = cost + 10000;
+          score = score + 1000;
       } else {
-          cost = cost;
+          score = score;
       }
 
-      if (cost < mycost) {              
-          mycost = cost;
-          select = globalfrontier;
+      if (score < myScore) {              
+          myScore = score;
+          selectg = globalfrontier;
       }
   }
-  return select;
+  return selectg;
+}
+
+bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
+
+  ufo::math::Vector3 pos;
+  pos.x() = pose.pose.position.x;
+  pos.y() = pose.pose.position.y;
+  pos.z() = pose.pose.position.z;
+
+  double pub_dis = calculateDistance(pos, position);
+  if (pub_dis < 2) {
+    return true;
+  } else {
+    return false;
+  }
+
 }
 
 
@@ -448,7 +467,7 @@ int main(int argc, char *argv[])
   ros::NodeHandle nh;
   ros::Publisher points_pub = nh.advertise<visualization_msgs::Marker>("NODES", 1);
   ros::Publisher position_pub = nh.advertise<visualization_msgs::Marker>("POSITION", 1);
-  ros::Publisher best_local = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
+  ros::Publisher best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
   // ros::Publisher chosen_path_pub = nh.advertise<nav_msgs::Odometry>("/pelican/reference", 1);
   ros::Publisher hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   ros::Publisher local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
@@ -481,39 +500,58 @@ int main(int argc, char *argv[])
     */
 
 
-    ext = extractUnknowns(myMap, all.list, current.position, true, true, true, 0);
+    ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
     cout << "Accessible frontiers array size is " << ext.size() << endl;
     cout << "Local frontiers array size is " << local.list.size() << endl;
     cout << "Global frontiers array size is " << global.list.size() << endl;
+    
 
-    selectedlocalfrontier = selectLocalFrontier(ext, current.position, current.heading);  
-    geometry_msgs::PoseStamped best_local_frontier;
-    double local_head_ref = atan2((selectedlocalfrontier.y() - current.position.y()), (selectedlocalfrontier.x() - current.position.x()));
-    best_local_frontier.pose.position.x = selectedlocalfrontier.x();
-    best_local_frontier.pose.position.y = selectedlocalfrontier.y();
-    best_local_frontier.pose.position.z = selectedlocalfrontier.z();
-    best_local_frontier.pose.orientation.x = 0;
-    best_local_frontier.pose.orientation.y = 0;
-    best_local_frontier.pose.orientation.z = local_head_ref;
-    best_local_frontier.pose.orientation.w = 0;
-
-    selectedglobalfrontier = selectGlobalFrontier(global.list, current.position, current.heading);  
-    geometry_msgs::PoseStamped best_global_frontier;
-    double global_head_ref = atan2((selectedglobalfrontier.y() - current.position.y()), (selectedglobalfrontier.x() - current.position.x()));
-    best_global_frontier.pose.position.x = selectedglobalfrontier.x();
-    best_global_frontier.pose.position.y = selectedglobalfrontier.y();
-    best_global_frontier.pose.position.z = selectedglobalfrontier.z();
-    best_global_frontier.pose.orientation.x = 0;
-    best_global_frontier.pose.orientation.y = 0;
-    best_global_frontier.pose.orientation.z = global_head_ref;
-    best_global_frontier.pose.orientation.w = 0;
-
-    if (local.list.size() != 0) {
-      best_local.publish(best_local_frontier);
-    } else {
-      best_local.publish(best_local_frontier);
+    if (firstTime) {
+      firstTime = false;
+      selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
+      head_ref = atan2((selectedfrontier.y() - current.position.y()), (selectedfrontier.x() - current.position.x()));
+      best_frontier.pose.position.x = selectedfrontier.x();
+      best_frontier.pose.position.y = selectedfrontier.y();
+      best_frontier.pose.position.z = selectedfrontier.z();
+      best_frontier.pose.orientation.x = 0;
+      best_frontier.pose.orientation.y = 0;
+      best_frontier.pose.orientation.z = head_ref;
+      best_frontier.pose.orientation.w = 0;
+      best_frontier_pub.publish(best_frontier);
+      ROS_INFO("Local Frontier Published");
     }
 
+    if (next_pub(best_frontier, current.position)) {
+
+      if (ext.size() > 0) {
+      
+          selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
+          head_ref = atan2((selectedfrontier.y() - current.position.y()), (selectedfrontier.x() - current.position.x()));
+          best_frontier.pose.position.x = selectedfrontier.x();
+          best_frontier.pose.position.y = selectedfrontier.y();
+          best_frontier.pose.position.z = selectedfrontier.z();
+          best_frontier.pose.orientation.x = 0;
+          best_frontier.pose.orientation.y = 0;
+          best_frontier.pose.orientation.z = head_ref;
+          best_frontier.pose.orientation.w = 0;
+          best_frontier_pub.publish(best_frontier);
+          ROS_INFO("Local Frontier Published");
+      } else {
+          selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
+          head_ref = atan2((selectedgfrontier.y() - current.position.y()), (selectedgfrontier.x() - current.position.x()));
+          best_frontier.pose.position.x = selectedgfrontier.x();
+          best_frontier.pose.position.y = selectedgfrontier.y();
+          best_frontier.pose.position.z = selectedgfrontier.z();
+          best_frontier.pose.orientation.x = 0;
+          best_frontier.pose.orientation.y = 0;
+          best_frontier.pose.orientation.z = head_ref;
+          best_frontier.pose.orientation.w = 0;
+          best_frontier_pub.publish(best_frontier);
+          ROS_INFO("Global Frontier Published");
+      }
+
+    }
+    
     // cout << "Selected local frontier X: " << selectedlocalfrontier.x() << endl;
     // cout << "Selected local frontier Y: " << selectedlocalfrontier.y() << endl;
     // cout << "Selected local frontier Z: " << selectedlocalfrontier.z() << endl;
