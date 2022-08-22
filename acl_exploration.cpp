@@ -33,7 +33,8 @@ using namespace std::this_thread;
 
 struct Frontier_main {
   std::list<ufo::math::Vector3> list;
-  ufo::math::Vector3 something;
+  ufo::math::Vector3 position;
+  double heading;
 };
 
 
@@ -65,11 +66,15 @@ double RESOLUTION;
 double roll = 0;
 double pitch = 0;
 double yaw = 0;
-double heading = 0;
+// double heading = 0;
 
 bool frontiers_received;
-Frontier_main frontiers;
+Frontier_main all;
+Frontier_main local;
+Frontier_main global;
+Frontier_main current;
 ufo::math::Vector3 selectedlocalfrontier;
+ufo::math::Vector3 selectedglobalfrontier;
 
 ufo::map::OccupancyMapColor myMap(RESOLUTION);
 
@@ -118,7 +123,6 @@ std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const&
   std::list<ufo::math::Vector3> extracted;
 
 
-
     for (ufo::math::Vector3 goal : flist) {
 
 
@@ -155,6 +159,64 @@ std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const&
 
 }
 
+double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
+                                                double heading) {
+
+  double head = atan2((fpoint.y() - position.y()), (fpoint.x() - position.x())) * (180/3.14159);
+  double angle = head - heading;
+
+  if (head > -180 && head < -90) {
+          if (heading > -180 && heading < -90) {                
+              angle = head - heading;
+              if (angle > 180) {
+                  angle = angle - 360;
+              }
+          } 
+          else {
+              angle = angle + 360;
+              if (angle > 180) {
+                  angle = angle - 360;
+              }                            
+          }
+  } else if (head > 0) {
+      if (heading > -180 && heading < -90) {
+          angle = angle - 360;
+          if (angle > 180) {
+              angle = angle - 360;
+          }
+      } else {
+          angle = angle;
+          if (angle > 180) {
+              angle = angle - 360;
+          }
+      }
+  }
+
+  return angle;
+
+}
+
+bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
+                                                              double heading) {
+
+  // for (ufo::math::Vector3 front : allfrontiers) {
+
+  double angle = calculateAngle(front, position, heading);
+  double distance = calculateDistance(front, position);
+
+    if (((angle < 40) && (angle > -40)) && distance < 10) {
+
+      return true;
+
+    } else {
+
+      return false;
+    }
+
+  // }
+
+}
+
 ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible, 
                                                 ufo::math::Vector3 position, double heading) {
 
@@ -163,39 +225,10 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
   ufo::math::Vector3 select;
   for (ufo::math::Vector3 localfrontier : accessible) {
 
-    double head = (atan2((localfrontier.y() - position.y()), (localfrontier.x() - position.x())) * (180/3.14159));
-
-    double angle = head - heading;
     double distance = calculateDistance(localfrontier, position);
+    double angle = calculateAngle(localfrontier, position, heading);
 
-    if (head > -180 && head < -90) {
-            if (heading > -180 && heading < -90) {                
-                angle = head - heading;
-                if (angle > 180) {
-                    angle = angle - 360;
-                }
-            } 
-            else {
-                angle = angle + 360;
-                if (angle > 180) {
-                    angle = angle - 360;
-                }                            
-            }
-    } else if (head > 0) {
-        if (heading > -180 && heading < -90) {
-            angle = angle - 360;
-            if (angle > 180) {
-                angle = angle - 360;
-            }
-        } else {
-            angle = angle;
-            if (angle > 180) {
-                angle = angle - 360;
-            }
-        }
-    }
-
-    if (((angle < 40) && (angle > -40)) && distance < 14) {
+    if (((angle < 40) && (angle > -40)) && distance < 10) {
 
       cost = angle;
       if ( (localfrontier.z() > 3) || (localfrontier.z() < 0.8)) {
@@ -222,13 +255,39 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
   return select;
 }
 
+ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global, 
+                                                ufo::math::Vector3 position, double heading) {
+
+  double cost;
+  double mycost = 100000000;
+  ufo::math::Vector3 select;
+  for (ufo::math::Vector3 globalfrontier : global) {
+
+    double distance = calculateDistance(globalfrontier, position);
+
+      cost = distance;
+      if ( (globalfrontier.z() > 3) || (globalfrontier.z() < 0.8)) {
+          cost = cost + 10000;
+      } else {
+          cost = cost;
+      }
+
+      if (cost < mycost) {              
+          mycost = cost;
+          select = globalfrontier;
+      }
+  }
+  return select;
+}
+
 
 
 
 // Publish all visualization messages here.
 
-void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Publisher* map_pub, ros::Publisher* hits_pub){
-  visualization_msgs::Marker POSITION_point, HITS_points;
+void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Publisher* map_pub, 
+                                                      ros::Publisher* hits_pub, ros::Publisher* local_nodes_pub){
+  visualization_msgs::Marker POSITION_point, HITS_points, local_frontier_nodes;
 
   if(position_received){
     POSITION_point.header.frame_id = "world";
@@ -273,6 +332,30 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     }
     hits_pub->publish(HITS_points);
   }
+
+  if(local.list.size() != 0){
+    // extracted.clear();
+    // goalNode->addHits(&hits);
+    local_frontier_nodes.header.frame_id = "world";
+    local_frontier_nodes.ns = "points";
+    local_frontier_nodes.action = visualization_msgs::Marker::ADD;
+    local_frontier_nodes.pose.orientation.w = 1.0;
+    local_frontier_nodes.id = 0;
+    local_frontier_nodes.type = visualization_msgs::Marker::POINTS;
+    local_frontier_nodes.scale.x = 0.4;
+    local_frontier_nodes.scale.y = 0.4;
+    local_frontier_nodes.color.g = 0.7f;
+    local_frontier_nodes.color.a = 0.6;
+    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer4;	
+    for(it_comeon_visualizer4 = local.list.begin(); it_comeon_visualizer4 != local.list.end(); it_comeon_visualizer4++){
+      geometry_msgs::Point p;
+      p.x = it_comeon_visualizer4->x();
+      p.y = it_comeon_visualizer4->y();
+      p.z = it_comeon_visualizer4->z();
+      local_frontier_nodes.points.push_back(p);
+    }
+    local_nodes_pub->publish(local_frontier_nodes);
+  }
 }
 
 
@@ -314,6 +397,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   velocity_x = msg->twist.twist.linear.x;
   velocity_y = msg->twist.twist.linear.y;
   velocity_z = msg->twist.twist.linear.z;
+  current.position = ufo::math::Vector3(position_x, position_y, position_z);
   tf::Quaternion q(
     msg->pose.pose.orientation.x,
     msg->pose.pose.orientation.y,
@@ -321,7 +405,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     msg->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   m.getRPY(roll, pitch, yaw);
-  heading = yaw * (180/3.14159);
+  current.heading = yaw * (180/3.14159);
   
   
 }
@@ -332,13 +416,21 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
   ufo::math::Vector3 frontier_point;
   
   std::list<ufo::math::Vector3> mylist;
+  std::list<ufo::math::Vector3> mylist1;
+  std::list<ufo::math::Vector3> mylist2;
   for (geometry_msgs::Point frontier : msg->points) {
 
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
     mylist.push_back(frontier_point);
-    frontiers.list = mylist;
+    all.list = mylist;
     // std::cout << "the frontiers list size is: " << frontiers.list.size() << std::endl;
-
+    if (isLocal(frontier_point, current.position, current.heading)) {
+      mylist1.push_back(frontier_point);
+      local.list = mylist1;
+    } else {
+      mylist2.push_back(frontier_point);
+      global.list = mylist2;
+    }
   }
 
 }
@@ -358,7 +450,8 @@ int main(int argc, char *argv[])
   ros::Publisher position_pub = nh.advertise<visualization_msgs::Marker>("POSITION", 1);
   ros::Publisher best_local = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
   // ros::Publisher chosen_path_pub = nh.advertise<nav_msgs::Odometry>("/pelican/reference", 1);
-  ros::Publisher hits_pub = nh.advertise<visualization_msgs::Marker>("Frontiers", 1);
+  ros::Publisher hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
+  ros::Publisher local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   ros::Publisher map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
@@ -387,30 +480,40 @@ int main(int argc, char *argv[])
 
     */
 
-    ufo::math::Vector3 position(position_x, position_y, position_z);
 
-    // Find closest free space within a sphere
-    // The sphere's radius
-      double radius = 10.2;
-
-    // Sphere with center at position and radius radius.
-    ufo::geometry::Sphere sphere(position, radius);
-
-    ext = extractUnknowns(myMap, frontiers.list, position, true, true, true, 0);
+    ext = extractUnknowns(myMap, all.list, current.position, true, true, true, 0);
     cout << "Accessible frontiers array size is " << ext.size() << endl;
+    cout << "Local frontiers array size is " << local.list.size() << endl;
+    cout << "Global frontiers array size is " << global.list.size() << endl;
 
-    selectedlocalfrontier = selectLocalFrontier(ext, position, heading);
+    selectedlocalfrontier = selectLocalFrontier(ext, current.position, current.heading);  
     geometry_msgs::PoseStamped best_local_frontier;
-    double head_ref = atan2((selectedlocalfrontier.y() - position.y()), (selectedlocalfrontier.x() - position.x()));
+    double local_head_ref = atan2((selectedlocalfrontier.y() - current.position.y()), (selectedlocalfrontier.x() - current.position.x()));
     best_local_frontier.pose.position.x = selectedlocalfrontier.x();
     best_local_frontier.pose.position.y = selectedlocalfrontier.y();
     best_local_frontier.pose.position.z = selectedlocalfrontier.z();
     best_local_frontier.pose.orientation.x = 0;
     best_local_frontier.pose.orientation.y = 0;
-    best_local_frontier.pose.orientation.z = head_ref;
+    best_local_frontier.pose.orientation.z = local_head_ref;
     best_local_frontier.pose.orientation.w = 0;
-    best_local.publish(best_local_frontier);
-    
+
+    selectedglobalfrontier = selectGlobalFrontier(global.list, current.position, current.heading);  
+    geometry_msgs::PoseStamped best_global_frontier;
+    double global_head_ref = atan2((selectedglobalfrontier.y() - current.position.y()), (selectedglobalfrontier.x() - current.position.x()));
+    best_global_frontier.pose.position.x = selectedglobalfrontier.x();
+    best_global_frontier.pose.position.y = selectedglobalfrontier.y();
+    best_global_frontier.pose.position.z = selectedglobalfrontier.z();
+    best_global_frontier.pose.orientation.x = 0;
+    best_global_frontier.pose.orientation.y = 0;
+    best_global_frontier.pose.orientation.z = global_head_ref;
+    best_global_frontier.pose.orientation.w = 0;
+
+    if (local.list.size() != 0) {
+      best_local.publish(best_local_frontier);
+    } else {
+      best_local.publish(best_local_frontier);
+    }
+
     // cout << "Selected local frontier X: " << selectedlocalfrontier.x() << endl;
     // cout << "Selected local frontier Y: " << selectedlocalfrontier.y() << endl;
     // cout << "Selected local frontier Z: " << selectedlocalfrontier.z() << endl;
@@ -418,7 +521,7 @@ int main(int argc, char *argv[])
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     cout << "\nExecution time: " << duration_total.count() << " ms " << endl;
-    visualize(&points_pub, &map_pub, &position_pub, &hits_pub);
+    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub);
     ros::spinOnce();
     rate.sleep();
   }
