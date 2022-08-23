@@ -37,6 +37,25 @@ struct Frontier_main {
   double heading;
 };
 
+struct Graph {
+  std::pair<ufo::math::Vector3, ufo::math::Vector3> pair;
+  double pair_wt;
+};
+
+// Definition of Structure "node" and an array to store inputs
+struct node {
+        int x; // x-cordinate of dot
+        int y; // y-cordinate of dot
+        int z; // y-cordinate of dot
+}; 
+
+// Definition of Structure "edge"
+// struct edge {
+//          ufo::math::Vector3 t1; // index of dot in dots[] for an end.
+//          ufo::math::Vector3 t2; // index of dot in dots[] for another end.
+//          double weight; // weight (geometric distance between two ends) 
+// };
+
 
 // Variables
 
@@ -79,12 +98,14 @@ Frontier_main local;
 Frontier_main global;
 Frontier_main current;
 Frontier_main old_poses;
+Graph edge;
 ufo::math::Vector3 selectedfrontier;
 ufo::math::Vector3 selectedgfrontier;
 ufo::math::Vector3 nearest_to_global;
 geometry_msgs::PoseStamped best_frontier;
 nav_msgs::Odometry m_currentPose;
 nav_msgs::Odometry m_prevPose;
+// edge lines[10000];
 
 
 ufo::map::OccupancyMapColor myMap(RESOLUTION);
@@ -240,7 +261,7 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
     double distance = calculateDistance(localfrontier, position);
     double angle = calculateAngle(localfrontier, position, heading);
 
-    if (((angle < 10) && (angle > -10)) && distance < 10) {
+    // if (((angle < 10) && (angle > -10)) && distance < 10) {
 
       cost = angle;
       if ( (localfrontier.z() > 3) || (localfrontier.z() < 0.8)) {
@@ -262,7 +283,7 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
               select = localfrontier;
           }
       }
-    }
+    // }
   }
   return select;
 }
@@ -347,7 +368,50 @@ ufo::math::Vector3 visitedToGlobal(std::list<ufo::math::Vector3> visited, ufo::m
 
 }
 
+// Function to create edges of complete graph from an array of nodes.
+//   Argument: number of nodes stored in the array dots.
+//   ReturnValue: number of edges created.
+//   Assumption: the array lines is large enough to store all edges of complete graph
+// std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>>
+std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> createCompleteGraph(
+                          std::list<ufo::math::Vector3> oldlist, ufo::map::OccupancyMapColor const& map){
+  int k;
+  std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> myvec;
+  k=0; // k is index of array lines
 
+  std::list<ufo::math::Vector3>::iterator it;
+  
+  for (it = oldlist.begin(); it != std::prev(oldlist.end(), 1); it++) {
+    std::list<ufo::math::Vector3>::iterator it2;
+    for (it2 = std::next(it, 1); it2 != oldlist.end(); it2++) {
+      
+
+      ufo::math::Vector3 direction = *it - *it2;
+      // The center between position and goal
+      ufo::math::Vector3 center = *it2 + (direction / 2.0);
+      // The distance between position and goal
+      double distance = direction.norm();
+      // Normalize direction
+      direction /= distance;
+
+      // Calculate yaw, pitch and roll for oriented bounding box
+      double yaw = -atan2(direction[1], direction[0]);
+      double pitch = -asin(direction[2]);
+      double roll = 0;  // TODO: Fix
+      
+      // Create an oriented bounding box between position and goal, with a size radius.
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+              ufo::math::Quaternion(roll, pitch, yaw));
+
+      if (!isInCollision(map, obb, true, false, false, 0)) {
+      
+        myvec.insert(myvec.end(), std::make_pair(std::make_pair(*it, *it2), calculateDistance(*it, *it2)));
+
+      }
+    }
+  }
+return myvec;
+}
 
 
 
@@ -544,7 +608,7 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
   }
 
 
-  if(1==1){
+  if(old_poses.list.size() >= 0){
     global_connection_points.header.frame_id = global_connection_line_list.header.frame_id = "world";
     global_connection_points.ns = "points";
     global_connection_points.action = visualization_msgs::Marker::ADD;
@@ -555,38 +619,43 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_connection_line_list.type = visualization_msgs::Marker::LINE_LIST;
     global_connection_points.scale.x = 0.2;
     global_connection_points.scale.y = 0.2;
-    global_connection_line_list.scale.x = 0.1;
+    global_connection_line_list.scale.x = 0.05;
     global_connection_points.color.b = 1.0f;
     global_connection_points.color.a = 1.0;
     global_connection_line_list.color.r = 1.0;
-    global_connection_line_list.color.g = 1.0;
-    global_connection_line_list.color.b = 1.0;
+    global_connection_line_list.color.g = 0.75;
+    global_connection_line_list.color.b = 0.80;
     global_connection_line_list.color.a = 1.0;
     // selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
     // nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
-    geometry_msgs::Point p2;
-      p2.x = nearest_to_global.x();
-      p2.y = nearest_to_global.y();
-      p2.z = nearest_to_global.z();
-      global_connection_points.points.push_back(p2);
+    std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> mp = createCompleteGraph(old_poses.list, myMap);
+    geometry_msgs::Point p1;
+      p1.x = nearest_to_global.x();
+      p1.y = nearest_to_global.y();
+      p1.z = nearest_to_global.z();
+      global_connection_points.points.push_back(p1);
       
+        for (auto i = mp.begin(); i != mp.end(); i++) {
+
         
+          // global_connection_line_list.points.push_back(p2);
+          geometry_msgs::Point p2;
+          p2.x = ((*i).first).first.x();
+          p2.y = ((*i).first).first.y();
+          p2.z = ((*i).first).first.z();
           global_connection_line_list.points.push_back(p2);
-          p2.x = selectedgfrontier.x();
-          p2.y = selectedgfrontier.y();
-          p2.z = selectedgfrontier.z();
-          global_connection_line_list.points.push_back(p2);
+          geometry_msgs::Point p3;
+          p3.x = ((*i).first).second.x();
+          p3.y = ((*i).first).second.y();
+          p3.z = ((*i).first).second.z();
+          global_connection_line_list.points.push_back(p3);
+        }
         
       
     
     global_connection_visualization_pub.publish(global_connection_points);
     global_connection_line_pub.publish(global_connection_line_list);
   }
-
-
-
-
-
 
 
 
@@ -642,12 +711,18 @@ int main(int argc, char *argv[])
     ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
     cout << "Accessible frontiers array size is " << ext.size() << endl;
     // cout << "Local frontiers array size is " << local.list.size() << endl;
-    // cout << "Global frontiers array size is " << global.list.size() << endl;
+    // cout << "\nGlobal frontiers array size is " << global.list.size() << endl;
     
     // cout << "poselist size is " << positionslist.size() << endl;
     // cout << "old poses array size is " << old_poses.list.size() << endl;
 
+    // if (old_poses.list.size() >= 2) {
+    //   std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> mp = createCompleteGraph(old_poses.list);
+    //   std::cout << "number of possible edges are: " << ((mp[0]).first).first.x() << std::endl;
+    // }
 
+
+    // check the number of edges here 
     if (firstTime) {
       firstTime = false;
       selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
@@ -665,9 +740,12 @@ int main(int argc, char *argv[])
 
     if (next_pub(best_frontier, current.position)) {
 
-      if (ext.size() > 0) {
+      if (ext.size() > 2) {
       
           selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
+          cout << "local frontier X: " << selectedfrontier.x() << endl;
+          cout << "local frontier Y: " << selectedfrontier.y() << endl;
+          cout << "local frontier Z: " << selectedfrontier.z() << endl;
           head_ref = atan2((selectedfrontier.y() - current.position.y()), (selectedfrontier.x() - current.position.x()));
           best_frontier.pose.position.x = selectedfrontier.x();
           best_frontier.pose.position.y = selectedfrontier.y();
@@ -681,9 +759,9 @@ int main(int argc, char *argv[])
       } else {
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
           nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
-          cout << "Nearest to global frontier X: " << nearest_to_global.x() << endl;
-          cout << "Nearest to global frontier Y: " << nearest_to_global.y() << endl;
-          cout << "Nearest to global frontier Z: " << nearest_to_global.z() << endl;
+          cout << "global frontier X: " << selectedgfrontier.x() << endl;
+          cout << "global frontier Y: " << selectedgfrontier.y() << endl;
+          cout << "global frontier Z: " << selectedgfrontier.z() << endl;
           head_ref = atan2((selectedgfrontier.y() - current.position.y()), (selectedgfrontier.x() - current.position.x()));
           best_frontier.pose.position.x = selectedgfrontier.x();
           best_frontier.pose.position.y = selectedgfrontier.y();
@@ -701,12 +779,12 @@ int main(int argc, char *argv[])
     // cout << "Selected local frontier X: " << selectedlocalfrontier.x() << endl;
     // cout << "Selected local frontier Y: " << selectedlocalfrontier.y() << endl;
     // cout << "Selected local frontier Z: " << selectedlocalfrontier.z() << endl;
-
+    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
+                                                                    global_connection_line_pub);
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     cout << "\nExecution time: " << duration_total.count() << " ms " << endl;
-    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
-                                                                    global_connection_line_pub);
+    
     ros::spinOnce();
     rate.sleep();
   }
