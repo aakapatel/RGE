@@ -23,41 +23,144 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Vector3Stamped.h>
-
+#include <limits> // for numeric_limits
+#include <set>
+#include <utility> // for pair
+#include <algorithm>
+#include <iterator>
+#include <iostream>
+#include <vector>
+#include <queue>
+ 
 using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
 
 // Structs
 
+ 
+
+typedef std::list<std::pair<ufo::math::Vector3, double>> old_poses_list_t;
+
+typedef std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, 
+                      std::pair<ufo::math::Vector3, double>>, double>> graph_vector_t;
 
 struct Frontier_main {
   std::list<ufo::math::Vector3> list;
   ufo::math::Vector3 position;
   double heading;
 };
+//Edge class declared early so that,
+//it is available for use in Vertex class
+class Edge;
+ 
+class Vertex{
+public:
+  //vertex label
+  ufo::math::Vector3 name;
+  //Distance value               
+  double distance = numeric_limits<double>::infinity();
+  //To mark it visited           
+  bool visited = false;
+  //Edges connected to the vertex, will lead to next vertex              
+  list<Edge*> adjacentEdge;
+  //distance value updated by which vertex  
+  Vertex* predecessor = nullptr;       
 
-struct Graph {
-  std::pair<ufo::math::Vector3, ufo::math::Vector3> pair;
-  double pair_wt;
+  Vertex(ufo::math::Vector3 name){
+    this->name = name;
+  }
+ 
+  //method to add connect edge with current vertex
+  void addAdjacentEdge(Edge* e){
+    adjacentEdge.push_back(e);
+  }
 };
+ 
+//Will return true if v1's distance < v2's distance
+//Will be used by priority queue
+class Compare{
+public:
+  bool operator()(Vertex *v1, Vertex *v2){
+    return v1->distance < v2->distance? true : false;
+  }
+};
+ 
+class Edge{
+public:
+  Vertex *from;       
+  Vertex *to;      
+  int weight;               
 
-// Definition of Structure "node" and an array to store inputs
-struct node {
-        int x; // x-cordinate of dot
-        int y; // y-cordinate of dot
-        int z; // y-cordinate of dot
-}; 
+  Edge(Vertex* s, Vertex* t, int w){
+    this->from = s;
+    this->to = t;
+    this->weight = w;
+  }
+};
+ 
+class DijkstraAlgorithm{
+public:
+  Vertex *source;
+  priority_queue<Vertex*, vector<Vertex*>, Compare> vertexQueue;
 
-// Definition of Structure "edge"
-// struct edge {
-//          ufo::math::Vector3 t1; // index of dot in dots[] for an end.
-//          ufo::math::Vector3 t2; // index of dot in dots[] for another end.
-//          double weight; // weight (geometric distance between two ends) 
-// };
+  DijkstraAlgorithm(Vertex *s){
+    this->source = s;
+  }
+
+  //main function to implement Dijkstra's Algorithm
+  void computePath(){
+    source->distance = 0;          //Starting vertex distance should be 0
+    list<Edge*> :: iterator eit;   //Iterator to iterate through edges
+
+    vertexQueue.push(source);
+
+    //run algorithm until queue is empty
+    while(!vertexQueue.empty()){     
+      //get vertex from the top of the queue 
+      //i.e. vertex with least distance
+      Vertex* current_vertex = vertexQueue.top();
+          
+      for(Edge* edge: current_vertex->adjacentEdge){
+
+        Vertex *v = edge->to;
+
+        //Check if vertex is not visited
+        if( !v->visited){
+          //Update its distance with the lowest value
+          if(current_vertex->distance + edge->weight < v->distance){
+              v->distance = current_vertex->distance + edge->weight;
+              //also update the preceding vertex
+              v->predecessor =  current_vertex;     
+              vertexQueue.push(v);
+          }
+        }
+      }
+
+      //pop the current vertex from the queue
+      vertexQueue.pop(); 
+      //mark vertex as visited                     
+      current_vertex->visited = true;         
+    }
+  }
+
+  //method to return shortest path in the form of a list
+  list<Vertex*> shortestPath(Vertex *d){
+    list<Vertex*> shortPath;
+
+    shortPath.push_front(d);
+    while(d->predecessor != nullptr){
+      shortPath.push_front(d->predecessor );
+      d = d->predecessor ;
+    }
+    return shortPath;
+  }
+};
 
 
 // Variables
+
+int diy;
 
 float SCALER_AABB;
 float SCALER_X = SCALER_AABB;
@@ -90,6 +193,8 @@ double head_ref;
 bool firstTime = true;
 bool start_flag = true;
 bool move_flag = false;
+int myindex = 0;
+int goaldis;
 // double heading = 0;
 
 bool frontiers_received;
@@ -98,14 +203,14 @@ Frontier_main local;
 Frontier_main global;
 Frontier_main current;
 Frontier_main old_poses;
-Graph edge;
+// Graph edge;
 ufo::math::Vector3 selectedfrontier;
 ufo::math::Vector3 selectedgfrontier;
 ufo::math::Vector3 nearest_to_global;
+double nearest_to_global_id;
 geometry_msgs::PoseStamped best_frontier;
 nav_msgs::Odometry m_currentPose;
 nav_msgs::Odometry m_prevPose;
-// edge lines[10000];
 
 
 ufo::map::OccupancyMapColor myMap(RESOLUTION);
@@ -115,6 +220,8 @@ ufo::map::OccupancyMapColor myMap(RESOLUTION);
 std::list<ufo::math::Vector3> ext;
 std::list<ufo::math::Vector3> accessible;
 std::list<ufo::math::Vector3> positionslist;
+old_poses_list_t akash;
+graph_vector_t COMPLETE_GRAPH;
 
 // Functions
 
@@ -145,6 +252,8 @@ double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2) {
   return dist;
 
 }
+
+
 
 
 
@@ -329,17 +438,18 @@ bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
 
 }
 
-ufo::math::Vector3 visitedToGlobal(std::list<ufo::math::Vector3> visited, ufo::math::Vector3 global_fronier,
+std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, ufo::math::Vector3 global_fronier,
                                           ufo::map::OccupancyMapColor const& map) {
   double num;
   double mynum = 10000000;
-  ufo::math::Vector3 cp;
-  std::list<ufo::math::Vector3>::iterator it;
+  old_poses_list_t::iterator it;
+  std::pair<ufo::math::Vector3, double> cp;
+  // std::list<ufo::math::Vector3>::iterator it;
   for (it = visited.begin(); it != visited.end(); it++) {
 
 
     // The direction from position to goal
-    ufo::math::Vector3 direction = *it - global_fronier;
+    ufo::math::Vector3 direction = it->first - global_fronier;
     // The center between position and goal
     ufo::math::Vector3 center = global_fronier + (direction / 2.0);
     // The distance between position and goal
@@ -357,38 +467,36 @@ ufo::math::Vector3 visitedToGlobal(std::list<ufo::math::Vector3> visited, ufo::m
             ufo::math::Quaternion(roll, pitch, yaw));
 
 
-    double m = calculateDistance(*it, global_fronier);
+    double m = calculateDistance(it->first, global_fronier);
     num = m;
     if (num < mynum && !isInCollision(map, obb, true, false, false, 0)) {
       mynum = num;
-      cp = *it;
+      cp = std::make_pair(it->first, it->second);
+      // cp = *it;
     }
   }
   return cp;
 
 }
 
-// Function to create edges of complete graph from an array of nodes.
-//   Argument: number of nodes stored in the array dots.
-//   ReturnValue: number of edges created.
-//   Assumption: the array lines is large enough to store all edges of complete graph
-// std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>>
-std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> createCompleteGraph(
-                          std::list<ufo::math::Vector3> oldlist, ufo::map::OccupancyMapColor const& map){
+// create a global graph for navigation
+
+std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> createCompleteGraph(
+                          old_poses_list_t oldlist, ufo::map::OccupancyMapColor const& map){
   int k;
-  std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> myvec;
+  std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> myvec;
   k=0; // k is index of array lines
 
-  std::list<ufo::math::Vector3>::iterator it;
+  old_poses_list_t::iterator it;
   
   for (it = oldlist.begin(); it != std::prev(oldlist.end(), 1); it++) {
-    std::list<ufo::math::Vector3>::iterator it2;
+    old_poses_list_t::iterator it2;
     for (it2 = std::next(it, 1); it2 != oldlist.end(); it2++) {
       
 
-      ufo::math::Vector3 direction = *it - *it2;
+      ufo::math::Vector3 direction = (it->first) - (it2->first);
       // The center between position and goal
-      ufo::math::Vector3 center = *it2 + (direction / 2.0);
+      ufo::math::Vector3 center = (it2->first) + (direction / 2.0);
       // The distance between position and goal
       double distance = direction.norm();
       // Normalize direction
@@ -405,13 +513,47 @@ std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>
 
       if (!isInCollision(map, obb, true, false, false, 0)) {
       
-        myvec.insert(myvec.end(), std::make_pair(std::make_pair(*it, *it2), calculateDistance(*it, *it2)));
-
+        // myvec.insert(myvec.end(), std::make_pair(std::make_pair((it->first), (it2->first)), calculateDistance((it->first), (it2->first))));
+        myvec.insert(myvec.end(), std::make_pair(std::make_pair(std::make_pair((it->first), (it2->second)), 
+                                                std::make_pair((it2->first), (it2->second))), calculateDistance((it->first), (it2->first))));
       }
     }
   }
 return myvec;
 }
+
+
+std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> closestInGraph(graph_vector_t cg) {
+
+    // graph_vector_t cg = createCompleteGraph(ola, map);
+
+    graph_vector_t::iterator it;
+
+    // int *node;
+    
+    double mypp = 100000000;
+
+    std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> close;
+
+    for (it = cg.begin(); it != cg.end(); it++) {
+
+      double pp = calculateDistance((((it)->first).first.first), current.position);
+
+      if (pp < mypp) {
+
+        mypp = pp;
+        close = *it;
+
+      }
+
+    }
+  
+  return close;
+
+}
+
+
+
 
 
 
@@ -473,12 +615,16 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
                                             m_prevPose.pose.pose.position.z);
 
     
-    if (calculateDistance(newPoint, oldPoint) > 2) {
+    if (calculateDistance(newPoint, oldPoint) > 0.2) {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
+      myindex = myindex + 1;
+      akash.push_back(std::make_pair(oldPoint, myindex));
       
     }
-    if (calculateDistance(newPoint, oldPoint) > 1.8) {
+
+
+    if (calculateDistance(newPoint, oldPoint) > 0.3) {
       move_flag = true;
       
       
@@ -628,7 +774,8 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_connection_line_list.color.a = 1.0;
     // selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
     // nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
-    std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> mp = createCompleteGraph(old_poses.list, myMap);
+    std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, 
+                                  std::pair<ufo::math::Vector3, double>>, double>> mp = createCompleteGraph(akash, myMap);
     geometry_msgs::Point p1;
       p1.x = nearest_to_global.x();
       p1.y = nearest_to_global.y();
@@ -640,14 +787,14 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
         
           // global_connection_line_list.points.push_back(p2);
           geometry_msgs::Point p2;
-          p2.x = ((*i).first).first.x();
-          p2.y = ((*i).first).first.y();
-          p2.z = ((*i).first).first.z();
+          p2.x = (((*i).first).first).first.x();
+          p2.y = (((*i).first).first).first.y();
+          p2.z = (((*i).first).first).first.z();
           global_connection_line_list.points.push_back(p2);
           geometry_msgs::Point p3;
-          p3.x = ((*i).first).second.x();
-          p3.y = ((*i).first).second.y();
-          p3.z = ((*i).first).second.z();
+          p3.x = (((*i).first).second).first.x();
+          p3.y = (((*i).first).second).first.y();
+          p3.z = (((*i).first).second).first.z();
           global_connection_line_list.points.push_back(p3);
         }
         
@@ -707,22 +854,113 @@ int main(int argc, char *argv[])
 
     */
 
-
     ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-    cout << "Accessible frontiers array size is " << ext.size() << endl;
-    // cout << "Local frontiers array size is " << local.list.size() << endl;
-    // cout << "\nGlobal frontiers array size is " << global.list.size() << endl;
-    
-    // cout << "poselist size is " << positionslist.size() << endl;
-    // cout << "old poses array size is " << old_poses.list.size() << endl;
-
-    // if (old_poses.list.size() >= 2) {
-    //   std::vector<std::pair<std::pair<ufo::math::Vector3, ufo::math::Vector3>, double>> mp = createCompleteGraph(old_poses.list);
-    //   std::cout << "number of possible edges are: " << ((mp[0]).first).first.x() << std::endl;
-    // }
 
 
-    // check the number of edges here 
+    if(old_poses.list.size() > 10) {
+      
+      //vertices
+      std::vector<Vertex *> v;
+      // Vertex *v[old_poses.list.size()];
+      std::list<ufo::math::Vector3>::iterator old_list_it;
+
+      for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
+
+        // for (int i = 0; i <= old_poses.list.size(); i++) {
+
+          v.push_back(new Vertex {*old_list_it});
+
+        // }
+
+      }
+
+      std::vector<Edge *> e;
+
+      for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
+
+        for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
+
+          ///////////////////////////////////////////////////////////////////////////
+
+          ufo::math::Vector3 direction = ((*node_it)->name) - ((*node_it2)->name);
+          // The center between position and goal
+          ufo::math::Vector3 center = ((*node_it)->name) + (direction / 2.0);
+          // The distance between position and goal
+          double distance = direction.norm();
+          // Normalize direction
+          direction /= distance;
+
+          // Calculate yaw, pitch and roll for oriented bounding box
+          double yaw = -atan2(direction[1], direction[0]);
+          double pitch = -asin(direction[2]);
+          double roll = 0;  // TODO: Fix
+          
+          // Create an oriented bounding box between position and goal, with a size radius.
+          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+                  ufo::math::Quaternion(roll, pitch, yaw));
+
+          if (!isInCollision(myMap, obb, true, false, false, 0)) {
+          
+            e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
+            e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
+          }
+          
+        }
+
+      }
+
+      for (auto nd_it = v.begin(); nd_it != v.end(); nd_it++) {
+      
+        for (auto edge_it = e.begin(); edge_it != e.end(); edge_it++) {
+
+            if ((((*nd_it)) == ((*edge_it)->from)) || (((*nd_it)) == ((*edge_it)->to))) {
+
+              (*nd_it)->addAdjacentEdge (*edge_it);
+
+            }
+
+        }
+
+      }
+
+      // Vertex * mvt;
+      int nup;
+      for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
+        
+        selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
+
+        nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
+
+        // cout << "\033[;34mGoal Node\033[0m\n" << nearest_to_global.x() << endl;
+
+        if (nearest_to_global == (*nrt)->name) {
+
+          nup = std::distance(v.begin(), nrt);
+          // cout << "\nnum is : " << nup << endl;
+
+        }
+
+      }
+
+      // int nup = std::distance(v.begin(), nrt);
+
+      // cout << "edges size: " << e.size() << endl;
+      //Driver code
+      DijkstraAlgorithm da(*(--v.end()));
+      da.computePath();
+
+      list<Vertex*> result= da.shortestPath(v[nup]);
+
+      cout<< "\033[;32mShortest Path\033[0m\n";
+      for(Vertex* v: result){
+        cout << (v->name).x() << "\n ";
+      }
+      // v.clear();
+      // e.clear();
+
+    }
+
+
     if (firstTime) {
       firstTime = false;
       selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
@@ -758,7 +996,7 @@ int main(int argc, char *argv[])
           ROS_INFO("Local Frontier Published");
       } else {
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
-          nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
+          nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
           cout << "global frontier X: " << selectedgfrontier.x() << endl;
           cout << "global frontier Y: " << selectedgfrontier.y() << endl;
           cout << "global frontier Z: " << selectedgfrontier.z() << endl;
@@ -779,12 +1017,16 @@ int main(int argc, char *argv[])
     // cout << "Selected local frontier X: " << selectedlocalfrontier.x() << endl;
     // cout << "Selected local frontier Y: " << selectedlocalfrontier.y() << endl;
     // cout << "Selected local frontier Z: " << selectedlocalfrontier.z() << endl;
-    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
-                                                                    global_connection_line_pub);
+
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-    cout << "\nExecution time: " << duration_total.count() << " ms " << endl;
     
+    
+    // cout << "\nExecution time: " << duration_total.count() << " ms " << endl;
+    
+    
+    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
+                                                                    global_connection_line_pub);
     ros::spinOnce();
     rate.sleep();
   }
