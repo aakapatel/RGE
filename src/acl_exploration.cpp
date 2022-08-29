@@ -858,106 +858,54 @@ int main(int argc, char *argv[])
 
 
     if(old_poses.list.size() > 10) {
-      
-      //vertices
+
       std::vector<Vertex *> v;
-      // Vertex *v[old_poses.list.size()];
       std::list<ufo::math::Vector3>::iterator old_list_it;
-
       for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
-
-        // for (int i = 0; i <= old_poses.list.size(); i++) {
-
           v.push_back(new Vertex {*old_list_it});
-
-        // }
-
       }
-
       std::vector<Edge *> e;
-
       for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
-
         for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
-
-          ///////////////////////////////////////////////////////////////////////////
-
           ufo::math::Vector3 direction = ((*node_it)->name) - ((*node_it2)->name);
-          // The center between position and goal
           ufo::math::Vector3 center = ((*node_it)->name) + (direction / 2.0);
-          // The distance between position and goal
           double distance = direction.norm();
-          // Normalize direction
           direction /= distance;
-
-          // Calculate yaw, pitch and roll for oriented bounding box
           double yaw = -atan2(direction[1], direction[0]);
           double pitch = -asin(direction[2]);
           double roll = 0;  // TODO: Fix
-          
-          // Create an oriented bounding box between position and goal, with a size radius.
           ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
                   ufo::math::Quaternion(roll, pitch, yaw));
-
           if (!isInCollision(myMap, obb, true, false, false, 0)) {
-          
             e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
             e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
           }
-          
         }
-
       }
-
       for (auto nd_it = v.begin(); nd_it != v.end(); nd_it++) {
-      
         for (auto edge_it = e.begin(); edge_it != e.end(); edge_it++) {
-
             if ((((*nd_it)) == ((*edge_it)->from)) || (((*nd_it)) == ((*edge_it)->to))) {
-
               (*nd_it)->addAdjacentEdge (*edge_it);
-
             }
-
         }
-
       }
-
-      // Vertex * mvt;
       int nup;
       for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
-        
         selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
-
         nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
-
         // cout << "\033[;34mGoal Node\033[0m\n" << nearest_to_global.x() << endl;
-
         if (nearest_to_global == (*nrt)->name) {
-
           nup = std::distance(v.begin(), nrt);
-          // cout << "\nnum is : " << nup << endl;
-
         }
-
       }
 
-      // int nup = std::distance(v.begin(), nrt);
-
-      // cout << "edges size: " << e.size() << endl;
-      //Driver code
       DijkstraAlgorithm da(*(--v.end()));
       da.computePath();
-
       list<Vertex*> result= da.shortestPath(v[nup]);
-
       cout<< "\033[;32mShortest Path\033[0m\n";
       for(Vertex* v: result){
         cout << (v->name).x() << "\n ";
       }
-      // v.clear();
-      // e.clear();
-
     }
 
 
@@ -1013,16 +961,12 @@ int main(int argc, char *argv[])
       }
 
     }
-    
-    // cout << "Selected local frontier X: " << selectedlocalfrontier.x() << endl;
-    // cout << "Selected local frontier Y: " << selectedlocalfrontier.y() << endl;
-    // cout << "Selected local frontier Z: " << selectedlocalfrontier.z() << endl;
 
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     
-    // cout << "\nExecution time: " << duration_total.count() << " ms " << endl;
+    cout << "\033[;34mExecution time\033[0m\n" << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     
     visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
@@ -1040,7 +984,7 @@ int main(int argc, char *argv[])
 
 1) Fix frontiers detection -- done
 2) Compute information gain -- in process
-3) Fix heading deviation based search 
-4) Active loop closing 
+3) Fix heading deviation based search -- done
+4) Active loop closing --TBD
 
 */
