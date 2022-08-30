@@ -36,9 +36,7 @@ using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
 
-// Structs
-
- 
+// Struct
 
 typedef std::list<std::pair<ufo::math::Vector3, double>> old_poses_list_t;
 
@@ -222,10 +220,10 @@ std::list<ufo::math::Vector3> ext;
 std::list<ufo::math::Vector3> accessible;
 std::list<ufo::math::Vector3> positionslist;
 old_poses_list_t akash;
+old_poses_list_t visited_and_global;
 graph_vector_t COMPLETE_GRAPH;
 
 // Functions
-
 
 // Collision checks
 
@@ -261,9 +259,7 @@ std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const&
 {
   std::list<ufo::math::Vector3> extracted;
 
-
     for (ufo::math::Vector3 goal : flist) {
-
 
       // The direction from position to goal
       ufo::math::Vector3 direction = goal - position;
@@ -290,12 +286,8 @@ std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const&
         extracted.push_back(goal);
 
       }      
-      
-
     }
-
   return extracted;
-
 }
 
 double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
@@ -338,8 +330,6 @@ double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
 bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
                                                               double heading) {
 
-  // for (ufo::math::Vector3 front : allfrontiers) {
-
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
 
@@ -351,8 +341,6 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
 
       return false;
     }
-
-  // }
 
 }
 
@@ -405,11 +393,11 @@ ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global,
     double distance = calculateDistance(globalfrontier, position);
 
       score = distance;
-      if ( (globalfrontier.z() > 3) || (globalfrontier.z() < 0.8)) {
-          score = score + 1000;
-      } else {
-          score = score;
-      }
+      // if ( (globalfrontier.z() > 3) || (globalfrontier.z() < 0.8)) {
+      //     score = score + 1000;
+      // } else {
+      //     score = score;
+      // }
 
       if (score < myScore) {              
           myScore = score;
@@ -427,7 +415,7 @@ bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
   pos.z() = pose.pose.position.z;
 
   double pub_dis = calculateDistance(pos, position);
-  if (pub_dis < 2) {
+  if (pub_dis < 2.55) {
     return true;
   } else {
     return false;
@@ -522,11 +510,7 @@ return myvec;
 
 std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> closestInGraph(graph_vector_t cg) {
 
-    // graph_vector_t cg = createCompleteGraph(ola, map);
-
     graph_vector_t::iterator it;
-
-    // int *node;
     
     double mypp = 100000000;
 
@@ -548,11 +532,6 @@ std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::
   return close;
 
 }
-
-
-
-
-
 
 
 
@@ -612,16 +591,17 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
                                             m_prevPose.pose.pose.position.z);
 
     
-    if (calculateDistance(newPoint, oldPoint) > 0.2) {
+    if (calculateDistance(newPoint, oldPoint) > 1.5) {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
       myindex = myindex + 1;
       akash.push_back(std::make_pair(oldPoint, myindex));
+      visited_and_global.push_back(std::make_pair(oldPoint, myindex));
       
     }
 
 
-    if (calculateDistance(newPoint, oldPoint) > 0.3) {
+    if (calculateDistance(newPoint, oldPoint) > 0.8) {
       move_flag = true;
       
       
@@ -654,6 +634,7 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
   std::list<ufo::math::Vector3> mylist;
   std::list<ufo::math::Vector3> mylist1;
   std::list<ufo::math::Vector3> mylist2;
+  old_poses_list_t mylist3;
   for (geometry_msgs::Point frontier : msg->points) {
 
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
@@ -666,6 +647,12 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
     } else {
       mylist2.push_back(frontier_point);
       global.list = mylist2;
+      for (auto pv = visited_and_global.begin(); pv != visited_and_global.end(); pv ++) {
+        if (!(frontier_point != (*pv).first)) {
+          visited_and_global.push_back(std::make_pair(frontier_point, 0));
+        }
+      }
+      
     }
   }
 
@@ -769,14 +756,13 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_connection_line_list.color.g = 0.75;
     global_connection_line_list.color.b = 0.80;
     global_connection_line_list.color.a = 1.0;
-    // selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
-    // nearest_to_global = visitedToGlobal(old_poses.list, selectedgfrontier, myMap);
+
     std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, 
-                                  std::pair<ufo::math::Vector3, double>>, double>> mp = createCompleteGraph(akash, myMap);
+                                  std::pair<ufo::math::Vector3, double>>, double>> mp = createCompleteGraph(visited_and_global, myMap);
     geometry_msgs::Point p1;
-      p1.x = nearest_to_global.x();
-      p1.y = nearest_to_global.y();
-      p1.z = nearest_to_global.z();
+      p1.x = 0;
+      p1.y = 0;
+      p1.z = 0;
       global_connection_points.points.push_back(p1);
       
         for (auto i = mp.begin(); i != mp.end(); i++) {
@@ -795,8 +781,6 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
           global_connection_line_list.points.push_back(p3);
         }
         
-      
-    
     global_connection_visualization_pub.publish(global_connection_points);
     global_connection_line_pub.publish(global_connection_line_list);
   }
@@ -886,20 +870,21 @@ int main(int argc, char *argv[])
           best_frontier.pose.orientation.w = 0;
           best_frontier_pub.publish(best_frontier);
           ROS_INFO("Local Frontier Published");
+
       } else {
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
           cout << "global frontier X: " << selectedgfrontier.x() << endl;
           cout << "global frontier Y: " << selectedgfrontier.y() << endl;
           cout << "global frontier Z: " << selectedgfrontier.z() << endl;
 
-          ufo::math::Vector3 direction = selectedgfrontier - current.position;
-          ufo::math::Vector3 center = selectedgfrontier + (direction / 2.0);
+          ufo::math::Vector3 direction = current.position - selectedgfrontier;
+          ufo::math::Vector3 center = current.position + (direction / 2.0);
           double distance = direction.norm();
           direction /= distance;
           double yaw = -atan2(direction[1], direction[0]);
           double pitch = -asin(direction[2]);
           double roll = 0;  // TODO: Fix
-          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 2, 2),
           ufo::math::Quaternion(roll, pitch, yaw));
 
           if (!isInCollision(myMap, obb, true, false, false, 0)) {
@@ -913,19 +898,23 @@ int main(int argc, char *argv[])
             best_frontier.pose.orientation.z = head_ref;
             best_frontier.pose.orientation.w = 0;
             best_frontier_pub.publish(best_frontier);
-            ROS_INFO("Global Frontier Published");
+            ROS_INFO("Global Frontier with colission check exist and Published");
 
           } else {
 
             nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
 
-            if(old_poses.list.size() > 10) {
+            if(old_poses.list.size() > 2) {
 
               std::vector<Vertex *> v;
               std::list<ufo::math::Vector3>::iterator old_list_it;
+              std::list<ufo::math::Vector3>::iterator global_frontier_it;
               for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
                   v.push_back(new Vertex {*old_list_it});
               }
+              // for (global_frontier_it = global.list.begin(); global_frontier_it != global.list.end(); global_frontier_it++) {
+              //   v.push_back(new Vertex {*global_frontier_it});
+              // }
               std::vector<Edge *> e;
               for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
                 for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
@@ -962,31 +951,37 @@ int main(int argc, char *argv[])
               DijkstraAlgorithm da(*(--v.end()));
               da.computePath();
               list<Vertex*> result= da.shortestPath(v[nup]);
+              result.push_back(new Vertex {selectedgfrontier});
               cout<< "\033[;32mShortest Path\033[0m\n";
               for(Vertex* v: result){
-                cout << (v->name).x() << "\n ";
+                cout << "X : " << (v->name).x() << "\n ";
+                cout << "Y : " << (v->name).y() << "\n ";
+                cout << "Z : " << (v->name).z() << "\n ";
+                cout << "--------" << "\n ";
               }
               first_gn = true;
+              double wp_dis;
+              geometry_msgs::PoseStamped retrace;
               for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
 
-                geometry_msgs::PoseStamped retrace;
+                // geometry_msgs::PoseStamped retrace;
                 retrace.pose.position.x = (*gn_it)->name.x();
                 retrace.pose.position.y = (*gn_it)->name.y();
                 retrace.pose.position.z = (*gn_it)->name.z();
                 retrace.pose.orientation.x = 0;
                 retrace.pose.orientation.y = 0;
-                retrace.pose.orientation.z = atan2(((*gn_it)->name.y() - current.position.y()), ((*gn_it)->name.x() - current.position.x()));;
+                retrace.pose.orientation.z = atan2(((*gn_it)->name.y() - current.position.y()), ((*gn_it)->name.x() - current.position.x()));
                 retrace.pose.orientation.w = 0;
 
-                double wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
+                wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
                                                       + pow((*gn_it)->name.y() - current.position.y(), 2) 
                                                             + pow((*gn_it)->name.z() - current.position.z(), 2)));
 
-                if(first_gn || (wp_dis < 0.5)) {
+                if(first_gn || (wp_dis < 3)) {
 
-                  // best_frontier = retrace;
+                  best_frontier = retrace;
                   first_gn = false;
-                  best_frontier_pub.publish(retrace);
+                  best_frontier_pub.publish(best_frontier);
                   ROS_INFO("Global Frontier Published");
                 }
 
@@ -1003,7 +998,7 @@ int main(int argc, char *argv[])
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     
-    cout << "\033[;34mExecution time\033[0m\n" << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     
     visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
