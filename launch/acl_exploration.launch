@@ -28,9 +28,9 @@
 		<param name="depth_levels" value="$(arg depth_levels)" />
 		<param name="color_map" value="$(arg color)"/>
   </node>
-  <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
+  <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
 
-  </node>
+  </node> -->
   <node pkg="exploration" type="vis_next" name="vis_next" output="screen">
 
 	</node>

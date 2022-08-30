@@ -170,7 +170,7 @@ float position_z = 0;
 float velocity_x = 0;
 float velocity_y = 0;
 float velocity_z = 0;
-bool map_received = false;
+bool map_received;
 bool position_received;
 float SENSOR_RANGE;
 float SENSOR_MIN;
@@ -191,7 +191,6 @@ double head_ref;
 bool firstTime = true;
 bool start_flag = true;
 bool move_flag = false;
-bool first_gn;
 int myindex = 0;
 int goaldis;
 // double heading = 0;
@@ -202,6 +201,7 @@ Frontier_main local;
 Frontier_main global;
 Frontier_main current;
 Frontier_main old_poses;
+Frontier_main visited_frontiers;
 // Graph edge;
 ufo::math::Vector3 selectedfrontier;
 ufo::math::Vector3 selectedgfrontier;
@@ -423,18 +423,18 @@ bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
 
 }
 
-std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, ufo::math::Vector3 global_fronier,
+ufo::math::Vector3 visitedToGlobal(std::list<ufo::math::Vector3> visited, ufo::math::Vector3 global_fronier,
                                           ufo::map::OccupancyMapColor const& map) {
   double num;
   double mynum = 10000000;
-  old_poses_list_t::iterator it;
-  std::pair<ufo::math::Vector3, double> cp;
+  std::list<ufo::math::Vector3>::iterator it;
+  ufo::math::Vector3 cp;
   // std::list<ufo::math::Vector3>::iterator it;
   for (it = visited.begin(); it != visited.end(); it++) {
 
 
     // The direction from position to goal
-    ufo::math::Vector3 direction = it->first - global_fronier;
+    ufo::math::Vector3 direction = *it - global_fronier;
     // The center between position and goal
     ufo::math::Vector3 center = global_fronier + (direction / 2.0);
     // The distance between position and goal
@@ -452,12 +452,11 @@ std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, 
             ufo::math::Quaternion(roll, pitch, yaw));
 
 
-    double m = calculateDistance(it->first, global_fronier);
+    double m = calculateDistance(*it, global_fronier);
     num = m;
     if (num < mynum && !isInCollision(map, obb, true, false, false, 0)) {
       mynum = num;
-      cp = std::make_pair(it->first, it->second);
-      // cp = *it;
+      cp = *it;
     }
   }
   return cp;
@@ -467,21 +466,21 @@ std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, 
 // create a global graph for navigation
 
 std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> createCompleteGraph(
-                          old_poses_list_t oldlist, ufo::map::OccupancyMapColor const& map){
+                          std::list<ufo::math::Vector3> oldlist, ufo::map::OccupancyMapColor const& map){
   int k;
   std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> myvec;
   k=0; // k is index of array lines
 
-  old_poses_list_t::iterator it;
+  std::list<ufo::math::Vector3>::iterator it;
   
   for (it = oldlist.begin(); it != std::prev(oldlist.end(), 1); it++) {
-    old_poses_list_t::iterator it2;
+    std::list<ufo::math::Vector3>::iterator it2;
     for (it2 = std::next(it, 1); it2 != oldlist.end(); it2++) {
       
 
-      ufo::math::Vector3 direction = (it->first) - (it2->first);
+      ufo::math::Vector3 direction = (*it) - (*it2);
       // The center between position and goal
-      ufo::math::Vector3 center = (it2->first) + (direction / 2.0);
+      ufo::math::Vector3 center = (*it2) + (direction / 2.0);
       // The distance between position and goal
       double distance = direction.norm();
       // Normalize direction
@@ -499,8 +498,8 @@ std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair
       if (!isInCollision(map, obb, true, false, false, 0)) {
       
         // myvec.insert(myvec.end(), std::make_pair(std::make_pair((it->first), (it2->first)), calculateDistance((it->first), (it2->first))));
-        myvec.insert(myvec.end(), std::make_pair(std::make_pair(std::make_pair((it->first), (it2->second)), 
-                                                std::make_pair((it2->first), (it2->second))), calculateDistance((it->first), (it2->first))));
+        myvec.insert(myvec.end(), std::make_pair(std::make_pair(std::make_pair((*it), (0)), 
+                                                std::make_pair((*it2), (0))), calculateDistance((*it), (*it2))));
       }
     }
   }
@@ -758,7 +757,7 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_connection_line_list.color.a = 1.0;
 
     std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, 
-                                  std::pair<ufo::math::Vector3, double>>, double>> mp = createCompleteGraph(visited_and_global, myMap);
+                                  std::pair<ufo::math::Vector3, double>>, double>> mp = createCompleteGraph(visited_frontiers.list, myMap);
     geometry_msgs::Point p1;
       p1.x = 0;
       p1.y = 0;
@@ -834,8 +833,12 @@ int main(int argc, char *argv[])
       main computations to be executed here
 
     */
+    if (map_received) {
 
+    
     ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+
+    }
 
     if (firstTime) {
       firstTime = false;
@@ -849,6 +852,7 @@ int main(int argc, char *argv[])
       best_frontier.pose.orientation.z = head_ref;
       best_frontier.pose.orientation.w = 0;
       best_frontier_pub.publish(best_frontier);
+      visited_frontiers.list.push_back(selectedfrontier);
       ROS_INFO("Local Frontier Published");
     }
 
@@ -869,6 +873,7 @@ int main(int argc, char *argv[])
           best_frontier.pose.orientation.z = head_ref;
           best_frontier.pose.orientation.w = 0;
           best_frontier_pub.publish(best_frontier);
+          visited_frontiers.list.push_back(selectedfrontier);
           ROS_INFO("Local Frontier Published");
 
       } else {
@@ -898,18 +903,19 @@ int main(int argc, char *argv[])
             best_frontier.pose.orientation.z = head_ref;
             best_frontier.pose.orientation.w = 0;
             best_frontier_pub.publish(best_frontier);
+            visited_frontiers.list.push_back(selectedgfrontier);
             ROS_INFO("Global Frontier with colission check exist and Published");
 
           } else {
 
-            nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
+            nearest_to_global = visitedToGlobal(visited_frontiers.list, selectedgfrontier, myMap);
 
-            if(old_poses.list.size() > 2) {
+            if(visited_frontiers.list.size() > 2) {
 
               std::vector<Vertex *> v;
               std::list<ufo::math::Vector3>::iterator old_list_it;
               std::list<ufo::math::Vector3>::iterator global_frontier_it;
-              for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
+              for (old_list_it = visited_frontiers.list.begin(); old_list_it != visited_frontiers.list.end(); old_list_it++) {
                   v.push_back(new Vertex {*old_list_it});
               }
               // for (global_frontier_it = global.list.begin(); global_frontier_it != global.list.end(); global_frontier_it++) {
@@ -942,7 +948,10 @@ int main(int argc, char *argv[])
               }
               int nup;
               for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
-                // cout << "\033[;34mGoal Node\033[0m\n" << nearest_to_global.x() << endl;
+                cout << "\n\033[;34mGoal Node X: \033[0m" << nearest_to_global.x() << endl;
+                cout << "\n\033[;34mGoal Node Y: \033[0m" << nearest_to_global.y() << endl;
+                cout << "\n\033[;34mGoal Node Z: \033[0m" << nearest_to_global.z() << endl;
+                cout << "\n -----------------" << endl;
                 if (nearest_to_global == (*nrt)->name) {
                   nup = std::distance(v.begin(), nrt);
                 }
@@ -959,11 +968,28 @@ int main(int argc, char *argv[])
                 cout << "Z : " << (v->name).z() << "\n ";
                 cout << "--------" << "\n ";
               }
-              first_gn = true;
-              double wp_dis;
+              bool first_gn = true;
+              // double wp_dis;
               geometry_msgs::PoseStamped retrace;
+              geometry_msgs::PoseStamped retrace1;
               for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
 
+                if(first_gn) {
+                first_gn = false;
+                retrace1.pose.position.x = (*result.begin())->name.x();
+                retrace1.pose.position.y = (*result.begin())->name.y();
+                retrace1.pose.position.z = (*result.begin())->name.z();
+                retrace1.pose.orientation.x = 0;
+                retrace1.pose.orientation.y = 0;
+                retrace1.pose.orientation.z = atan2(((*result.begin())->name.y() - current.position.y()), ((*result.begin())->name.x() - current.position.x()));
+                retrace1.pose.orientation.w = 0;
+                best_frontier = retrace1;
+                best_frontier_pub.publish(best_frontier);
+                visited_frontiers.list.push_back(selectedgfrontier);
+                ROS_INFO("Retrace1 Published");
+                
+                }
+                first_gn = false;
                 // geometry_msgs::PoseStamped retrace;
                 retrace.pose.position.x = (*gn_it)->name.x();
                 retrace.pose.position.y = (*gn_it)->name.y();
@@ -973,20 +999,20 @@ int main(int argc, char *argv[])
                 retrace.pose.orientation.z = atan2(((*gn_it)->name.y() - current.position.y()), ((*gn_it)->name.x() - current.position.x()));
                 retrace.pose.orientation.w = 0;
 
-                wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
+                double wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
                                                       + pow((*gn_it)->name.y() - current.position.y(), 2) 
                                                             + pow((*gn_it)->name.z() - current.position.z(), 2)));
 
-                if(first_gn || (wp_dis < 3)) {
+                if(wp_dis < 3) {
 
                   best_frontier = retrace;
-                  first_gn = false;
                   best_frontier_pub.publish(best_frontier);
-                  ROS_INFO("Global Frontier Published");
+                  ROS_INFO("Retracing to global...");
+                  
+                  
                 }
 
               }
-              first_gn = true;
               // result.clear();
             }
           }
@@ -998,14 +1024,15 @@ int main(int argc, char *argv[])
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     
-    cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    // cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     
     visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
                                                                     global_connection_line_pub);
     ros::spinOnce();
     rate.sleep();
-  }
+  
+}
   return 0;
 }
 
