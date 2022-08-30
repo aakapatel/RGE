@@ -415,7 +415,7 @@ bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
   pos.z() = pose.pose.position.z;
 
   double pub_dis = calculateDistance(pos, position);
-  if (pub_dis < 2.55) {
+  if (pub_dis < 3) {
     return true;
   } else {
     return false;
@@ -492,7 +492,7 @@ std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair
       double roll = 0;  // TODO: Fix
       
       // Create an oriented bounding box between position and goal, with a size radius.
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
               ufo::math::Quaternion(roll, pitch, yaw));
 
       if (!isInCollision(map, obb, true, false, false, 0)) {
@@ -602,7 +602,6 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 
     if (calculateDistance(newPoint, oldPoint) > 0.8) {
       move_flag = true;
-      
       
     } else {
       move_flag = false;
@@ -858,7 +857,7 @@ int main(int argc, char *argv[])
 
     if (next_pub(best_frontier, current.position)) {
 
-      if (ext.size() > 2) {
+      if (ext.size() > 0) {
       
           selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
           cout << "local frontier X: " << selectedfrontier.x() << endl;
@@ -889,7 +888,7 @@ int main(int argc, char *argv[])
           double yaw = -atan2(direction[1], direction[0]);
           double pitch = -asin(direction[2]);
           double roll = 0;  // TODO: Fix
-          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 2, 2),
+          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
           ufo::math::Quaternion(roll, pitch, yaw));
 
           if (!isInCollision(myMap, obb, true, false, false, 0)) {
@@ -909,6 +908,10 @@ int main(int argc, char *argv[])
           } else {
 
             nearest_to_global = visitedToGlobal(visited_frontiers.list, selectedgfrontier, myMap);
+                cout << "\n\033[;34mGoal Node X: \033[0m" << nearest_to_global.x() << endl;
+                cout << "\n\033[;34mGoal Node Y: \033[0m" << nearest_to_global.y() << endl;
+                cout << "\n\033[;34mGoal Node Z: \033[0m" << nearest_to_global.z() << endl;
+                cout << "\n -----------------" << endl;
 
             if(visited_frontiers.list.size() > 2) {
 
@@ -931,7 +934,7 @@ int main(int argc, char *argv[])
                   double yaw = -atan2(direction[1], direction[0]);
                   double pitch = -asin(direction[2]);
                   double roll = 0;  // TODO: Fix
-                  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+                  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
                           ufo::math::Quaternion(roll, pitch, yaw));
                   if (!isInCollision(myMap, obb, true, false, false, 0)) {
                     e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
@@ -948,10 +951,7 @@ int main(int argc, char *argv[])
               }
               int nup;
               for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
-                cout << "\n\033[;34mGoal Node X: \033[0m" << nearest_to_global.x() << endl;
-                cout << "\n\033[;34mGoal Node Y: \033[0m" << nearest_to_global.y() << endl;
-                cout << "\n\033[;34mGoal Node Z: \033[0m" << nearest_to_global.z() << endl;
-                cout << "\n -----------------" << endl;
+
                 if (nearest_to_global == (*nrt)->name) {
                   nup = std::distance(v.begin(), nrt);
                 }
@@ -985,7 +985,7 @@ int main(int argc, char *argv[])
                 retrace1.pose.orientation.w = 0;
                 best_frontier = retrace1;
                 best_frontier_pub.publish(best_frontier);
-                visited_frontiers.list.push_back(selectedgfrontier);
+                
                 ROS_INFO("Retrace1 Published");
                 
                 }
@@ -1003,7 +1003,7 @@ int main(int argc, char *argv[])
                                                       + pow((*gn_it)->name.y() - current.position.y(), 2) 
                                                             + pow((*gn_it)->name.z() - current.position.z(), 2)));
 
-                if(wp_dis < 3) {
+                if(wp_dis < 4) {
 
                   best_frontier = retrace;
                   best_frontier_pub.publish(best_frontier);
@@ -1013,6 +1013,7 @@ int main(int argc, char *argv[])
                 }
 
               }
+              visited_frontiers.list.push_back(selectedgfrontier);
               // result.clear();
             }
           }
