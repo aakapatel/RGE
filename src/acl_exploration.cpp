@@ -333,7 +333,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
 
-    if (((angle < 40) && (angle > -40)) && distance < 10) {
+    if (((angle < 40) && (angle > -40)) && distance < 6) {
 
       return true;
 
@@ -601,7 +601,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     }
 
 
-    if (calculateDistance(newPoint, oldPoint) > 0.8) {
+    if (calculateDistance(newPoint, oldPoint) > 1.6) {
       move_flag = true;
       
       
@@ -852,10 +852,14 @@ int main(int argc, char *argv[])
       ROS_INFO("Local Frontier Published");
     }
 
-    if (next_pub(best_frontier, current.position)) {
-
-      if (ext.size() > 2) {
-      
+    switch (1==1) {
+      case 1:
+      ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+      ext.resize(ext.size());
+      switch(ext.size() > 0) {
+        case 1:
+          ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+          ext.resize(ext.size());
           selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
           cout << "local frontier X: " << selectedfrontier.x() << endl;
           cout << "local frontier Y: " << selectedfrontier.y() << endl;
@@ -870,8 +874,9 @@ int main(int argc, char *argv[])
           best_frontier.pose.orientation.w = 0;
           best_frontier_pub.publish(best_frontier);
           ROS_INFO("Local Frontier Published");
-
-      } else {
+          break;
+        
+        case 0:
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
           cout << "global frontier X: " << selectedgfrontier.x() << endl;
           cout << "global frontier Y: " << selectedgfrontier.y() << endl;
@@ -884,113 +889,149 @@ int main(int argc, char *argv[])
           double yaw = -atan2(direction[1], direction[0]);
           double pitch = -asin(direction[2]);
           double roll = 0;  // TODO: Fix
-          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 2, 2),
+          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
           ufo::math::Quaternion(roll, pitch, yaw));
+          // break;
 
-          if (!isInCollision(myMap, obb, true, false, false, 0)) {
+          switch (!isInCollision(myMap, obb, true, false, false, 0)) {
 
-            head_ref = atan2((selectedgfrontier.y() - current.position.y()), (selectedgfrontier.x() - current.position.x()));
-            best_frontier.pose.position.x = selectedgfrontier.x();
-            best_frontier.pose.position.y = selectedgfrontier.y();
-            best_frontier.pose.position.z = selectedgfrontier.z();
-            best_frontier.pose.orientation.x = 0;
-            best_frontier.pose.orientation.y = 0;
-            best_frontier.pose.orientation.z = head_ref;
-            best_frontier.pose.orientation.w = 0;
-            best_frontier_pub.publish(best_frontier);
-            ROS_INFO("Global Frontier with colission check exist and Published");
+            case 1:
+              head_ref = atan2((selectedgfrontier.y() - current.position.y()), (selectedgfrontier.x() - current.position.x()));
+              best_frontier.pose.position.x = selectedgfrontier.x();
+              best_frontier.pose.position.y = selectedgfrontier.y();
+              best_frontier.pose.position.z = selectedgfrontier.z();
+              best_frontier.pose.orientation.x = 0;
+              best_frontier.pose.orientation.y = 0;
+              best_frontier.pose.orientation.z = head_ref;
+              best_frontier.pose.orientation.w = 0;
+              best_frontier_pub.publish(best_frontier);
+              ROS_INFO("Global Frontier with colission check exist and Published");
+              break;
 
-          } else {
-
-            nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
-
-            if(old_poses.list.size() > 2) {
-
-              std::vector<Vertex *> v;
-              std::list<ufo::math::Vector3>::iterator old_list_it;
-              std::list<ufo::math::Vector3>::iterator global_frontier_it;
-              for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
-                  v.push_back(new Vertex {*old_list_it});
-              }
-              // for (global_frontier_it = global.list.begin(); global_frontier_it != global.list.end(); global_frontier_it++) {
-              //   v.push_back(new Vertex {*global_frontier_it});
-              // }
-              std::vector<Edge *> e;
-              for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
-                for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
-                  ufo::math::Vector3 direction = ((*node_it)->name) - ((*node_it2)->name);
-                  ufo::math::Vector3 center = ((*node_it)->name) + (direction / 2.0);
-                  double distance = direction.norm();
-                  direction /= distance;
-                  double yaw = -atan2(direction[1], direction[0]);
-                  double pitch = -asin(direction[2]);
-                  double roll = 0;  // TODO: Fix
-                  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
-                          ufo::math::Quaternion(roll, pitch, yaw));
-                  if (!isInCollision(myMap, obb, true, false, false, 0)) {
-                    e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
-                    e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
+            case 0:
+              nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
+              if(old_poses.list.size() > 2) {
+                std::vector<Vertex *> v;
+                std::list<ufo::math::Vector3>::iterator old_list_it;
+                std::list<ufo::math::Vector3>::iterator global_frontier_it;
+                for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
+                    v.push_back(new Vertex {*old_list_it});
+                }
+                std::vector<Edge *> e;
+                for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
+                  for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
+                    ufo::math::Vector3 direction = ((*node_it)->name) - ((*node_it2)->name);
+                    ufo::math::Vector3 center = ((*node_it)->name) + (direction / 2.0);
+                    double distance = direction.norm();
+                    direction /= distance;
+                    double yaw = -atan2(direction[1], direction[0]);
+                    double pitch = -asin(direction[2]);
+                    double roll = 0;  // TODO: Fix
+                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+                            ufo::math::Quaternion(roll, pitch, yaw));
+                    if (!isInCollision(myMap, obb, true, false, false, 0)) {
+                      e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
+                      e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
+                    }
                   }
                 }
-              }
-              for (auto nd_it = v.begin(); nd_it != v.end(); nd_it++) {
-                for (auto edge_it = e.begin(); edge_it != e.end(); edge_it++) {
-                    if ((((*nd_it)) == ((*edge_it)->from)) || (((*nd_it)) == ((*edge_it)->to))) {
-                      (*nd_it)->addAdjacentEdge (*edge_it);
-                    }
+                for (auto nd_it = v.begin(); nd_it != v.end(); nd_it++) {
+                  for (auto edge_it = e.begin(); edge_it != e.end(); edge_it++) {
+                      if ((((*nd_it)) == ((*edge_it)->from)) || (((*nd_it)) == ((*edge_it)->to))) {
+                        (*nd_it)->addAdjacentEdge (*edge_it);
+                      }
+                  }
                 }
-              }
-              int nup;
-              for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
-                // cout << "\033[;34mGoal Node\033[0m\n" << nearest_to_global.x() << endl;
-                if (nearest_to_global == (*nrt)->name) {
-                  nup = std::distance(v.begin(), nrt);
+                int nup;
+                for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
+                  // cout << "\033[;34mGoal Node\033[0m\n" << nearest_to_global.x() << endl;
+                  if (nearest_to_global == (*nrt)->name) {
+                    nup = std::distance(v.begin(), nrt);
+                  }
                 }
-              }
 
-              DijkstraAlgorithm da(*(--v.end()));
-              da.computePath();
-              list<Vertex*> result= da.shortestPath(v[nup]);
-              result.push_back(new Vertex {selectedgfrontier});
-              cout<< "\033[;32mShortest Path\033[0m\n";
-              for(Vertex* v: result){
-                cout << "X : " << (v->name).x() << "\n ";
-                cout << "Y : " << (v->name).y() << "\n ";
-                cout << "Z : " << (v->name).z() << "\n ";
-                cout << "--------" << "\n ";
-              }
-              first_gn = true;
-              double wp_dis;
-              geometry_msgs::PoseStamped retrace;
-              for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
+                DijkstraAlgorithm da(*(--v.end()));
+                da.computePath();
+                list<Vertex*> result= da.shortestPath(v[nup]);
+                result.push_back(new Vertex {selectedgfrontier});
+                cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n";
+                for(Vertex* v: result){
+                  cout << "X : " << (v->name).x() << "\n ";
+                  cout << "Y : " << (v->name).y() << "\n ";
+                  cout << "Z : " << (v->name).z() << "\n ";
+                  cout << "--------" << "\n ";
+                }
 
+                first_gn = true;
                 // geometry_msgs::PoseStamped retrace;
-                retrace.pose.position.x = (*gn_it)->name.x();
-                retrace.pose.position.y = (*gn_it)->name.y();
-                retrace.pose.position.z = (*gn_it)->name.z();
-                retrace.pose.orientation.x = 0;
-                retrace.pose.orientation.y = 0;
-                retrace.pose.orientation.z = atan2(((*gn_it)->name.y() - current.position.y()), ((*gn_it)->name.x() - current.position.x()));
-                retrace.pose.orientation.w = 0;
+                for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
+                  
+                    ufo::math::Vector3 direction = current.position - selectedgfrontier;
+                    ufo::math::Vector3 center = current.position + (direction / 2.0);
+                    double distance = direction.norm();
+                    direction /= distance;
+                    double yaw = -atan2(direction[1], direction[0]);
+                    double pitch = -asin(direction[2]);
+                    double roll = 0;  // TODO: Fix
+                    ufo::geometry::OBB obbb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+                    ufo::math::Quaternion(roll, pitch, yaw));
 
-                wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
-                                                      + pow((*gn_it)->name.y() - current.position.y(), 2) 
-                                                            + pow((*gn_it)->name.z() - current.position.z(), 2)));
+                    if (!isInCollision(myMap, obbb, true, false, false, 0)) {
 
-                if(first_gn || (wp_dis < 3)) {
+                      head_ref = atan2((selectedgfrontier.y() - current.position.y()), (selectedgfrontier.x() - current.position.x()));
+                      best_frontier.pose.position.x = selectedgfrontier.x();
+                      best_frontier.pose.position.y = selectedgfrontier.y();
+                      best_frontier.pose.position.z = selectedgfrontier.z();
+                      best_frontier.pose.orientation.x = 0;
+                      best_frontier.pose.orientation.y = 0;
+                      best_frontier.pose.orientation.z = head_ref;
+                      best_frontier.pose.orientation.w = 0;
+                      best_frontier_pub.publish(best_frontier);
+                      ROS_INFO("Global Frontier with colission check exist and Published");
+                      break;
 
-                  best_frontier = retrace;
-                  first_gn = false;
-                  best_frontier_pub.publish(best_frontier);
-                  ROS_INFO("Global Frontier Published");
+                    } 
+
+                  geometry_msgs::PoseStamped retrace;
+                  best_frontier.pose.position.x = (*gn_it)->name.x();
+                  best_frontier.pose.position.y = (*gn_it)->name.y();
+                  best_frontier.pose.position.z = (*gn_it)->name.z();
+                  best_frontier.pose.orientation.x = 0;
+                  best_frontier.pose.orientation.y = 0;
+                  best_frontier.pose.orientation.z = atan2(((*gn_it)->name.y() - current.position.y()), ((*gn_it)->name.x() - current.position.x()));
+                  best_frontier.pose.orientation.w = 0;
+
+                  double wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
+                                                        + pow((*gn_it)->name.y() - current.position.y(), 2) 
+                                                              + pow((*gn_it)->name.z() - current.position.z(), 2)));
+
+                  if(first_gn || (wp_dis < 4)) {
+
+                    // best_frontier = retrace;
+                    first_gn = false;
+                    
+                  }
+                  // if(move_flag){
+                    best_frontier_pub.publish(best_frontier);
+                    ROS_INFO("\nRetracing......");
+                  // }
+                    
                 }
+                first_gn = true;
 
               }
-              first_gn = true;
-              // result.clear();
-            }
+
+                break;
+
           }
+
+        ///////////////////////////////////////////////////
+
       }
+      break;
+    // case 0:
+    // // cout << "\n i am out " << endl;
+    // break;
 
     }
 
@@ -998,7 +1039,7 @@ int main(int argc, char *argv[])
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     
-    cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    // cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     
     visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
