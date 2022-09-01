@@ -333,7 +333,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
 
-    if (((angle < 40) && (angle > -40)) && distance < 6) {
+    if (((angle < 40) && (angle > -40)) && distance < 12.5) {
 
       return true;
 
@@ -852,18 +852,18 @@ int main(int argc, char *argv[])
       ROS_INFO("Local Frontier Published");
     }
 
-    switch (1==1) {
+    switch (next_pub(best_frontier, current.position)) {
       case 1:
       ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
       ext.resize(ext.size());
-      switch(ext.size() > 0) {
-        case 1:
+      switch(ext.size() == 0) {
+        case 0:
           ext = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
           ext.resize(ext.size());
           selectedfrontier = selectLocalFrontier(ext, current.position, current.heading);
-          cout << "local frontier X: " << selectedfrontier.x() << endl;
-          cout << "local frontier Y: " << selectedfrontier.y() << endl;
-          cout << "local frontier Z: " << selectedfrontier.z() << endl;
+          // cout << "local frontier X: " << selectedfrontier.x() << endl;
+          // cout << "local frontier Y: " << selectedfrontier.y() << endl;
+          // cout << "local frontier Z: " << selectedfrontier.z() << endl;
           head_ref = atan2((selectedfrontier.y() - current.position.y()), (selectedfrontier.x() - current.position.x()));
           best_frontier.pose.position.x = selectedfrontier.x();
           best_frontier.pose.position.y = selectedfrontier.y();
@@ -874,9 +874,11 @@ int main(int argc, char *argv[])
           best_frontier.pose.orientation.w = 0;
           best_frontier_pub.publish(best_frontier);
           ROS_INFO("Local Frontier Published");
-          break;
+          
+          // break;
         
-        case 0:
+        case 1:
+          cout << "I am in global " << endl;
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
           cout << "global frontier X: " << selectedgfrontier.x() << endl;
           cout << "global frontier Y: " << selectedgfrontier.y() << endl;
@@ -889,7 +891,7 @@ int main(int argc, char *argv[])
           double yaw = -atan2(direction[1], direction[0]);
           double pitch = -asin(direction[2]);
           double roll = 0;  // TODO: Fix
-          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
+          ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 2.5, 2.5),
           ufo::math::Quaternion(roll, pitch, yaw));
           // break;
 
@@ -905,7 +907,7 @@ int main(int argc, char *argv[])
               best_frontier.pose.orientation.z = head_ref;
               best_frontier.pose.orientation.w = 0;
               best_frontier_pub.publish(best_frontier);
-              ROS_INFO("Global Frontier with colission check exist and Published");
+              ROS_INFO("Global Frontier with colission check exist -- Published");
               break;
 
             case 0:
@@ -1039,7 +1041,7 @@ int main(int argc, char *argv[])
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     
-    // cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     
     visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, global_connection_visualization_pub,
