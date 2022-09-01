@@ -46,7 +46,9 @@ typedef std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>,
 struct Frontier_main {
   std::list<ufo::math::Vector3> list;
   ufo::math::Vector3 position;
+  geometry_msgs::PoseStamped pose;
   double heading;
+  nav_msgs::Path path;
 };
 //Edge class declared early so that,
 //it is available for use in Vertex class
@@ -276,7 +278,7 @@ std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const&
       double roll = 0;  // TODO: Fix
       
       // Create an oriented bounding box between position and goal, with a size radius.
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.25, 0.25),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
               ufo::math::Quaternion(roll, pitch, yaw));
 
       // Check if the oriented bounding box collides with either occupied or unknown space,
@@ -333,7 +335,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
 
-    if (((angle < 40) && (angle > -40)) && distance < 12.5) {
+    if (((angle < 40) && (angle > -40)) && distance < 7) {
 
       return true;
 
@@ -448,7 +450,7 @@ std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, 
     double roll = 0;  // TODO: Fix
     
     // Create an oriented bounding box between position and goal, with a size radius.
-    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.25, 0.25),
+    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
             ufo::math::Quaternion(roll, pitch, yaw));
 
 
@@ -493,7 +495,7 @@ std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair
       double roll = 0;  // TODO: Fix
       
       // Create an oriented bounding box between position and goal, with a size radius.
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
               ufo::math::Quaternion(roll, pitch, yaw));
 
       if (!isInCollision(map, obb, true, false, false, 0)) {
@@ -614,6 +616,13 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   }
 
   current.position = ufo::math::Vector3(position_x, position_y, position_z);
+  current.pose.pose.position.x = position_x;
+  current.pose.pose.position.y = position_y;
+  current.pose.pose.position.z = position_z;
+  current.pose.pose.orientation.x = 0;
+  current.pose.pose.orientation.y = 0;
+  current.pose.pose.orientation.z = 0;
+  current.pose.pose.orientation.w = 0;
   tf::Quaternion q(
     msg->pose.pose.orientation.x,
     msg->pose.pose.orientation.y,
@@ -803,6 +812,7 @@ int main(int argc, char *argv[])
   ros::Publisher points_pub = nh.advertise<visualization_msgs::Marker>("visited_nodes", 1);
   ros::Publisher position_pub = nh.advertise<visualization_msgs::Marker>("POSITION", 1);
   ros::Publisher best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
+  ros::Publisher path_to_goal_pub = nh.advertise<nav_msgs::Path>("/hummingbird/path", 1);
   ros::Publisher global_connection_visualization_pub = nh.advertise<visualization_msgs::Marker>("/points_global_connection", 1);
   ros::Publisher global_connection_line_pub = nh.advertise<visualization_msgs::Marker>("/line_global_connection", 1);
   ros::Publisher hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
@@ -850,6 +860,14 @@ int main(int argc, char *argv[])
       best_frontier.pose.orientation.w = 0;
       best_frontier_pub.publish(best_frontier);
       ROS_INFO("Local Frontier Published");
+      best_frontier.header.stamp = ros::Time::now();
+      best_frontier.header.frame_id = "world";
+      current.path.header.stamp = ros::Time::now();
+      current.path.header.frame_id = "world";
+      current.path.poses.push_back(current.pose);
+      current.path.poses.push_back(best_frontier);
+      path_to_goal_pub.publish(current.path);
+      current.path.poses.clear();
     }
 
     switch (next_pub(best_frontier, current.position)) {
@@ -874,6 +892,14 @@ int main(int argc, char *argv[])
           best_frontier.pose.orientation.w = 0;
           best_frontier_pub.publish(best_frontier);
           ROS_INFO("Local Frontier Published");
+          best_frontier.header.stamp = ros::Time::now();
+          best_frontier.header.frame_id = "world";
+          current.path.header.stamp = ros::Time::now();
+          current.path.header.frame_id = "world";
+          current.path.poses.push_back(current.pose);
+          current.path.poses.push_back(best_frontier);
+          path_to_goal_pub.publish(current.path);
+          current.path.poses.clear();
           
           // break;
         
@@ -929,7 +955,7 @@ int main(int argc, char *argv[])
                     double yaw = -atan2(direction[1], direction[0]);
                     double pitch = -asin(direction[2]);
                     double roll = 0;  // TODO: Fix
-                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
                             ufo::math::Quaternion(roll, pitch, yaw));
                     if (!isInCollision(myMap, obb, true, false, false, 0)) {
                       e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
@@ -962,7 +988,26 @@ int main(int argc, char *argv[])
                   cout << "Y : " << (v->name).y() << "\n ";
                   cout << "Z : " << (v->name).z() << "\n ";
                   cout << "--------" << "\n ";
+                  geometry_msgs::PoseStamped global_nodes;
+                  global_nodes.pose.position.x = (v->name).x();
+                  global_nodes.pose.position.y = (v->name).y();
+                  global_nodes.pose.position.z = (v->name).z();
+                  global_nodes.pose.orientation.x = 0;
+                  global_nodes.pose.orientation.y = 0;
+                  global_nodes.pose.orientation.z = 0;
+                  global_nodes.pose.orientation.w = 0;
+
+
+                  global_nodes.header.stamp = ros::Time::now();
+                  global_nodes.header.frame_id = "world";
+                  current.path.header.stamp = ros::Time::now();
+                  current.path.header.frame_id = "world";
+                  current.path.poses.push_back(current.pose);
+                  current.path.poses.push_back(global_nodes);
+                  
                 }
+                path_to_goal_pub.publish(current.path);
+                current.path.poses.clear();
 
                 first_gn = true;
                 // geometry_msgs::PoseStamped retrace;
@@ -1040,7 +1085,7 @@ int main(int argc, char *argv[])
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
-    
+    // path_to_goal_pub.publish(current.path);
     cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     
