@@ -337,7 +337,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
 
-    if (((angle < 40) && (angle > -40)) && distance < 12) {
+    if (((angle < 40) && (angle > -40)) && distance < 7) {
 
       return true;
 
@@ -963,7 +963,7 @@ int main(int argc, char *argv[])
 
             case 0:
               selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
-              nearest_to_global = visitedToGlobal(akash, selectedgfrontier, myMap).first;
+              
               if(old_poses.list.size() > 2) {
                 std::vector<Vertex *> v;
                 std::list<ufo::math::Vector3>::iterator old_list_it;
@@ -971,7 +971,7 @@ int main(int argc, char *argv[])
                 for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
                     v.push_back(new Vertex {*old_list_it});
                 }
-                // v.push_back(new Vertex {current.position});
+                v.push_back(new Vertex {selectedgfrontier});
                 std::vector<Edge *> e;
                 for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
                   for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
@@ -982,7 +982,7 @@ int main(int argc, char *argv[])
                     double yaw = -atan2(direction[1], direction[0]);
                     double pitch = -asin(direction[2]);
                     double roll = 0;  // TODO: Fix
-                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
+                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.2, 0.2),
                             ufo::math::Quaternion(roll, pitch, yaw));
                     if (!isInCollision(myMap, obb, true, false, false, 0)) {
                       e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
@@ -998,34 +998,29 @@ int main(int argc, char *argv[])
                   }
                 }
                 int nup;
+                ufo::math::Vector3 nrv;
+                nrv = visitedToGlobal(akash, selectedgfrontier, myMap).first;
                 for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
-                  // cout << "\033[;34mGoal Node\033[0m\n" << nearest_to_global.x() << endl;
-                  if (nearest_to_global == (*nrt)->name) {
+                  if ((*nrt)->name == nrv) {
                     nup = std::distance(v.begin(), nrt);
                   }
                 }
-                DijkstraAlgorithm da(*(--v.end()));
+                DijkstraAlgorithm da((v.front()));
                 da.computePath();
-                list<Vertex*> result= da.shortestPath(v[nup]);
-                result.push_back(new Vertex {selectedgfrontier});
+                list<Vertex*> result= da.shortestPath(*(--v.end()));
+                // result.push_back(new Vertex {selectedgfrontier});
                 cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n";
-                for(Vertex* v: result){
-                  cout << "X : " << (v->name).x() << "\n ";
-                  cout << "Y : " << (v->name).y() << "\n ";
-                  cout << "Z : " << (v->name).z() << "\n ";
+                for(auto vert_it = result.begin(); vert_it != result.end(); vert_it++){
+                  cout << "X : " << ((*vert_it)->name).x() << "\n ";
+                  cout << "Y : " << ((*vert_it)->name).y() << "\n ";
+                  cout << "Z : " << ((*vert_it)->name).z() << "\n ";
                   cout << "--------" << "\n ";
                   geometry_msgs::PoseStamped global_nodes;
-                  global_nodes.pose.position.x = (v->name).x();
-                  global_nodes.pose.position.y = (v->name).y();
-                  global_nodes.pose.position.z = (v->name).z();
-                  // global_nodes.pose.orientation.x = 0;
-                  // global_nodes.pose.orientation.y = 0;
-                  // global_nodes.pose.orientation.z = 0;
-                  // global_nodes.pose.orientation.w = 0;
+                  global_nodes.pose.position.x = ((*vert_it)->name).x();
+                  global_nodes.pose.position.y = ((*vert_it)->name).y();
+                  global_nodes.pose.position.z = ((*vert_it)->name).z();
                   global_nodes.header.stamp = ros::Time::now();
                   global_nodes.header.frame_id = "world";
-                  current.path.header.stamp = ros::Time::now();
-                  current.path.header.frame_id = "world";
                   // current.path.poses.push_back(current.pose);
                   current.path.poses.push_back(global_nodes);
                 }
