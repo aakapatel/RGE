@@ -411,15 +411,15 @@ ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global,
   return selectg;
 }
 
-bool next_pub(geometry_msgs::PoseStamped pose, ufo::math::Vector3 position) {
+bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
 
   ufo::math::Vector3 pos;
-  pos.x() = pose.pose.position.x;
-  pos.y() = pose.pose.position.y;
-  pos.z() = pose.pose.position.z;
+  pos.x() = best_frontier.pose.position.x;
+  pos.y() = best_frontier.pose.position.y;
+  pos.z() = best_frontier.pose.position.z;
 
-  double pub_dis = calculateDistance(pos, position);
-  if (pub_dis < 2.55) {
+  double pub_dis = calculateDistance(pos, current.position);
+  if (pub_dis < 2) {
     return true;
   } else {
     return false;
@@ -902,38 +902,25 @@ int main(int argc, char *argv[])
       current.path.header.stamp = ros::Time::now();
       current.path.header.frame_id = "world";
 
-    traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-
-    if (firstTime) {
-      firstTime = false;
-      selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
-      best_frontier = publish_goal(selectedfrontier);
-      best_frontier_pub.publish(best_frontier);
-      ROS_INFO("Local Frontier Published");
-      current.path.poses.push_back(current.pose);
-      current.path.poses.push_back(best_frontier);
-      path_to_goal_pub.publish(current.path);
-      current.path.poses.clear();
-    }
-
-    switch (next_pub(best_frontier, current.position)) {
-      case 1:
-      traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-      switch(traversable.list.size() != 0) {
-        case 1:
-          traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-          selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
-          best_frontier = publish_goal(selectedfrontier);
-          best_frontier_pub.publish(best_frontier);
-          ROS_INFO("Local Frontier Published");
-          current.path.poses.push_back(current.pose);
-          current.path.poses.push_back(best_frontier);
-          path_to_goal_pub.publish(current.path);
-          current.path.poses.clear();
-          break;
-        
-        case 0:
-          // cout << "I am in global " << endl;
+    if (firstTime || next_pub(best_frontier)) {
+      if (local.list.size() > 0) {
+        traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+        while (traversable.list.size() != 0) {
+            firstTime = false;
+            traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+            selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
+            best_frontier = publish_goal(selectedfrontier);
+            best_frontier_pub.publish(best_frontier);
+            ROS_INFO("Local Frontier Published");
+            current.path.poses.push_back(current.pose);
+            current.path.poses.push_back(best_frontier);
+            path_to_goal_pub.publish(current.path);
+            current.path.poses.clear();
+            break;
+        } 
+      }
+      // traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+      while (local.list.size() == 0) {
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
           cout << "global frontier X: " << selectedgfrontier.x() << endl;
           cout << "global frontier Y: " << selectedgfrontier.y() << endl;
@@ -947,11 +934,9 @@ int main(int argc, char *argv[])
           double roll = 0;  // TODO: Fix
           ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
           ufo::math::Quaternion(roll, pitch, yaw));
-          // break;
 
-          switch (!isInCollision(myMap, obb, true, false, false, 0)) {
+          if (!isInCollision(myMap, obb, true, false, false, 0)) {
 
-            case 1:
               best_frontier = publish_goal(selectedgfrontier);
               best_frontier_pub.publish(best_frontier);
               ROS_INFO("Global Frontier with colission check exist -- Published");
@@ -959,15 +944,12 @@ int main(int argc, char *argv[])
               current.path.poses.push_back(best_frontier);
               path_to_goal_pub.publish(current.path);
               current.path.poses.clear();
-              break;
+          } else {
 
-            case 0:
               selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
-              
               if(old_poses.list.size() > 2) {
                 std::vector<Vertex *> v;
                 std::list<ufo::math::Vector3>::iterator old_list_it;
-                std::list<ufo::math::Vector3>::iterator global_frontier_it;
                 for (old_list_it = old_poses.list.begin(); old_list_it != old_poses.list.end(); old_list_it++) {
                     v.push_back(new Vertex {*old_list_it});
                 }
@@ -1027,55 +1009,25 @@ int main(int argc, char *argv[])
                 path_to_goal_pub.publish(current.path);
                 current.path.poses.clear();
                 first_gn = true;
-                // geometry_msgs::PoseStamped retrace;
                 for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
-                    ufo::math::Vector3 direction = current.position - selectedgfrontier;
-                    ufo::math::Vector3 center = current.position + (direction / 2.0);
-                    double distance = direction.norm();
-                    direction /= distance;
-                    double yaw = -atan2(direction[1], direction[0]);
-                    double pitch = -asin(direction[2]);
-                    double roll = 0;  // TODO: Fix
-                    ufo::geometry::OBB obbb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
-                    ufo::math::Quaternion(roll, pitch, yaw));
-                    if (!isInCollision(myMap, obbb, true, false, false, 0)) {
-                      best_frontier = publish_goal(selectedgfrontier);
-                      best_frontier_pub.publish(best_frontier);
-                      current.path.poses.push_back(current.pose);
-                      current.path.poses.push_back(best_frontier);
-                      path_to_goal_pub.publish(current.path);
-                      current.path.poses.clear();
-                      ROS_INFO("Global Frontier with colission check exist and Published");
-                      break;
-                    } else {
-                        geometry_msgs::PoseStamped retrace;
-                        best_frontier.pose.position.x = (*gn_it)->name.x();
-                        best_frontier.pose.position.y = (*gn_it)->name.y();
-                        best_frontier.pose.position.z = (*gn_it)->name.z();
-                        best_frontier.pose.orientation.x = 0;
-                        best_frontier.pose.orientation.y = 0;
-                        best_frontier.pose.orientation.z = atan2(((*gn_it)->name.y() - current.position.y()), ((*gn_it)->name.x() - current.position.x()));
-                        best_frontier.pose.orientation.w = 0;
-                        double wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
-                                                              + pow((*gn_it)->name.y() - current.position.y(), 2) 
-                                                                    + pow((*gn_it)->name.z() - current.position.z(), 2)));
-                        // if(first_gn || (wp_dis < 2)) {
-                          best_frontier_pub.publish(best_frontier);
-                          ROS_INFO("\nRetracing......");  
-                          first_gn = false;
-                          break;
-                        // }
-                           
-                      }
+                  geometry_msgs::PoseStamped retrace;
+                  best_frontier = publish_goal((*gn_it)->name);
+                  best_frontier_pub.publish(best_frontier);
+                  double wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
+                                                        + pow((*gn_it)->name.y() - current.position.y(), 2) 
+                                                              + pow((*gn_it)->name.z() - current.position.z(), 2)));
+                  if(first_gn || (wp_dis < 2)) {
+                    best_frontier_pub.publish(best_frontier);
+                    ROS_INFO("\nRetracing......");  
+                    first_gn = false;
+                  }     
                 }
               }
-              break;
           }
         break;
       }
-      break;
-    }
 
+  }
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
