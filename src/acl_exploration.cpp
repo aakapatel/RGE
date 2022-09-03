@@ -161,7 +161,7 @@ public:
 // Variables
 
 int diy;
-
+bool did = false;
 float SCALER_AABB;
 float SCALER_X = SCALER_AABB;
 float SCALER_Y = SCALER_AABB;
@@ -199,7 +199,7 @@ int goaldis;
 bool explore_begin = true;
 // double heading = 0;
 
-bool frontiers_received;
+bool frontiers_received = false;
 Frontier_main all;
 Frontier_main local;
 Frontier_main global;
@@ -337,7 +337,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
 
-    if (((angle < 40) && (angle > -40)) && distance < 7) {
+    if (((angle < 40) && (angle > -40)) && distance < 10) {
 
       return true;
 
@@ -686,12 +686,15 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
     }
 
   }
+  if (local.list.size() != 0) {
+  traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+  }
 
 }
 
 // Publish all visualization messages here.
 
-void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Publisher* map_pub, 
+void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, 
                                                       ros::Publisher* hits_pub, ros::Publisher* local_nodes_pub, ros::Publisher* global_nodes_pub,
                                                               ros::Publisher global_connection_visualization_pub,
                                                                     ros::Publisher global_connection_line_pub){
@@ -864,13 +867,13 @@ int main(int argc, char *argv[])
   ros::Publisher hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   ros::Publisher local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   ros::Publisher global_nodes_pub = nh.advertise<visualization_msgs::Marker>("global_frontier_nodes_vis", 1);
-  ros::Publisher map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
-  // ros::Subscriber sub = nh.subscribe("/odometry/imu", 1, odomCallback);
 
   ros::Rate rate(10);
+
+
   
   // Dynamic reconfigure
   dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
@@ -885,6 +888,7 @@ int main(int argc, char *argv[])
 
   while(ros::ok()){
 
+    // if (frontiers_received) {
     // if (explore_begin) {
     //   ros::Duration(2).sleep();
     //   explore_begin = false;
@@ -897,35 +901,41 @@ int main(int argc, char *argv[])
 
     */
 
-      best_frontier.header.stamp = ros::Time::now();
-      best_frontier.header.frame_id = "world";
-      current.path.header.stamp = ros::Time::now();
-      current.path.header.frame_id = "world";
+    best_frontier.header.stamp = ros::Time::now();
+    best_frontier.header.frame_id = "world";
+    current.path.header.stamp = ros::Time::now();
+    current.path.header.frame_id = "world";
+    
+    geometry_msgs::PoseStamped initialize;
+    if (firstTime) {
 
-    if (firstTime || next_pub(best_frontier)) {
-      if (local.list.size() > 0) {
-        traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-        while (traversable.list.size() != 0) {
-            firstTime = false;
-            traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-            selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
-            best_frontier = publish_goal(selectedfrontier);
-            best_frontier_pub.publish(best_frontier);
-            ROS_INFO("Local Frontier Published");
-            current.path.poses.push_back(current.pose);
-            current.path.poses.push_back(best_frontier);
-            path_to_goal_pub.publish(current.path);
-            current.path.poses.clear();
-            break;
-        } 
-      }
-      // traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-      while (local.list.size() == 0) {
+      firstTime = false;
+      initialize.pose.position.x = 2;
+      initialize.pose.position.y = 0;
+      initialize.pose.position.z = 1;
+      initialize.pose.orientation.x = 0;
+      initialize.pose.orientation.y = 0;
+      initialize.pose.orientation.z = 0;
+      initialize.pose.orientation.w = 0;
+      best_frontier_pub.publish(initialize);
+      cout << "Initializing exploration....! \n" << endl; 
+      ros::Duration(1).sleep();
+      cout << "\nlocal : " << local.list.size();
+      cout << "\nGlobal : " << global.list.size();
+      cout << "\nTraversable : " << traversable.list.size(); 
+    }
+
+    while (next_pub(best_frontier) || next_pub(initialize)) {
+
+      while (traversable.list.size() == 0 && global.list.size() != 0) {
           selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
           cout << "global frontier X: " << selectedgfrontier.x() << endl;
           cout << "global frontier Y: " << selectedgfrontier.y() << endl;
           cout << "global frontier Z: " << selectedgfrontier.z() << endl;
-          ufo::math::Vector3 direction = current.position - selectedgfrontier;
+
+          for (ufo::math::Vector3 globalF : global.list) {
+
+          ufo::math::Vector3 direction = globalF - current.position;
           ufo::math::Vector3 center = current.position + (direction / 2.0);
           double distance = direction.norm();
           direction /= distance;
@@ -937,7 +947,7 @@ int main(int argc, char *argv[])
 
           if (!isInCollision(myMap, obb, true, false, false, 0)) {
 
-              best_frontier = publish_goal(selectedgfrontier);
+              best_frontier = publish_goal(globalF);
               best_frontier_pub.publish(best_frontier);
               ROS_INFO("Global Frontier with colission check exist -- Published");
               current.path.poses.push_back(current.pose);
@@ -945,6 +955,10 @@ int main(int argc, char *argv[])
               path_to_goal_pub.publish(current.path);
               current.path.poses.clear();
           } else {
+            did = true;
+          }
+          }
+           if (did) {
 
               selectedgfrontier = selectGlobalFrontier(global.list, current.position, current.heading);
               if(old_poses.list.size() > 2) {
@@ -1025,15 +1039,37 @@ int main(int argc, char *argv[])
               }
           }
         break;
+      } 
+
+      while (local.list.size() > 0 && traversable.list.size() != 0) {
+
+            selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
+            best_frontier = publish_goal(selectedfrontier);
+            best_frontier_pub.publish(best_frontier);
+            ROS_INFO("Local Frontier Published");
+            current.path.poses.push_back(current.pose);
+            current.path.poses.push_back(best_frontier);
+            path_to_goal_pub.publish(current.path);
+            current.path.poses.clear();
+            traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
+            break;
+
       }
 
-  }
+  break;
+  } 
+  
+  // else {
+  //       cout << "Exploration complete" << endl;
+  //       ros::Duration(2).sleep();
+  //     }
+
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
-    visualize(&points_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, &global_nodes_pub, global_connection_visualization_pub,
+    visualize(&points_pub, &position_pub, &hits_pub, &local_nodes_pub, &global_nodes_pub, global_connection_visualization_pub,
                                                                     global_connection_line_pub);
     ros::spinOnce();
     rate.sleep();
