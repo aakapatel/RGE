@@ -50,35 +50,24 @@ struct Frontier_main {
   double heading;
   nav_msgs::Path path;
 };
-//Edge class declared early so that,
-//it is available for use in Vertex class
+
 class Edge;
  
 class Vertex{
 public:
-  //vertex label
-  ufo::math::Vector3 name;
-  //Distance value               
-  double distance = numeric_limits<double>::infinity();
-  //To mark it visited           
-  bool visited = false;
-  //Edges connected to the vertex, will lead to next vertex              
+  ufo::math::Vector3 name;            
+  double distance = numeric_limits<double>::infinity();       
+  bool visited = false;            
   list<Edge*> adjacentEdge;
-  //distance value updated by which vertex  
   Vertex* predecessor = nullptr;       
-
   Vertex(ufo::math::Vector3 name){
     this->name = name;
   }
- 
-  //method to add connect edge with current vertex
   void addAdjacentEdge(Edge* e){
     adjacentEdge.push_back(e);
   }
 };
- 
-//Will return true if v1's distance < v2's distance
-//Will be used by priority queue
+
 class Compare{
 public:
   bool operator()(Vertex *v1, Vertex *v2){
@@ -107,44 +96,28 @@ public:
   DijkstraAlgorithm(Vertex *s){
     this->source = s;
   }
-
-  //main function to implement Dijkstra's Algorithm
   void computePath(){
-    source->distance = 0;          //Starting vertex distance should be 0
-    list<Edge*> :: iterator eit;   //Iterator to iterate through edges
+    source->distance = 0;         
+    list<Edge*> :: iterator eit;   
 
     vertexQueue.push(source);
-
-    //run algorithm until queue is empty
     while(!vertexQueue.empty()){     
-      //get vertex from the top of the queue 
-      //i.e. vertex with least distance
       Vertex* current_vertex = vertexQueue.top();
           
       for(Edge* edge: current_vertex->adjacentEdge){
-
         Vertex *v = edge->to;
-
-        //Check if vertex is not visited
         if( !v->visited){
-          //Update its distance with the lowest value
           if(current_vertex->distance + edge->weight < v->distance){
               v->distance = current_vertex->distance + edge->weight;
-              //also update the preceding vertex
               v->predecessor =  current_vertex;     
               vertexQueue.push(v);
           }
         }
       }
-
-      //pop the current vertex from the queue
-      vertexQueue.pop(); 
-      //mark vertex as visited                     
+      vertexQueue.pop();                   
       current_vertex->visited = true;         
     }
   }
-
-  //method to return shortest path in the form of a list
   list<Vertex*> shortestPath(Vertex *d){
     list<Vertex*> shortPath;
 
@@ -156,9 +129,6 @@ public:
     return shortPath;
   }
 };
-
-
-// Variables
 
 int diy;
 
@@ -197,7 +167,6 @@ bool first_gn;
 int myindex = 0;
 int goaldis;
 bool explore_begin = true;
-// double heading = 0;
 
 bool frontiers_received;
 Frontier_main all;
@@ -206,7 +175,6 @@ Frontier_main global;
 Frontier_main current;
 Frontier_main old_poses;
 Frontier_main traversable;
-// Graph edge;
 ufo::math::Vector3 selectedfrontier;
 ufo::math::Vector3 selectedgfrontier;
 ufo::math::Vector3 nearest_to_global;
@@ -217,9 +185,6 @@ nav_msgs::Odometry m_prevPose;
 
 
 ufo::map::OccupancyMapColor myMap(RESOLUTION);
-
-// Lists
-// std::list<ufo::math::Vector3> extracted;
 std::list<ufo::math::Vector3> ext;
 std::list<ufo::math::Vector3> accessible;
 std::list<ufo::math::Vector3> positionslist;
@@ -227,33 +192,25 @@ old_poses_list_t akash;
 old_poses_list_t visited_and_global;
 graph_vector_t COMPLETE_GRAPH;
 
-// Functions
-
-// Collision checks
+//--------------------------------- FUNCTIONS ----------------------------------------------//
 
 bool isInCollision(ufo::map::OccupancyMapColor const& map, 
                    ufo::geometry::BoundingVar const& bounding_volume, 
                    bool occupied_space = true, bool free_space = false,
                    bool unknown_space = false, ufo::map::DepthType min_depth = 3)
 {
-  // Iterate through all leaf nodes that intersects the bounding volume
   for (auto it = map.beginLeaves(bounding_volume, occupied_space, 
                                  free_space, unknown_space, false, min_depth), 
         it_end = map.endLeaves(); it != it_end; ++it) {
-    // Is in collision since a leaf node intersects the bounding volume.
     return true;
   }
-  // No leaf node intersects the bounding volume.
   return false;
 }
 
 double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2) {
-
   double dist = abs(sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) 
                                                           + pow(point1.z() - point2.z(), 2)));
-  
   return dist;
-
 }
 
 std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const& map, 
@@ -262,33 +219,18 @@ std::list<ufo::math::Vector3> extractUnknowns(ufo::map::OccupancyMapColor const&
                    bool unknown_space = false, ufo::map::DepthType min_depth = 0)
 {
   std::list<ufo::math::Vector3> extracted;
-
     for (ufo::math::Vector3 goal : flist) {
-
-      // The direction from position to goal
       ufo::math::Vector3 direction = goal - position;
-      // The center between position and goal
       ufo::math::Vector3 center = position + (direction / 2.0);
-      // The distance between position and goal
       double distance = direction.norm();
-      // Normalize direction
       direction /= distance;
-
-      // Calculate yaw, pitch and roll for oriented bounding box
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      
-      // Create an oriented bounding box between position and goal, with a size radius.
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
-
-      // Check if the oriented bounding box collides with either occupied or unknown space,
-      // at depth 3 (16 cm)
       if (!isInCollision(map, obb, true, false, false, 0)) {
-
         extracted.push_back(goal);
-
       }      
     }
   return extracted;
@@ -299,7 +241,6 @@ double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
 
   double head = atan2((fpoint.y() - position.y()), (fpoint.x() - position.x())) * (180/3.14159);
   double angle = head - heading;
-
   if (head > -180 && head < -90) {
           if (heading > -180 && heading < -90) {                
               angle = head - heading;
@@ -326,48 +267,34 @@ double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
           }
       }
   }
-
   return angle;
-
 }
 
 bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
                                                               double heading) {
-
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
-
     if (((angle < 40) && (angle > -40)) && distance < 7) {
-
       return true;
-
     } else {
-
       return false;
     }
-
 }
 
 ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible, 
                                                 ufo::math::Vector3 position, double heading) {
-
   double cost;
   double mycost = 100000000;
   ufo::math::Vector3 select;
   for (ufo::math::Vector3 localfrontier : accessible) {
-
     double distance = calculateDistance(localfrontier, position);
     double angle = calculateAngle(localfrontier, position, heading);
-
-    // if (((angle < 10) && (angle > -10)) && distance < 10) {
-
       cost = angle;
       if ( (localfrontier.z() > 3) || (localfrontier.z() < 0.8)) {
           cost = cost + 10000;
       } else {
           cost = cost;
       }
-
       if (cost < 0) {
           cost = -cost;          
           if (cost < mycost) {             
@@ -381,28 +308,19 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
               select = localfrontier;
           }
       }
-    // }
+
   }
   return select;
 }
 
 ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global, 
                                                 ufo::math::Vector3 position, double heading) {
-
   double score;
   double myScore = 100000000;
   ufo::math::Vector3 selectg;
   for (ufo::math::Vector3 globalfrontier : global) {
-
     double distance = calculateDistance(globalfrontier, position);
-
       score = distance;
-      // if ( (globalfrontier.z() > 3) || (globalfrontier.z() < 0.8)) {
-      //     score = score + 1000;
-      // } else {
-      //     score = score;
-      // }
-
       if (score < myScore) {              
           myScore = score;
           selectg = globalfrontier;
@@ -417,7 +335,6 @@ bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
   pos.x() = best_frontier.pose.position.x;
   pos.y() = best_frontier.pose.position.y;
   pos.z() = best_frontier.pose.position.z;
-
   double pub_dis = calculateDistance(pos, current.position);
   if (pub_dis < 2) {
     return true;
@@ -433,76 +350,46 @@ std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, 
   double mynum = 10000000;
   old_poses_list_t::iterator it;
   std::pair<ufo::math::Vector3, double> cp;
-  // std::list<ufo::math::Vector3>::iterator it;
   for (it = visited.begin(); it != visited.end(); it++) {
-
-
-    // The direction from position to goal
     ufo::math::Vector3 direction = it->first - global_fronier;
-    // The center between position and goal
     ufo::math::Vector3 center = global_fronier + (direction / 2.0);
-    // The distance between position and goal
     double distance = direction.norm();
-    // Normalize direction
     direction /= distance;
-
-    // Calculate yaw, pitch and roll for oriented bounding box
     double yaw = -atan2(direction[1], direction[0]);
     double pitch = -asin(direction[2]);
     double roll = 0;  // TODO: Fix
-    
-    // Create an oriented bounding box between position and goal, with a size radius.
     ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
             ufo::math::Quaternion(roll, pitch, yaw));
-
-
     double m = calculateDistance(it->first, global_fronier);
     num = m;
     if (num < mynum && !isInCollision(map, obb, true, false, false, 0)) {
       mynum = num;
       cp = std::make_pair(it->first, it->second);
-      // cp = *it;
     }
   }
   return cp;
-
 }
 
 // create a global graph for navigation
 
 std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> createCompleteGraph(
                           old_poses_list_t oldlist, ufo::map::OccupancyMapColor const& map){
-  int k;
-  std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> myvec;
-  k=0; // k is index of array lines
 
+  std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double>> myvec;
   old_poses_list_t::iterator it;
-  
   for (it = oldlist.begin(); it != std::prev(oldlist.end(), 1); it++) {
     old_poses_list_t::iterator it2;
     for (it2 = std::next(it, 1); it2 != oldlist.end(); it2++) {
-      
-
       ufo::math::Vector3 direction = (it->first) - (it2->first);
-      // The center between position and goal
       ufo::math::Vector3 center = (it2->first) + (direction / 2.0);
-      // The distance between position and goal
       double distance = direction.norm();
-      // Normalize direction
       direction /= distance;
-
-      // Calculate yaw, pitch and roll for oriented bounding box
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      
-      // Create an oriented bounding box between position and goal, with a size radius.
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
               ufo::math::Quaternion(roll, pitch, yaw));
-
       if (!isInCollision(map, obb, true, false, false, 0) && distance < 10) {
-      
-        // myvec.insert(myvec.end(), std::make_pair(std::make_pair((it->first), (it2->first)), calculateDistance((it->first), (it2->first))));
         myvec.insert(myvec.end(), std::make_pair(std::make_pair(std::make_pair((it->first), (it2->second)), 
                                                 std::make_pair((it2->first), (it2->second))), calculateDistance((it->first), (it2->first))));
       }
@@ -513,28 +400,17 @@ return myvec;
 
 
 std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> closestInGraph(graph_vector_t cg) {
-
     graph_vector_t::iterator it;
-    
     double mypp = 100000000;
-
     std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> close;
-
     for (it = cg.begin(); it != cg.end(); it++) {
-
       double pp = calculateDistance((((it)->first).first.first), current.position);
-
       if (pp < mypp) {
-
         mypp = pp;
         close = *it;
-
       }
-
     }
-  
   return close;
-
 }
 
 geometry_msgs::PoseStamped publish_goal(ufo::math::Vector3 selected) {
@@ -546,14 +422,9 @@ geometry_msgs::PoseStamped publish_goal(ufo::math::Vector3 selected) {
   pub_frontier.pose.orientation.y = 0;
   pub_frontier.pose.orientation.z = atan2((selected.y() - current.position.y()), (selected.x() - current.position.x()));;
   pub_frontier.pose.orientation.w = 0;
-  // best_frontier_pub.publish(pub_frontier);
   return pub_frontier;
 }
-
-// End of functions
-// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- //
-// Callback functions
-
+//--------------------------------------------------  CALL BACK FUNCTIONS --------------------------------------------//
 void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const& msg)
 {
   if(ufomap_msgs::msgToUfo(msg->map, myMap)) {
@@ -565,7 +436,6 @@ void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const& msg)
 
 void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 {
-	// Read parameters
 	RADIOUS = config.Radious;
 	SCALER_AABB = config.Bounding_box_radious;
 	SCALER_DISTANCE = config.Scaler_distance_cost;
@@ -576,27 +446,22 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 	SENSOR_HORIZONTAL = config.Sensor_angle_horizontal;
 	SENSOR_VERTICAL = config.Sensor_angle_vertical;
 	RESOLUTION = config.Resolution;
-	
-	
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   position_received = true;
   ufo::math::Vector3 oldPoint;
   ufo::math::Vector3 newPoint;
-  
   position_x = msg->pose.pose.position.x;
   position_y = msg->pose.pose.position.y;
   position_z = msg->pose.pose.position.z;
   velocity_x = msg->twist.twist.linear.x;
   velocity_y = msg->twist.twist.linear.y;
   velocity_z = msg->twist.twist.linear.z;
-
   if (start_flag) {
     m_prevPose = *msg;
     start_flag = false;
   } else {
-
     m_currentPose = *msg;
     newPoint = ufo::math::Vector3(msg->pose.pose.position.x, 
                                       msg->pose.pose.position.y, 
@@ -604,30 +469,20 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     oldPoint = ufo::math::Vector3(m_prevPose.pose.pose.position.x, 
                                       m_prevPose.pose.pose.position.y, 
                                             m_prevPose.pose.pose.position.z);
-
-    
     if (calculateDistance(newPoint, oldPoint) > 1.5) {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
       myindex = myindex + 1;
       akash.push_back(std::make_pair(oldPoint, myindex));
       visited_and_global.push_back(std::make_pair(oldPoint, myindex));
-      
     }
-
-
     if (calculateDistance(newPoint, oldPoint) > 1.6) {
       move_flag = true;
-      
-      
     } else {
       move_flag = false;
     }
-
     old_poses.list = positionslist;
-
   }
-
   current.position = ufo::math::Vector3(position_x, position_y, position_z);
   current.pose.pose.position.x = position_x;
   current.pose.pose.position.y = position_y;
@@ -644,59 +499,40 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   tf::Matrix3x3 m(q);
   m.getRPY(roll, pitch, yaw);
   current.heading = yaw * (180/3.14159);
-  
-  
 }
 
 void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
 
   frontiers_received = true;
   ufo::math::Vector3 frontier_point;
-  
   std::list<ufo::math::Vector3> mylist;
   std::list<ufo::math::Vector3> mylist1;
   std::list<ufo::math::Vector3> mylist2;
-  old_poses_list_t mylist3;
   for (geometry_msgs::Point frontier : msg->points) {
-
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
-
-    // The robot's size (radius)
     double radius = 1;
-
-    // Sphere with center at position and radius radius.
     ufo::geometry::Sphere sphere(frontier_point, radius);
-
-    // Check if the robot is currently in collision with occupied space 
-    // at the finest map resolution, depth 0 (2 cm).
     if (!isInCollision(myMap, sphere, true, false, false, 0)) {    
-
     mylist.push_back(frontier_point);
     all.list = mylist;
-    // std::cout << "the frontiers list size is: " << frontiers.list.size() << std::endl;
     if (isLocal(frontier_point, current.position, current.heading)) {
       mylist1.push_back(frontier_point);
       local.list = mylist1;
     } else {
       mylist2.push_back(frontier_point);
       global.list = mylist2;
-
-      
     }
     }
-
   }
 
 }
-
-// Publish all visualization messages here.
 
 void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Publisher* map_pub, 
                                                       ros::Publisher* hits_pub, ros::Publisher* local_nodes_pub, ros::Publisher* global_nodes_pub,
                                                               ros::Publisher global_connection_visualization_pub,
                                                                     ros::Publisher global_connection_line_pub){
   visualization_msgs::Marker POSITION_point, HITS_points, local_frontier_nodes, global_frontier_nodes, global_connection_points, global_connection_line_list;
-
+  
   if(old_poses.list.size() >= 0){
     POSITION_point.header.frame_id = "world";
     POSITION_point.ns = "points";
@@ -720,9 +556,7 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
       POSITION_point.points.push_back(p);
     }
     position_pub->publish(POSITION_point);
-    
   }
-
 
   if(traversable.list.size() != 0){
     HITS_points.header.frame_id = "world";
@@ -792,7 +626,6 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_nodes_pub->publish(global_frontier_nodes);
   }
 
-
   if(old_poses.list.size() >= 0){
     global_connection_points.header.frame_id = global_connection_line_list.header.frame_id = "world";
     global_connection_points.ns = "points";
@@ -811,7 +644,6 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_connection_line_list.color.g = 0.75;
     global_connection_line_list.color.b = 0.80;
     global_connection_line_list.color.a = 1.0;
-
     std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, 
                                   std::pair<ufo::math::Vector3, double>>, double>> mp = createCompleteGraph(visited_and_global, myMap);
     geometry_msgs::Point p1;
@@ -819,10 +651,7 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
       p1.y = 0;
       p1.z = 0;
       global_connection_points.points.push_back(p1);
-      
         for (auto i = mp.begin(); i != mp.end(); i++) {
-
-        
           // global_connection_line_list.points.push_back(p2);
           geometry_msgs::Point p2;
           p2.x = (((*i).first).first).first.x();
@@ -839,20 +668,13 @@ void visualize(ros::Publisher* position_pub, ros::Publisher* points_pub, ros::Pu
     global_connection_visualization_pub.publish(global_connection_points);
     global_connection_line_pub.publish(global_connection_line_list);
   }
-
-
-
 }
 
-
-// End of callback functions
-// -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- //
-// Main
+//----------------------------------------- MAIN ---------------------------------------------------//
 
 
 int main(int argc, char *argv[])
 { 
-  // Subscribers and publishers
   ros::init(argc, argv, "ACL_EXPLORATION");
   ros::NodeHandle nh;
   ros::Publisher points_pub = nh.advertise<visualization_msgs::Marker>("visited_nodes", 1);
@@ -868,27 +690,14 @@ int main(int argc, char *argv[])
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
-  // ros::Subscriber sub = nh.subscribe("/odometry/imu", 1, odomCallback);
-
   ros::Rate rate(10);
-  
   // Dynamic reconfigure
   dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
   dynamic_reconfigure::Server<acl_exploration::ServerConfig>::CallbackType f;
   f = boost::bind(&config_callback, _1, _2);
   server.setCallback(f);
-  
-
-  
-  // Main
-
 
   while(ros::ok()){
-
-    // if (explore_begin) {
-    //   ros::Duration(2).sleep();
-    //   explore_begin = false;
-    // }
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
@@ -1049,6 +858,7 @@ int main(int argc, char *argv[])
 1) Fix frontiers detection -- done
 2) Compute information gain -- in process
 3) Fix heading deviation based search -- done
-4) Active loop closing --TBD
+4) Global graph based strategy -- in process
+5) Active loop closing --TBD
 
 */
