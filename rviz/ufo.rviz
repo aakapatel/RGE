@@ -26,6 +26,7 @@ Panels:
         - /Marker4
         - /Marker5
         - /Path1
+        - /Marker7
       Splitter Ratio: 0.5
     Tree Height: 1079
   - Class: rviz/Selection
@@ -75,10 +76,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 8 561
-        "# Leaf Nodes": 23 384
+        "# Inner Nodes": 3 457
+        "# Leaf Nodes": 7 160
         Resolution: 20 cm
-        Size: 383,34 KiB
+        Size: 136,96 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -129,8 +130,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 5.599352836608887
-        Min Value: -0.004785060882568359
+        Max Value: 4.8854146003723145
+        Min Value: -0.00689542293548584
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -251,10 +252,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 8 561
-        "# Leaf Nodes": 23 384
+        "# Inner Nodes": 3 457
+        "# Leaf Nodes": 7 160
         Resolution: 20 cm
-        Size: 383,34 KiB
+        Size: 136,96 KiB
       Min. Depth: 1
       Name: UFOMap
       Occupancy Thresholds:
@@ -307,7 +308,7 @@ Visualization Manager:
       Marker Topic: /visited_nodes
       Name: Marker
       Namespaces:
-        points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -315,7 +316,7 @@ Visualization Manager:
       Marker Topic: /Traversable_frontiers
       Name: Marker
       Namespaces:
-        points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -339,7 +340,7 @@ Visualization Manager:
       Marker Topic: /line_global_connection
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -385,6 +386,14 @@ Visualization Manager:
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /global_frontier_nodes_vis
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /RRT_NODES
       Name: Marker
       Namespaces:
         points: true
