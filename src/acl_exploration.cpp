@@ -37,14 +37,6 @@ using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
 
-// Struct
-struct rrtSolverStatus rrt_solve(struct rrtCache *instance,
-                                 double *u,
-                                 const double *params,
-                                 const double *y0,
-                                 const double *c0);
-                                 
-struct rrtCache *rrt_new(void);
 
 // The node struct.
 // This struct represents the different kinds of points in the rrt, this includes:
@@ -490,7 +482,6 @@ void findShortestPath(node* selectednode){
       }
 
     }
-
 
     if(chosenNode != nullptr){
       (selectednode)->addParent(chosenNode);
@@ -1297,10 +1288,13 @@ int main(int argc, char *argv[])
                 generateRRT(current.position.x(), current.position.y(), current.position.z());
                 node* rrt_pointer;
                 rrt_pointer = selectGlobalFrontier(global.list);
+                cout << "\nGoal Node X : " << ((rrt_pointer)->point)->x() << endl;
+                cout << "\nGoal Node Y : " << ((rrt_pointer)->point)->y() << endl;
+                cout << "\nGoal Node Z : " << ((rrt_pointer)->point)->z() << endl;
                 ALC_POINTS = selectGlobalPath(global.list);
                 // myGoals.push_back(rrt_pointer);
                 // findShortestPath(rrt_pointer);
-                cout << "\nloop closure points list size is: \n " << ALC_POINTS.size()<< endl;
+                cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
 
               if (RRT_TREE.size() > 0) {
                 std::vector<Vertex *> v;
@@ -1311,7 +1305,7 @@ int main(int argc, char *argv[])
                 std::vector<Edge *> e;
                 for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
                   for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
-                    ufo::math::Vector3 direction = ((*node_it)->name) - ((*node_it2)->name);
+                    ufo::math::Vector3 direction = ((*node_it2)->name) - ((*node_it)->name);
                     ufo::math::Vector3 center = ((*node_it)->name) + (direction / 2.0);
                     double distance = direction.norm();
                     direction /= distance;
