@@ -27,8 +27,12 @@ Panels:
         - /Marker5
         - /Path1
         - /Marker7
+        - /Marker8
+        - /Marker9
+        - /Marker10
+        - /Marker11
       Splitter Ratio: 0.5
-    Tree Height: 1079
+    Tree Height: 866
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -44,7 +48,6 @@ Panels:
     Name: Views
     Splitter Ratio: 0.5
   - Class: rviz/Time
-    Experimental: false
     Name: Time
     SyncMode: 0
     SyncSource: PointCloud2
@@ -74,12 +77,12 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: false
     - Class: UFOMap
-      Enabled: true
+      Enabled: false
       Information:
-        "# Inner Nodes": 3 457
-        "# Leaf Nodes": 7 160
+        "# Inner Nodes": 26 729
+        "# Leaf Nodes": 69 736
         Resolution: 20 cm
-        Size: 136,96 KiB
+        Size: 1,14 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -98,7 +101,7 @@ Visualization Manager:
           Y: -1000
           Z: -1000
         Value: true
-      Value: true
+      Value: false
       Voxel Rendering:
         Free:
           Alpha: 0.029999999329447746
@@ -130,8 +133,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 4.8854146003723145
-        Min Value: -0.00689542293548584
+        Max Value: 5.157208442687988
+        Min Value: -0.00692903995513916
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -252,10 +255,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 3 457
-        "# Leaf Nodes": 7 160
+        "# Inner Nodes": 26 833
+        "# Leaf Nodes": 69 304
         Resolution: 20 cm
-        Size: 136,96 KiB
+        Size: 1,14 MiB
       Min. Depth: 1
       Name: UFOMap
       Occupancy Thresholds:
@@ -316,7 +319,7 @@ Visualization Manager:
       Marker Topic: /Traversable_frontiers
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -340,7 +343,7 @@ Visualization Manager:
       Marker Topic: /line_global_connection
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -356,7 +359,7 @@ Visualization Manager:
       Marker Topic: /vis_next/visualization_marker
       Name: Marker
       Namespaces:
-        my_namespace: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -388,7 +391,7 @@ Visualization Manager:
       Marker Topic: /global_frontier_nodes_vis
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -396,7 +399,32 @@ Visualization Manager:
       Marker Topic: /RRT_NODES
       Name: Marker
       Namespaces:
+        "": true
         points: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /CHOSEN_RRT_PATH_VISUALIZATION
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /ALC_PATH
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /ALC_POINTS
+      Name: Marker
+      Namespaces:
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -427,7 +455,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 32.328495025634766
+      Distance: 36.207916259765625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -435,9 +463,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.7732198238372803
-        Y: 0.9786874055862427
-        Z: -2.042943239212036
+        X: 7.37854528427124
+        Y: 0.3741120398044586
+        Z: -2.0423762798309326
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -450,10 +478,10 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1376
+  Height: 1163
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000001c0000004c2fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000004c2000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000004c2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000004c2000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000009cc0000003efc0100000002fb0000000800540069006d00650100000000000009cc000002eb00fffffffb0000000800540069006d0065010000000000000450000000000000000000000806000004c200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001c0000003edfc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000003ed000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000004c2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000004c2000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000074c0000003efc0100000002fb0000000800540069006d006501000000000000074c000003bc00fffffffb0000000800540069006d0065010000000000000450000000000000000000000586000003ed00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -462,6 +490,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: true
-  Width: 2508
-  X: 2612
-  Y: 27
+  Width: 1868
+  X: 4532
+  Y: 189
