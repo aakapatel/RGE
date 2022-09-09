@@ -133,8 +133,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 5.157208442687988
-        Min Value: -0.00692903995513916
+        Max Value: 5.426689147949219
+        Min Value: -0.007886171340942383
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -255,10 +255,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 26 833
-        "# Leaf Nodes": 69 304
+        "# Inner Nodes": 14 433
+        "# Leaf Nodes": 37 240
         Resolution: 20 cm
-        Size: 1,14 MiB
+        Size: 629,21 KiB
       Min. Depth: 1
       Name: UFOMap
       Occupancy Thresholds:
@@ -339,13 +339,13 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /line_global_connection
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /points_global_connection
@@ -399,8 +399,7 @@ Visualization Manager:
       Marker Topic: /RRT_NODES
       Name: Marker
       Namespaces:
-        "": true
-        points: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker

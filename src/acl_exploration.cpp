@@ -517,7 +517,7 @@ void generateRRT(float given_x, float given_y, float given_z){
   RRT_TREE.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(((RRT_TREE.size() <= NUMBER_OF_NODES and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 2000){
+  while(((RRT_TREE.size() <= NUMBER_OF_NODES and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 6000){
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -1261,7 +1261,7 @@ int main(int argc, char *argv[])
   while(ros::ok()){
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
+    traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
     /*
       main computations to be executed here on
 
@@ -1279,10 +1279,9 @@ int main(int argc, char *argv[])
 
     if (firstTime || next_pub(best_frontier)) {
       if (local.list.size() > 0) {
-        traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
-        if (traversable.list.size() != 0) {
+        
+        if (traversable.list.size() > 3) {
             firstTime = false;
-            traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
             selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
             best_frontier = publish_goal(selectedfrontier);
             best_frontier_pub.publish(best_frontier);
@@ -1294,9 +1293,8 @@ int main(int argc, char *argv[])
         }
         // traversable.list.clear(); 
       } 
-      // else {
-
-      if (traversable.list.size() == 0) {
+      // else 
+      if (traversable.list.size() == 0 && global.list.size() > 0) {
                 tuneGeneration(myMap, false, true, false, position_x, position_y, position_z, 3);
                 generateRRT(current.position.x(), current.position.y(), current.position.z());
                 node* rrt_pointer;
@@ -1306,7 +1304,7 @@ int main(int argc, char *argv[])
                 // findShortestPath(rrt_pointer);
                 cout << "\nloop closure points list size is: \n " << ALC_POINTS.size()<< endl;
 
-              if(RRT_TREE.size() > 0) {
+              if (RRT_TREE.size() > 0) {
                 std::vector<Vertex *> v;
                 std::list<ufo::math::Vector3>::iterator old_list_it;
                 for (auto graph_it = RRT_TREE.begin(); graph_it != RRT_TREE.end(); graph_it++) {
@@ -1322,7 +1320,7 @@ int main(int argc, char *argv[])
                     double yaw = -atan2(direction[1], direction[0]);
                     double pitch = -asin(direction[2]);
                     double roll = 0;  // TODO: Fix
-                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.2, 0.2),
+                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
                             ufo::math::Quaternion(roll, pitch, yaw));
                     if (!isInCollision(myMap, obb, true, false, false, 0)) {
                       e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
@@ -1370,19 +1368,20 @@ int main(int argc, char *argv[])
                 }
                 path_to_goal_pub.publish(current.path);
                 current.path.poses.clear();
+                double wp_dis;
                 first_gn = true;
                 for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
-                  geometry_msgs::PoseStamped retrace;
-                  best_frontier = publish_goal((*gn_it)->name);
+
+                  if(first_gn || (wp_dis < 1)) {
                   // best_frontier_pub.publish(best_frontier);
-                  double wp_dis = abs(sqrt(pow(best_frontier.pose.position.x - current.position.x(), 2) 
-                                                        + pow(best_frontier.pose.position.y - current.position.y(), 2) 
-                                                              + pow(best_frontier.pose.position.z - current.position.z(), 2)));
-                  if(first_gn || (wp_dis < 2)) {
+                    wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
+                                                        + pow((*gn_it)->name.y() - current.position.y(), 2) 
+                                                              + pow((*gn_it)->name.z() - current.position.z(), 2)));
                     best_frontier_pub.publish(best_frontier);
                     ROS_INFO("\nRetracing......");  
                     first_gn = false;
-                  }     
+                  }
+                  best_frontier = publish_goal((*gn_it)->name);     
                 }
               }
       }
@@ -1391,7 +1390,7 @@ int main(int argc, char *argv[])
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
-    cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    // cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
     visualize(&points_pub, &chosen_path_visualization_pub, &alc_points_visualization_pub, &alc_path_visualization_pub, &map_pub, &position_pub, &hits_pub, &local_nodes_pub, &global_nodes_pub, global_connection_visualization_pub,
                                                                     global_connection_line_pub);
