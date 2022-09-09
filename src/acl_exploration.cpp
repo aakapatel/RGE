@@ -752,7 +752,7 @@ bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
   pos.y() = best_frontier.pose.position.y;
   pos.z() = best_frontier.pose.position.z;
   double pub_dis = calculateDistance(pos, current.position);
-  if (pub_dis < 2) {
+  if (pub_dis < 1) {
     return true;
   } else {
     return false;
@@ -1269,16 +1269,14 @@ int main(int argc, char *argv[])
       // tuneGeneration(myMap, false, true, false, position_x, position_y, position_z, 3);
       // generateRRT(current.position.x(), current.position.y(), current.position.z());
 
-
       best_frontier.header.stamp = ros::Time::now();
       best_frontier.header.frame_id = "world";
       current.path.header.stamp = ros::Time::now();
       current.path.header.frame_id = "world";
 
 
-
     if (firstTime || next_pub(best_frontier)) {
-      if (local.list.size() > 0) {
+      // if (local.list.size() > 0) {
         
         if (traversable.list.size() > 3) {
             firstTime = false;
@@ -1292,9 +1290,9 @@ int main(int argc, char *argv[])
             current.path.poses.clear();
         }
         // traversable.list.clear(); 
-      } 
+      // } 
       // else 
-      if (traversable.list.size() == 0 && global.list.size() > 0) {
+      if (traversable.list.size() < 3 and global.list.size() > 0) {
                 tuneGeneration(myMap, false, true, false, position_x, position_y, position_z, 3);
                 generateRRT(current.position.x(), current.position.y(), current.position.z());
                 node* rrt_pointer;
@@ -1322,7 +1320,7 @@ int main(int argc, char *argv[])
                     double roll = 0;  // TODO: Fix
                     ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
                             ufo::math::Quaternion(roll, pitch, yaw));
-                    if (!isInCollision(myMap, obb, true, false, false, 0)) {
+                    if (!isInCollision(myMap, obb, true, false, true, 0)) {
                       e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
                       e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
                     }
@@ -1368,21 +1366,9 @@ int main(int argc, char *argv[])
                 }
                 path_to_goal_pub.publish(current.path);
                 current.path.poses.clear();
-                double wp_dis;
-                first_gn = true;
-                for (auto gn_it = result.begin(); gn_it != result.end(); gn_it++) {
-
-                  if(first_gn || (wp_dis < 1)) {
-                  // best_frontier_pub.publish(best_frontier);
-                    wp_dis = abs(sqrt(pow((*gn_it)->name.x() - current.position.x(), 2) 
-                                                        + pow((*gn_it)->name.y() - current.position.y(), 2) 
-                                                              + pow((*gn_it)->name.z() - current.position.z(), 2)));
-                    best_frontier_pub.publish(best_frontier);
-                    ROS_INFO("\nRetracing......");  
-                    first_gn = false;
-                  }
-                  best_frontier = publish_goal((*gn_it)->name);     
-                }
+                best_frontier = publish_goal((v[gol])->name); 
+                v.clear();
+                e.clear();
               }
       }
 
