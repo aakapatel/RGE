@@ -476,7 +476,7 @@ void findShortestPath(node* selectednode){
           if(add){
             distance = totalDistance;
             chosenNode = *it_RRT;
-            // CHOSEN_PATH.push_back(chosenNode);
+            
           }
         }
       }
@@ -486,6 +486,7 @@ void findShortestPath(node* selectednode){
     if(chosenNode != nullptr){
       (selectednode)->addParent(chosenNode);
       chosenNode->addChild(selectednode);
+      CHOSEN_PATH.push_back(chosenNode);
     }
   // }
 }
@@ -508,7 +509,7 @@ void generateRRT(float given_x, float given_y, float given_z){
   RRT_TREE.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(((RRT_TREE.size() <= NUMBER_OF_NODES and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 6000){
+  while(((RRT_TREE.size() <= 10000 and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 10000){
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -627,7 +628,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
                                                               double heading) {
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
-    if (((angle < 40) && (angle > -40)) && distance < 7) {
+    if (((angle < 40) && (angle > -40)) && distance < 10) {
       return true;
     } else {
       return false;
@@ -735,6 +736,21 @@ std::list<node*> selectGlobalPath(std::list<ufo::math::Vector3> global) {
 return alc_candidates;  
 
 }
+
+
+// void setGlobalPath() {
+
+//   for (auto tree_iterator = RRT_TREE.begin(); tree_iterator != RRT_TREE.end(); tree_iterator++) {
+
+
+
+
+
+//   }
+
+
+
+// }
 
 bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
 
@@ -998,7 +1014,7 @@ void visualize(ros::Publisher* points_pub, ros::Publisher* chosen_path_visualiza
     CHOSEN_PATH_points.scale.x = 0.2;
     CHOSEN_PATH_points.scale.y = 0.2;
     CHOSEN_PATH_line_list.scale.x = 0.1;
-    CHOSEN_PATH_points.color.r = 1.0f;
+    CHOSEN_PATH_points.color.b = 1.0f;
     CHOSEN_PATH_points.color.a = 1.0;
     CHOSEN_PATH_line_list.color.b = 1.0;
     CHOSEN_PATH_line_list.color.a = 1.0;
@@ -1020,6 +1036,7 @@ void visualize(ros::Publisher* points_pub, ros::Publisher* chosen_path_visualiza
       }
     }
     chosen_path_visualization_pub->publish(CHOSEN_PATH_points);
+    chosen_path_visualization_pub->publish(CHOSEN_PATH_line_list);
   }
 
 
@@ -1202,9 +1219,6 @@ void visualize(ros::Publisher* points_pub, ros::Publisher* chosen_path_visualiza
 
 //----------------------------------------- MAIN ---------------------------------------------------//
 
-typedef rrtCache* (*arbitrary)();
-typedef rrtSolverStatus (*arbitrary2)(void*, double*, double*, double, double*);
-typedef void (*rrt_clearer)(rrtCache*);
 
 int main(int argc, char *argv[])
 { 
@@ -1241,13 +1255,7 @@ int main(int argc, char *argv[])
   RRT_created = true;
   GOALS_generated = true;
   position_received = true;
-  // allowNewPath = false;
-  // currentTarget = *CHOSEN_PATH.begin();
-  // goalNode = *CHOSEN_PATH.begin();
-  // CHOSEN_PATH_VREF.push_back(0);
-  // CHOSEN_PATH_VREF.push_back(0);
-  // CHOSEN_PATH_VREF.push_back(0);
-  // vref_itterator = CHOSEN_PATH_VREF.begin();
+
 
   while(ros::ok()){
     
@@ -1257,8 +1265,6 @@ int main(int argc, char *argv[])
       main computations to be executed here on
 
     */
-      // tuneGeneration(myMap, false, true, false, position_x, position_y, position_z, 3);
-      // generateRRT(current.position.x(), current.position.y(), current.position.z());
 
       best_frontier.header.stamp = ros::Time::now();
       best_frontier.header.frame_id = "world";
@@ -1267,7 +1273,6 @@ int main(int argc, char *argv[])
 
 
     if (firstTime || next_pub(best_frontier)) {
-      // if (local.list.size() > 0) {
         
         if (traversable.list.size() > 3) {
             firstTime = false;
@@ -1280,9 +1285,6 @@ int main(int argc, char *argv[])
             path_to_goal_pub.publish(current.path);
             current.path.poses.clear();
         }
-        // traversable.list.clear(); 
-      // } 
-      // else 
       if (traversable.list.size() < 3 and global.list.size() > 0) {
                 tuneGeneration(myMap, false, true, false, position_x, position_y, position_z, 3);
                 generateRRT(current.position.x(), current.position.y(), current.position.z());
@@ -1293,12 +1295,14 @@ int main(int argc, char *argv[])
                 cout << "\nGoal Node Z : " << ((rrt_pointer)->point)->z() << endl;
                 ALC_POINTS = selectGlobalPath(global.list);
                 // myGoals.push_back(rrt_pointer);
-                // findShortestPath(rrt_pointer);
-                cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
-
+                findShortestPath(rrt_pointer);
+                // cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
+                cout << "\nPath Consist of : " << CHOSEN_PATH.size() << " Points "<< endl;
+              
+              high_resolution_clock::time_point start_total = high_resolution_clock::now();
+              
               if (RRT_TREE.size() > 0) {
                 std::vector<Vertex *> v;
-                std::list<ufo::math::Vector3>::iterator old_list_it;
                 for (auto graph_it = RRT_TREE.begin(); graph_it != RRT_TREE.end(); graph_it++) {
                     v.push_back(new Vertex {*((*graph_it)->point)});
                 }
@@ -1314,36 +1318,38 @@ int main(int argc, char *argv[])
                     double roll = 0;  // TODO: Fix
                     ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
                             ufo::math::Quaternion(roll, pitch, yaw));
-                    if (!isInCollision(myMap, obb, true, false, true, 0)) {
+                    if (!isInCollision(myMap, obb, true, false, true, 0) && int(calculateDistance((*node_it)->name, (*node_it2)->name)) < 4) {
                       e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
                       e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
                     }
                   }
                 }
+                int src;
+                int gol;
                 for (auto nd_it = v.begin(); nd_it != v.end(); nd_it++) {
                   for (auto edge_it = e.begin(); edge_it != e.end(); edge_it++) {
                       if ((((*nd_it)) == ((*edge_it)->from)) || (((*nd_it)) == ((*edge_it)->to))) {
                         (*nd_it)->addAdjacentEdge (*edge_it);
                       }
                   }
-                }
-                int src;
-                for (auto nrt = v.begin(); nrt != v.end(); nrt++) {
-                  if ((*nrt)->name == current.position) {
-                    src = std::distance(v.begin(), nrt);
+                  if ((*nd_it)->name == current.position) {
+                    src = std::distance(v.begin(), nd_it);
+                  }
+                  if ((*nd_it)->name == *((*rrt_pointer).point)) {
+                    gol = std::distance(v.begin(), nd_it);
                   }
                 }
-                int gol;
-                for (auto grt = v.begin(); grt != v.end(); grt++) {
-                  if ((*grt)->name == *((*rrt_pointer).point)) {
-                    gol = std::distance(v.begin(), grt);
-                  }
-                }
+                
                 DijkstraAlgorithm da(v[src]);
                 da.computePath();
                 list<Vertex*> result= da.shortestPath(v[gol]);
+
+                high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+                auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+                cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+                
                 // result.push_back(new Vertex {selectedgfrontier});
-                cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n";
+                cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n ";
                 for(auto vert_it = result.begin(); vert_it != result.end(); vert_it++){
                   cout << "X : " << ((*vert_it)->name).x() << "\n ";
                   cout << "Y : " << ((*vert_it)->name).y() << "\n ";
@@ -1367,8 +1373,8 @@ int main(int argc, char *argv[])
       }
 
   }
-    high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-    auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+    // high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+    // auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     // cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     
