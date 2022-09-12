@@ -225,6 +225,7 @@ struct Point {
     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
     double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
     double x, y, z;
 
     void Print(std::string name) const
@@ -267,7 +268,6 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
         if (node.myposition == start_pos)
             end_node = node;
     }
-
 
     std::vector<Point> found_path; // Output path
 
@@ -1425,11 +1425,16 @@ int main(int argc, char *argv[])
                 all_nodes.clear();
                 my_nodes.clear();
 
+                Node sample_nd;
+                Node sample_nd2;
+
                 for (auto insert_helper = RRT_TREE.begin(); insert_helper != RRT_TREE.end(); insert_helper++) {
 
                   my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
 
                 }
+
+                cout << "\nMY nodes size is: " << my_nodes.size() << endl;
 
                 for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
 
@@ -1438,8 +1443,8 @@ int main(int argc, char *argv[])
                     ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
                     ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
-                    ufo::math::Vector3 direction = d1 - d2;
-                    ufo::math::Vector3 center = d2 + (direction / 2.0);
+                    ufo::math::Vector3 direction = d2 - d1;
+                    ufo::math::Vector3 center = d1 + (direction / 2.0);
                     double distance = direction.norm();
                     direction /= distance;
                     double yaw = -atan2(direction[1], direction[0]);
@@ -1450,20 +1455,24 @@ int main(int argc, char *argv[])
                     double rang = calculateDistance(d1, d2);
                     if (!isInCollision(myMap, obb, true, false, true, 0) && rang < 6) {
 
-                      Node sample_nd = *graph_it;
-                      Node sample_nd2 = *graph_it2;
+                      sample_nd = *graph_it;
+                      sample_nd2 = *graph_it2;
 
                       sample_nd.AddConnection(sample_nd2);
-                      sample_nd2.AddConnection(sample_nd);
+                      // sample_nd2.AddConnection(sample_nd);
                       
-                      all_nodes.push_back(sample_nd);
-                      all_nodes.push_back(sample_nd2);
+
 
                     }
 
                   }
 
+                      all_nodes.push_back(sample_nd);
+                      all_nodes.push_back(sample_nd2);
+
                 }
+
+
                 
                 double close_dis;
                 double end_dis;

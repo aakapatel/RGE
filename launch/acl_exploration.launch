@@ -35,4 +35,6 @@
 
 	</node>
 
+	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
+
 </launch>
