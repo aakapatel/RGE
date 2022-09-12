@@ -222,14 +222,14 @@ public:
 };
 
 struct Point {
-    Point(int x = 0, int y = 0, int z = 0) : x(x), y(y), z(z) {};
+    Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
-    int DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-    int x, y, z;
+    double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    double x, y, z;
 
     void Print(std::string name) const
     {
-        std::cout << name << " x: " << x << " y: " << y << "z: " << z << std::endl;
+        std::cout << name << " x: " << x << " y: " << y << " z: " << z << std::endl;
     }
 };
 
@@ -239,8 +239,8 @@ struct Node
 
     Point myposition;
 
-    int dist_to_start = 0;
-    int total_dist = INT_MAX;
+    double dist_to_start = 0;
+    double total_dist = INT_MAX;
 
     std::shared_ptr<Node> parent;
     std::shared_ptr< std::vector<Node> > connections{ new std::vector<Node> };
@@ -624,7 +624,7 @@ void generateRRT(float given_x, float given_y, float given_z){
     (*it_clear_helper)->addParent(nullptr);
   }
   RRT_TREE.clear();
-  std::cout << "Building RRT-tree" << std::endl;
+  std::cout << "Building graph...\n " << std::endl;
   node* origin = new node(given_x, given_y, given_z);
   origin->addParent(nullptr);
   RRT_TREE.push_back(origin);
@@ -660,10 +660,10 @@ void generateRRT(float given_x, float given_y, float given_z){
     };
     itterations++;
   };
-  std::cout << "RRT-tree built successfully" << RRT_TREE.size() << std::endl;
+  std::cout << "Graph built successfully with " << RRT_TREE.size() << " number of nodes\n" << std::endl;
   
   if(RUN_BY_NODES){
-    std::cout << "Verifying tree" << std::endl;
+    // std::cout << "Verifying tree" << std::endl;
     int total_childs = 0;
     int total_parents = 0;
     std::list<node*>::iterator it_comeon;
@@ -749,7 +749,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
                                                               double heading) {
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
-    if (((angle < 40) && (angle > -40)) && distance < 10) {
+    if (((angle < 40) && (angle > -40)) && distance < 10 && distance > 3.5) {
       return true;
     } else {
       return false;
@@ -880,7 +880,7 @@ bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
   pos.y() = best_frontier.pose.position.y;
   pos.z() = best_frontier.pose.position.z;
   double pub_dis = calculateDistance(pos, current.position);
-  if (pub_dis < 1) {
+  if (pub_dis < 3) {
     return true;
   } else {
     return false;
@@ -1413,91 +1413,132 @@ int main(int argc, char *argv[])
                 ALC_POINTS = selectGlobalPath(global.list);
 
                 // cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
-                cout << "\nPath Consist of : " << CHOSEN_PATH.size() << " Points "<< endl;
+                // cout << "\nPath Consist of : " << CHOSEN_PATH.size() << " Points "<< endl;
               
               high_resolution_clock::time_point start_total = high_resolution_clock::now();
               
               if (RRT_TREE.size() > 0) {
 
                 std::vector<Node> all_nodes;
+                std::vector<Node> my_nodes;
+                
+                all_nodes.clear();
+                my_nodes.clear();
 
-                Node sample_node1;
-                Node sample_node2;
+                for (auto insert_helper = RRT_TREE.begin(); insert_helper != RRT_TREE.end(); insert_helper++) {
 
-                for (auto graph_it = RRT_TREE.begin(); graph_it != --RRT_TREE.end(); graph_it++) {
+                  my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
 
-                  sample_node1.myposition = { Point{ int(((*graph_it)->point)->x()), int(((*graph_it)->point)->y()), int(((*graph_it)->point)->z()) } };
+                }
 
-                  for (auto graph_it2 = std::next(RRT_TREE.begin(), 1); graph_it2 != RRT_TREE.end(); graph_it2++) {
+                for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
 
-                    ufo::math::Vector3 direction = *((*graph_it2)->point) - *((*graph_it)->point);
-                    ufo::math::Vector3 center = *((*graph_it)->point) + (direction / 2.0);
+                  for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++) {
+                    
+                    ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+                    ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
+
+                    ufo::math::Vector3 direction = d1 - d2;
+                    ufo::math::Vector3 center = d2 + (direction / 2.0);
                     double distance = direction.norm();
                     direction /= distance;
                     double yaw = -atan2(direction[1], direction[0]);
                     double pitch = -asin(direction[2]);
                     double roll = 0;  // TODO: Fix
-                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
+                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
                             ufo::math::Quaternion(roll, pitch, yaw));
-                    if (!isInCollision(myMap, obb, true, false, true, 0)) {
+                    double rang = calculateDistance(d1, d2);
+                    if (!isInCollision(myMap, obb, true, false, true, 0) && rang < 6) {
 
-                      sample_node2.myposition = { Point{ int(((*graph_it2)->point)->x()), int(((*graph_it2)->point)->y()), int(((*graph_it2)->point)->z()) } };
+                      Node sample_nd = *graph_it;
+                      Node sample_nd2 = *graph_it2;
 
-                      sample_node1.AddConnection(sample_node2);
-                      sample_node2.AddConnection(sample_node1);
-                      all_nodes.push_back(sample_node1);
-                      all_nodes.push_back(sample_node2);
+                      sample_nd.AddConnection(sample_nd2);
+                      sample_nd2.AddConnection(sample_nd);
+                      
+                      all_nodes.push_back(sample_nd);
+                      all_nodes.push_back(sample_nd2);
 
                     }
 
                   }
 
                 }
+                
+                double close_dis;
+                double end_dis;
+                double my_end_dis = 100000000;
+                double my_close_dis = 100000000;
+                double a1, b1, c1;
+                double a2, b2, c2;
+                for (auto closest_it = all_nodes.begin(); closest_it != all_nodes.end(); closest_it++) {
+                  
+                  close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) + 
+                                        std::pow((*closest_it).myposition.y - current.position.y(), 2) +
+                                        std::pow((*closest_it).myposition.z - current.position.z(), 2));
 
-                int a1 = int(current.position.x());
-                int b1 = int(current.position.y());
-                int c1 = int(current.position.z());
+                  end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((rrt_pointer)->point)->x(), 2) + 
+                                        std::pow((*closest_it).myposition.y - ((rrt_pointer)->point)->y(), 2) +
+                                        std::pow((*closest_it).myposition.z - ((rrt_pointer)->point)->z(), 2));
+                                        
+                  if (close_dis < my_close_dis) {
+                    my_close_dis = close_dis;
+                    a1 = ((*closest_it).myposition.x);
+                    b1 = ((*closest_it).myposition.y);
+                    c1 = ((*closest_it).myposition.z);
+                  }
+
+                  if (end_dis < my_end_dis) {
+                    my_end_dis = end_dis;
+                    a2 = ((*closest_it).myposition.x);
+                    b2 = ((*closest_it).myposition.y);
+                    c2= ((*closest_it).myposition.z);
+                  }
+
+                }
+
                 Point start_pos { a1, b1, c1 };
-                Point end_pos { int(((rrt_pointer)->point)->x()), int(((rrt_pointer)->point)->y()), int(((rrt_pointer)->point)->z()) };
+                Point end_pos { a2, b2, c2 };
 
-                cout << "All nodes size is: " << all_nodes.size() << endl;
+                cout << "\nAll nodes size is: " << all_nodes.size() << endl;
 
-                // auto my_path = Astar(start_pos, end_pos, all_nodes);
+                auto my_path = Astar(start_pos, end_pos, all_nodes);
 
-                // if (my_path.empty())
-                //     std::cout << "No path :( \n";
-                // else
-                // {
-                //     std::cout << "Path found :) \n";
-                //     std::for_each(my_path.begin(), my_path.end(), [](const Point & pt) { pt.Print("Move to: "); });
-                // }
+                if (my_path.empty())
+                    std::cout << "\nNo good path :( \n";
+                else
+                {
+                    std::cout << "\nPath found :) \n";
+                    // std::for_each(my_path.begin(), my_path.end(), [](const Point & pt) { pt.Print("Move to: "); });
+                }
 
                 high_resolution_clock::time_point stop_total = high_resolution_clock::now();
                 auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
                 cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
                 
-                // result.push_back(new Vertex {selectedgfrontier});
-                // cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n ";
-                // for(auto vert_it = result.begin(); vert_it != result.end(); vert_it++){
-                //   cout << "X : " << ((*vert_it)->name).x() << "\n ";
-                //   cout << "Y : " << ((*vert_it)->name).y() << "\n ";
-                //   cout << "Z : " << ((*vert_it)->name).z() << "\n ";
-                //   cout << "--------" << "\n ";
-                //   geometry_msgs::PoseStamped global_nodes;
-                //   global_nodes.pose.position.x = ((*vert_it)->name).x();
-                //   global_nodes.pose.position.y = ((*vert_it)->name).y();
-                //   global_nodes.pose.position.z = ((*vert_it)->name).z();
-                //   global_nodes.header.stamp = ros::Time::now();
-                //   global_nodes.header.frame_id = "world";
-                //   // current.path.poses.push_back(current.pose);
-                //   current.path.poses.push_back(global_nodes);
-                // }
-                // path_to_goal_pub.publish(current.path);
-                // current.path.poses.clear();
-                // best_frontier = publish_goal((v[gol])->name); 
-                // v.clear();
-                // e.clear();
+                
+                cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n ";
+                for(auto vert_it = my_path.begin(); vert_it != my_path.end(); vert_it++){
+                  cout << "X : " << ((*vert_it)).x << "\n ";
+                  cout << "Y : " << ((*vert_it)).y << "\n ";
+                  cout << "Z : " << ((*vert_it)).z << "\n ";
+                  cout << "--------" << "\n ";
+                  geometry_msgs::PoseStamped global_nodes;
+                  global_nodes.pose.position.x = ((*vert_it)).x;
+                  global_nodes.pose.position.y = ((*vert_it)).y;
+                  global_nodes.pose.position.z = ((*vert_it)).z;
+                  global_nodes.header.stamp = ros::Time::now();
+                  global_nodes.header.frame_id = "world";
+                  // current.path.poses.push_back(current.pose);
+                  current.path.poses.push_back(global_nodes);
+                }
+                path_to_goal_pub.publish(current.path);
+                current.path.poses.clear();
+                ufo::math::Vector3 lastpub(a2, b2, c2);
+                best_frontier = publish_goal(lastpub); 
+
               }
+
       }
 
   }
