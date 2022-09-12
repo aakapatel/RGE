@@ -15,7 +15,6 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <tf/tf.h>
-// #include <rrt/rrt_bindings.h>
 #include <ros/package.h>
 #include <dynamic_reconfigure/server.h>
 #include <acl_exploration/ServerConfig.h>
@@ -24,15 +23,19 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Vector3Stamped.h>
-#include <limits> // for numeric_limits
+#include <limits> 
 #include <set>
-#include <utility> // for pair
+#include <utility> 
 #include <algorithm>
 #include <iterator>
 #include <iostream>
 #include <vector>
 #include <queue>
- 
+#include <cmath>
+#include <string>
+#include <climits> 
+#include <memory>
+
 using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
@@ -217,6 +220,124 @@ public:
     return shortPath;
   }
 };
+
+struct Point {
+    Point(int x = 0, int y = 0, int z = 0) : x(x), y(y), z(z) {};
+    bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
+    int DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    int x, y, z;
+
+    void Print(std::string name) const
+    {
+        std::cout << name << " x: " << x << " y: " << y << "z: " << z << std::endl;
+    }
+};
+
+struct Node
+{
+    Node(Point myposition = Point(), Node * parent = nullptr) : myposition(myposition), parent(parent) {};
+
+    Point myposition;
+
+    int dist_to_start = 0;
+    int total_dist = INT_MAX;
+
+    std::shared_ptr<Node> parent;
+    std::shared_ptr< std::vector<Node> > connections{ new std::vector<Node> };
+
+    bool operator ==(const Node& o) const { return (o.myposition.x == myposition.x) && (o.myposition.y == myposition.y) && (o.myposition.z == myposition.z);}
+    bool operator <(const Node& o) const { return (total_dist < o.total_dist); }
+
+    void AddConnection(Node subnode)
+    {
+        connections->push_back(subnode);
+    }
+};
+
+std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> all_nodes)
+{
+    // Find the start and end nodes
+    Node start_node;
+    Node end_node;
+
+    for (Node & node : all_nodes)
+    {
+        if (node.myposition == end_pos) // start and end swaped here because A-Star traces from end to start
+            start_node = node;
+        if (node.myposition == start_pos)
+            end_node = node;
+    }
+
+
+    std::vector<Point> found_path; // Output path
+
+
+    std::set<Node> open_list; // Using set to be ordered
+    std::vector<Point> closed_list;
+
+    open_list.emplace(start_node);
+
+
+    while (!open_list.empty())
+    {
+        // Use node with lowest total_dist (the set is always sorted)
+        Node current_node = *open_list.begin();
+
+        // Remove smallest and add to closed list
+        open_list.erase(open_list.begin());
+        closed_list.push_back(current_node.myposition);
+
+
+        // Found the goal
+        if (current_node.myposition == end_node.myposition)
+        {
+            // Found the goal
+            Node * parent = &current_node;
+
+            // Jump from parent to parent to trace back
+            while (parent != nullptr)
+            {
+                found_path.push_back(parent->myposition);
+                parent = parent->parent.get();
+            }
+            return(found_path);
+        }
+
+        for (Node& node : *current_node.connections)
+        {
+            Node child(node);
+            child.parent.reset(new Node(current_node));
+
+            // Child is on the closed list
+            if (std::find_if(closed_list.begin(), closed_list.end(), [&child](Point & pt) { return(pt == child.myposition); }) != closed_list.end())
+                continue;
+
+            // Create the total_dist, dist_to_start, and heurist_dist_to_end values for the new subnode
+
+            // Calculated the total distance to the start by adding the distance from the subnode to the current node.
+            // Note: This distance could be precomputed and just held together with the "connections"
+            child.dist_to_start = current_node.dist_to_start + child.myposition.DistTo(current_node.myposition);
+
+
+        // Total cost is the sum of past distance and the heuristic (which assumes just line-of-flight)
+        child.total_dist = child.dist_to_start + child.myposition.DistTo(end_node.myposition);
+
+            // Child is already in the open list
+            if (std::find_if(open_list.begin(), open_list.end(), [&child](const Node & node) { return((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
+                continue;
+
+            // Add the child to the open list
+            open_list.emplace(child);
+        }
+
+    }
+
+    return(found_path);
+}
+
+
+
+
 
 int diy;
 // Variables
@@ -1247,10 +1368,6 @@ int main(int argc, char *argv[])
   f = boost::bind(&config_callback, _1, _2);
   server.setCallback(f);
 
-  // Initial point
-  // This manually sets the first point which the drone will travel to.
-  // For each point in the path CHOSEN_PATH, one needs to add the VREF vx, vy, vz to CHOSEN_PATH_VREF.
-  // CHOSEN_PATH.push_back(new node(-3, 10, 2));
   fetched_path = true;
   RRT_created = true;
   GOALS_generated = true;
@@ -1294,81 +1411,92 @@ int main(int argc, char *argv[])
                 cout << "\nGoal Node Y : " << ((rrt_pointer)->point)->y() << endl;
                 cout << "\nGoal Node Z : " << ((rrt_pointer)->point)->z() << endl;
                 ALC_POINTS = selectGlobalPath(global.list);
-                // myGoals.push_back(rrt_pointer);
-                findShortestPath(rrt_pointer);
+
                 // cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
                 cout << "\nPath Consist of : " << CHOSEN_PATH.size() << " Points "<< endl;
               
               high_resolution_clock::time_point start_total = high_resolution_clock::now();
               
               if (RRT_TREE.size() > 0) {
-                std::vector<Vertex *> v;
-                for (auto graph_it = RRT_TREE.begin(); graph_it != RRT_TREE.end(); graph_it++) {
-                    v.push_back(new Vertex {*((*graph_it)->point)});
-                }
-                std::vector<Edge *> e;
-                for (auto node_it = v.begin(); node_it != --v.end(); node_it++) {
-                  for (auto node_it2 = std::next(v.begin(), 1); node_it2 != v.end(); node_it2++) {
-                    ufo::math::Vector3 direction = ((*node_it2)->name) - ((*node_it)->name);
-                    ufo::math::Vector3 center = ((*node_it)->name) + (direction / 2.0);
+
+                std::vector<Node> all_nodes;
+
+                Node sample_node1;
+                Node sample_node2;
+
+                for (auto graph_it = RRT_TREE.begin(); graph_it != --RRT_TREE.end(); graph_it++) {
+
+                  sample_node1.myposition = { Point{ int(((*graph_it)->point)->x()), int(((*graph_it)->point)->y()), int(((*graph_it)->point)->z()) } };
+
+                  for (auto graph_it2 = std::next(RRT_TREE.begin(), 1); graph_it2 != RRT_TREE.end(); graph_it2++) {
+
+                    ufo::math::Vector3 direction = *((*graph_it2)->point) - *((*graph_it)->point);
+                    ufo::math::Vector3 center = *((*graph_it)->point) + (direction / 2.0);
                     double distance = direction.norm();
                     direction /= distance;
                     double yaw = -atan2(direction[1], direction[0]);
                     double pitch = -asin(direction[2]);
                     double roll = 0;  // TODO: Fix
-                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
+                    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
                             ufo::math::Quaternion(roll, pitch, yaw));
-                    if (!isInCollision(myMap, obb, true, false, true, 0) && int(calculateDistance((*node_it)->name, (*node_it2)->name)) < 4) {
-                      e.push_back(new Edge {(*node_it), (*node_it2), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
-                      e.push_back(new Edge {(*node_it2), (*node_it), int(calculateDistance((*node_it)->name, (*node_it2)->name)) } );
+                    if (!isInCollision(myMap, obb, true, false, true, 0)) {
+
+                      sample_node2.myposition = { Point{ int(((*graph_it2)->point)->x()), int(((*graph_it2)->point)->y()), int(((*graph_it2)->point)->z()) } };
+
+                      sample_node1.AddConnection(sample_node2);
+                      sample_node2.AddConnection(sample_node1);
+                      all_nodes.push_back(sample_node1);
+                      all_nodes.push_back(sample_node2);
+
                     }
+
                   }
+
                 }
-                int src;
-                int gol;
-                for (auto nd_it = v.begin(); nd_it != v.end(); nd_it++) {
-                  for (auto edge_it = e.begin(); edge_it != e.end(); edge_it++) {
-                      if ((((*nd_it)) == ((*edge_it)->from)) || (((*nd_it)) == ((*edge_it)->to))) {
-                        (*nd_it)->addAdjacentEdge (*edge_it);
-                      }
-                  }
-                  if ((*nd_it)->name == current.position) {
-                    src = std::distance(v.begin(), nd_it);
-                  }
-                  if ((*nd_it)->name == *((*rrt_pointer).point)) {
-                    gol = std::distance(v.begin(), nd_it);
-                  }
-                }
-                
-                DijkstraAlgorithm da(v[src]);
-                da.computePath();
-                list<Vertex*> result= da.shortestPath(v[gol]);
+
+                int a1 = int(current.position.x());
+                int b1 = int(current.position.y());
+                int c1 = int(current.position.z());
+                Point start_pos { a1, b1, c1 };
+                Point end_pos { int(((rrt_pointer)->point)->x()), int(((rrt_pointer)->point)->y()), int(((rrt_pointer)->point)->z()) };
+
+                cout << "All nodes size is: " << all_nodes.size() << endl;
+
+                // auto my_path = Astar(start_pos, end_pos, all_nodes);
+
+                // if (my_path.empty())
+                //     std::cout << "No path :( \n";
+                // else
+                // {
+                //     std::cout << "Path found :) \n";
+                //     std::for_each(my_path.begin(), my_path.end(), [](const Point & pt) { pt.Print("Move to: "); });
+                // }
 
                 high_resolution_clock::time_point stop_total = high_resolution_clock::now();
                 auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
                 cout << "\033[;34mExecution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
                 
                 // result.push_back(new Vertex {selectedgfrontier});
-                cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n ";
-                for(auto vert_it = result.begin(); vert_it != result.end(); vert_it++){
-                  cout << "X : " << ((*vert_it)->name).x() << "\n ";
-                  cout << "Y : " << ((*vert_it)->name).y() << "\n ";
-                  cout << "Z : " << ((*vert_it)->name).z() << "\n ";
-                  cout << "--------" << "\n ";
-                  geometry_msgs::PoseStamped global_nodes;
-                  global_nodes.pose.position.x = ((*vert_it)->name).x();
-                  global_nodes.pose.position.y = ((*vert_it)->name).y();
-                  global_nodes.pose.position.z = ((*vert_it)->name).z();
-                  global_nodes.header.stamp = ros::Time::now();
-                  global_nodes.header.frame_id = "world";
-                  // current.path.poses.push_back(current.pose);
-                  current.path.poses.push_back(global_nodes);
-                }
-                path_to_goal_pub.publish(current.path);
-                current.path.poses.clear();
-                best_frontier = publish_goal((v[gol])->name); 
-                v.clear();
-                e.clear();
+                // cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n ";
+                // for(auto vert_it = result.begin(); vert_it != result.end(); vert_it++){
+                //   cout << "X : " << ((*vert_it)->name).x() << "\n ";
+                //   cout << "Y : " << ((*vert_it)->name).y() << "\n ";
+                //   cout << "Z : " << ((*vert_it)->name).z() << "\n ";
+                //   cout << "--------" << "\n ";
+                //   geometry_msgs::PoseStamped global_nodes;
+                //   global_nodes.pose.position.x = ((*vert_it)->name).x();
+                //   global_nodes.pose.position.y = ((*vert_it)->name).y();
+                //   global_nodes.pose.position.z = ((*vert_it)->name).z();
+                //   global_nodes.header.stamp = ros::Time::now();
+                //   global_nodes.header.frame_id = "world";
+                //   // current.path.poses.push_back(current.pose);
+                //   current.path.poses.push_back(global_nodes);
+                // }
+                // path_to_goal_pub.publish(current.path);
+                // current.path.poses.clear();
+                // best_frontier = publish_goal((v[gol])->name); 
+                // v.clear();
+                // e.clear();
               }
       }
 
