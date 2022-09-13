@@ -1221,7 +1221,7 @@ int main(int argc, char *argv[])
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
     traversable.list = extractUnknowns(myMap, local.list, current.position, true, true, true, 0);
     /*
-      main computations to be executed here on
+      main computations to be executed here
 
     */
       // tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
@@ -1294,7 +1294,7 @@ int main(int argc, char *argv[])
                 // cout << "\nGoal Node Z : " << ((rrt_pointer)->point)->z() << endl;
                 ALC_POINTS = selectGlobalPath(global.list);
 
-                // cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
+                // cout << "\nloop closure points list size is  : " << ALC_POINTS.size()<< endl;
                 // cout << "\nPath Consist of : " << CHOSEN_PATH.size() << " Points "<< endl;
               
               high_resolution_clock::time_point start_total = high_resolution_clock::now();
