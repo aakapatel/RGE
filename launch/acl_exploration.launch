@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <launch>
 <include file="$(find exploration)/launch/exploration.launch"></include>
-  <arg name="resolution" default="0.2" />
+  <arg name="resolution" default="0.3" />
 	<arg name="depth_levels" default="16" />
 	<arg name="num_workers" default="1" />
 	<arg name="color" default="true" />
@@ -13,7 +13,7 @@
     	<param name="robot_frame_id" value="hummingbird/base_link" />
 
 		<param name="num_workers" value="$(arg num_workers)" />
-		<param name="max_range" value="30" />
+		<param name="max_range" value="20" />
 		<param name="min_range" value="0.3" />
 		<param name="robot_radius" value="0.5" />
 		<param name="robot_height" value="0.5" />
@@ -35,12 +35,8 @@
 
 	</node>
 
-<<<<<<< HEAD
 
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
 
-=======
-	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
->>>>>>> 0e5f2b6d18cd92e1ee9b71e054319cf4d770e66a
 
 </launch>

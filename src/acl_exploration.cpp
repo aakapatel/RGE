@@ -630,7 +630,7 @@ void generateRRT(float given_x, float given_y, float given_z){
   RRT_TREE.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(((RRT_TREE.size() <= 10000 and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 10000){
+  while(((RRT_TREE.size() <= 10000 and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 30000){
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -749,7 +749,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
                                                               double heading) {
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
-    if (((angle < 40) && (angle > -40)) && distance < 10 && distance > 3.5) {
+    if (((angle < 40) && (angle > -40)) && distance < 15 && distance > 4) {
       return true;
     } else {
       return false;
@@ -1382,6 +1382,8 @@ int main(int argc, char *argv[])
       main computations to be executed here on
 
     */
+      // tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
+      // generateRRT(current.position.x(), current.position.y(), current.position.z());
 
       best_frontier.header.stamp = ros::Time::now();
       best_frontier.header.frame_id = "world";
@@ -1391,7 +1393,7 @@ int main(int argc, char *argv[])
 
     if (firstTime || next_pub(best_frontier)) {
         
-        if (traversable.list.size() > 3) {
+        if (traversable.list.size() > 5) {
             firstTime = false;
             selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
             best_frontier = publish_goal(selectedfrontier);
@@ -1403,7 +1405,7 @@ int main(int argc, char *argv[])
             current.path.poses.clear();
         }
       if (traversable.list.size() < 3 and global.list.size() > 0) {
-                tuneGeneration(myMap, false, true, false, position_x, position_y, position_z, 3);
+                tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
                 generateRRT(current.position.x(), current.position.y(), current.position.z());
                 node* rrt_pointer;
                 rrt_pointer = selectGlobalFrontier(global.list);
@@ -1453,22 +1455,20 @@ int main(int argc, char *argv[])
                     ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
                             ufo::math::Quaternion(roll, pitch, yaw));
                     double rang = calculateDistance(d1, d2);
-                    if (!isInCollision(myMap, obb, true, false, true, 0) && rang < 6) {
+                    if (!isInCollision(myMap, obb, true, false, true, 0) && rang > 1 && rang < 4.5) {
 
                       sample_nd = *graph_it;
                       sample_nd2 = *graph_it2;
 
                       sample_nd.AddConnection(sample_nd2);
-                      // sample_nd2.AddConnection(sample_nd);
+                      sample_nd2.AddConnection(sample_nd);
                       
-
+                      all_nodes.push_back(sample_nd);
+                      all_nodes.push_back(sample_nd2);
 
                     }
 
                   }
-
-                      all_nodes.push_back(sample_nd);
-                      all_nodes.push_back(sample_nd2);
 
                 }
 
@@ -1527,7 +1527,7 @@ int main(int argc, char *argv[])
                 
                 
                 cout<< "\033[;32mShortest path iterates through vertices:\033[0m\n ";
-                for(auto vert_it = my_path.begin(); vert_it != my_path.end(); vert_it++){
+                for(auto vert_it = std::next(my_path.begin(),1); vert_it != my_path.end(); vert_it++){
                   cout << "X : " << ((*vert_it)).x << "\n ";
                   cout << "Y : " << ((*vert_it)).y << "\n ";
                   cout << "Z : " << ((*vert_it)).z << "\n ";
