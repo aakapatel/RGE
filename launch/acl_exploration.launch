@@ -35,8 +35,12 @@
 
 	</node>
 
+<<<<<<< HEAD
 
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
 
+=======
+	<node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
+>>>>>>> 0e5f2b6d18cd92e1ee9b71e054319cf4d770e66a
 
 </launch>
