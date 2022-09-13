@@ -40,11 +40,6 @@ using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
 
-
-// The node struct.
-// This struct represents the different kinds of points in the rrt, this includes:
-// the nodes in the rrt tree, the goals and the paths.
-
 struct node{
    public:
       ufo::math::Vector3* point;
@@ -339,7 +334,7 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 bool start_backtrack = false;
 
-int diy;
+
 // Variables
 int NUMBER_OF_NODES;
 int NUMBER_OF_GOALS;
@@ -347,7 +342,7 @@ int NUMBER_OF_ITTERATIONS;
 int NMPC_POINTS;
 int itterations;
 int advance_index = 0;
-float DISTANCE_BETWEEN_NODES; // 1.0;
+float DISTANCE_BETWEEN_NODES; 
 float DISTANCE_BETWEEN_GOALS;
 float MINIMUM_DISTANCE_TO_GOAL;
 float SCALER_AABB;
@@ -445,80 +440,9 @@ std::list<node*>::iterator path_itterator;
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
-void linSpace(node* givenNode, float givenDistance){
-  ufo::math::Vector3 newVector(givenNode->myParent->point->x() - givenNode->point->x(), givenNode->myParent->point->y() - givenNode->point->y(), givenNode->myParent->point->z() - givenNode->point->z());
-  float distance = newVector.norm();
-  float itterations = (distance / givenDistance);
-  float part = givenDistance / distance;
-  float xStep = (givenNode->myParent->point->x() - givenNode->point->x()) * part;
-  float yStep = (givenNode->myParent->point->y() - givenNode->point->y()) * part;
-  float zStep = (givenNode->myParent->point->z() - givenNode->point->z()) * part;
-  node* parent = givenNode->myParent;
-  node* nextNode = givenNode->myParent;
-  for(int i = 1; i < itterations; i++){
-    node* newPoint = new node(givenNode->myParent->point->x() - i * xStep, givenNode->myParent->point->y() - i * yStep, givenNode->myParent->point->z() - i * zStep);
-    newPoint->addParent(parent);
-    parent = newPoint;
-    RRT_TREE.push_back(newPoint);
-  }
-  givenNode->addParent(parent);
-  if(nextNode->myParent != nullptr){
-    linSpace(nextNode, givenDistance);
-  }
-}
 
-// Evaluates the current point in the current path.
-// This includes deciding when to change the current target to the next node in the path and when to calculate a new path.
-void evaluateCurrentPoint(ros::Publisher* chosen_path_pub){
-  if((sqrt(pow(position_x - goalNode->point->x(), 2) + pow(position_y - goalNode->point->y(), 2) + pow(position_z - goalNode->point->z(), 2)) < NEXT_PATH_DISTANCE)){ //Here
-    itterations = 0;
-    fetched_path = false;
-    RRT_created = false;
-    GOALS_generated = false;
-    position_received = false;
-    allowNewPath = true;
-  }
-  if((sqrt(pow(position_x - currentTarget->point->x(), 2) + pow(position_y - currentTarget->point->y(), 2) + pow(position_z - currentTarget->point->z(), 2)) < NEXT_POINT_DISTANCE) and path_itterator != --CHOSEN_PATH.end()){ //Here
-    advance_index++;
-    path_itterator = CHOSEN_PATH.begin();
-    std::advance(path_itterator, advance_index);
-    currentTarget = *path_itterator;
-    if(path_itterator == CHOSEN_PATH.end()){
-      path_itterator--;
-      currentTarget = *path_itterator;
-    }
-  }
-  if(path_itterator != CHOSEN_PATH.end()){
-    nav_msgs::Odometry nextPoint;
-    nextPoint.pose.pose.position.x = (currentTarget)->point->x();
-    nextPoint.pose.pose.position.y = (currentTarget)->point->y();
-    nextPoint.pose.pose.position.z = (currentTarget)->point->z();
-    if(!recoveryUnderway){
-      nextPoint.twist.twist.linear.x = *vref_itterator;
-      vref_itterator++;
-      nextPoint.twist.twist.linear.y = *vref_itterator;
-      vref_itterator++;
-      nextPoint.twist.twist.linear.z = *vref_itterator;
-      vref_itterator++;
-    }else{
-      nextPoint.twist.twist.linear.x = 0;
-      nextPoint.twist.twist.linear.y = 0;
-      nextPoint.twist.twist.linear.z = 0;
-    }
-    nextPoint.pose.pose.orientation.x = 0;
-    nextPoint.pose.pose.orientation.y = 0;
-    nextPoint.pose.pose.orientation.z = 0;
-    nextPoint.pose.pose.orientation.w = 0;
-    nextPoint.header.stamp = ros::Time::now();
-    nextPoint.header.frame_id = "world";
-    chosen_path_pub->publish(nextPoint);
-  }
-}
+// TUNE GRAPH GENERATION. LOCAL AND GLOBAL BOUNDING SPACE CAN BE CONFIGURED HERE
 
-
-// Tunes the generation.
-// This sets the bounding box which represents the local space.
-// The bounding box will be reduced in size as much as possible without losing free space.
 void tuneGeneration(ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, float given_y, float given_z, ufo::map::DepthType min_depth = 3){
   highest_x = -9999;
   highest_y = -9999;
@@ -564,57 +488,6 @@ bool isInCollision(ufo::map::OccupancyMapColor const& map,
   return false;
 }
 
-// Evaluates the RRT tree for the purpose of reducing the distance in a path.
-// The node with the shortest path to the root node, which the goal in question can see, will be the parent of the currently evaluated goal node.
-// The path between the goal node and its' parent has to pass a series of sphere checks, which aims to guarantee a distance of RADIOUS between the path and the occupied and unknown space.
-void findShortestPath(node* selectednode){
-  // for(std::list<node*>::iterator it_goals = myGoals.begin(); it_goals != myGoals.end(); it_goals++){
-    struct node* chosenNode = nullptr;
-    double distance = std::numeric_limits<double>::max();
-    for(std::list<node*>::iterator it_RRT = RRT_TREE.begin(); it_RRT != RRT_TREE.end(); it_RRT++){
-      double distanceNodeToGoal = sqrt(pow((*it_RRT)->point->x() - (selectednode)->point->x(), 2) + pow((*it_RRT)->point->y() - (selectednode)->point->y(), 2) + pow((*it_RRT)->point->z() - (selectednode)->point->z(), 2));
-      double distanceToNode = (*it_RRT)->sumDistance();
-      double totalDistance = distanceNodeToGoal + distanceToNode;
-      if(totalDistance < distance){
-        ufo::geometry::LineSegment myLine(*((selectednode)->point), *((*it_RRT)->point));
-        if(!isInCollision(myMap, myLine, true, false, true, 3)){
-          ufo::math::Vector3 newVector((selectednode)->point->x() - (*it_RRT)->point->x(), (selectednode)->point->y() - (*it_RRT)->point->y(), (selectednode)->point->z() - (*it_RRT)->point->z());
-          float distance_calc = newVector.norm();
-          float itterations = (distance_calc / DISTANCE_BETWEEN_NODES);
-          float part = DISTANCE_BETWEEN_NODES / distance_calc;
-          float xStep = ((selectednode)->point->x() - (*it_RRT)->point->x()) * part;
-          float yStep = ((selectednode)->point->y() - (*it_RRT)->point->y()) * part;
-          float zStep = ((selectednode)->point->z() - (*it_RRT)->point->z()) * part;
-          bool add = true;
-          for(int i = 1; i < itterations; i++){
-            ufo::math::Vector3 newVector = ufo::math::Vector3((*it_RRT)->point->x() + i * xStep, (*it_RRT)->point->y() + i * yStep, (*it_RRT)->point->z() + i * zStep);
-            ufo::geometry::Sphere new_sphere(newVector, RADIOUS);
-            if(isInCollision(myMap, new_sphere, true, false, true, 3)){
-              add = false;
-              break;
-            }
-          }
-          if(add){
-            distance = totalDistance;
-            chosenNode = *it_RRT;
-            
-          }
-        }
-      }
-
-    }
-
-    if(chosenNode != nullptr){
-      (selectednode)->addParent(chosenNode);
-      chosenNode->addChild(selectednode);
-      CHOSEN_PATH.push_back(chosenNode);
-    }
-  // }
-}
-
-// Generates the RRT
-// Generates the nodes in the RRT-tree and connects them to a already existing parent.
-// The root of the node exists at the current position of the plant.
 void generateRRT(float given_x, float given_y, float given_z){
   for(std::list<node*>::iterator it_clear_helper = RRT_TREE.begin(); it_clear_helper != --RRT_TREE.end(); it_clear_helper++){
     (*it_clear_helper)->readyForDeletion();
@@ -660,7 +533,7 @@ void generateRRT(float given_x, float given_y, float given_z){
     };
     itterations++;
   };
-  std::cout << "Graph built successfully with " << RRT_TREE.size() << " number of nodes\n" << std::endl;
+  std::cout << "Graph built successfully with " << RRT_TREE.size() << " nodes\n" << std::endl;
   
   if(RUN_BY_NODES){
     // std::cout << "Verifying tree" << std::endl;
@@ -858,23 +731,6 @@ return alc_candidates;
 
 }
 
-
-// void setGlobalPath() {
-
-//   for (auto tree_iterator = RRT_TREE.begin(); tree_iterator != RRT_TREE.end(); tree_iterator++) {
-
-
-
-
-
-//   }
-
-
-
-// }
-
-
-
 bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
 
   ufo::math::Vector3 pos;
@@ -888,32 +744,6 @@ bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
     return false;
   }
 
-}
-
-std::pair<ufo::math::Vector3, double> visitedToGlobal(old_poses_list_t visited, ufo::math::Vector3 global_fronier,
-                                          ufo::map::OccupancyMapColor const& map) {
-  double num;
-  double mynum = 10000000;
-  old_poses_list_t::iterator it;
-  std::pair<ufo::math::Vector3, double> cp;
-  for (it = visited.begin(); it != visited.end(); it++) {
-    ufo::math::Vector3 direction = it->first - global_fronier;
-    ufo::math::Vector3 center = global_fronier + (direction / 2.0);
-    double distance = direction.norm();
-    direction /= distance;
-    double yaw = -atan2(direction[1], direction[0]);
-    double pitch = -asin(direction[2]);
-    double roll = 0;  // TODO: Fix
-    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
-            ufo::math::Quaternion(roll, pitch, yaw));
-    double m = calculateDistance(it->first, global_fronier);
-    num = m;
-    if (num < mynum && !isInCollision(map, obb, true, false, false, 0)) {
-      mynum = num;
-      cp = std::make_pair(it->first, it->second);
-    }
-  }
-  return cp;
 }
 
 // create a global graph for navigation
@@ -933,9 +763,9 @@ std::vector<std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.8, 0.8),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 1, 1),
               ufo::math::Quaternion(roll, pitch, yaw));
-      if (!isInCollision(map, obb, true, false, false, 0) && distance < 10) {
+      if (!isInCollision(map, obb, true, false, false, 0)) {
         myvec.insert(myvec.end(), std::make_pair(std::make_pair(std::make_pair((it->first), (it2->second)), 
                                                 std::make_pair((it2->first), (it2->second))), calculateDistance((it->first), (it2->first))));
       }
@@ -945,19 +775,6 @@ return myvec;
 }
 
 
-std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> closestInGraph(graph_vector_t cg) {
-    graph_vector_t::iterator it;
-    double mypp = 100000000;
-    std::pair<std::pair<std::pair<ufo::math::Vector3, double>, std::pair<ufo::math::Vector3, double>>, double> close;
-    for (it = cg.begin(); it != cg.end(); it++) {
-      double pp = calculateDistance((((it)->first).first.first), current.position);
-      if (pp < mypp) {
-        mypp = pp;
-        close = *it;
-      }
-    }
-  return close;
-}
 
 geometry_msgs::PoseStamped publish_goal(ufo::math::Vector3 selected) {
   geometry_msgs::PoseStamped pub_frontier;
@@ -1636,9 +1453,11 @@ int main(int argc, char *argv[])
 /*
 
 1) Fix frontiers detection -- done
-2) Compute information gain -- in process
+2) Compute information gain -- TBD
 3) Fix heading deviation based search -- done
-4) Global graph based strategy -- in process
-5) Active loop closing --TBD
+4) Global graph based strategy -- done
+5) Active loop closing -- candidates can be computed from the graph
+6) Loop closing candidates to be included as part of hueristic function
+7) Compute global path cost based on hueristic and shortest path 
 
 */
