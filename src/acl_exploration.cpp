@@ -441,7 +441,7 @@ std::list<node*>::iterator path_itterator;
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
 
-// TUNE GRAPH GENERATION. LOCAL AND GLOBAL BOUNDING SPACE CAN BE CONFIGURED HERE
+// TUNE GRAPH GENERATION. LOCAL AND GLOBAL BOUNDING SPACE CAN BE CONFIGURED HERE.
 
 void tuneGeneration(ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, float given_y, float given_z, ufo::map::DepthType min_depth = 3){
   highest_x = -9999;
