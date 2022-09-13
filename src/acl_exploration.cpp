@@ -337,7 +337,7 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 
 
-
+bool start_backtrack = false;
 
 int diy;
 // Variables
@@ -630,7 +630,7 @@ void generateRRT(float given_x, float given_y, float given_z){
   RRT_TREE.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(((RRT_TREE.size() <= 10000 and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 30000){
+  while(((RRT_TREE.size() <= 10000 and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 40000){
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -873,6 +873,8 @@ return alc_candidates;
 
 // }
 
+
+
 bool next_pub(const geometry_msgs::PoseStamped &best_frontier) {
 
   ufo::math::Vector3 pos;
@@ -1079,6 +1081,29 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
     }
   }
 
+}
+
+void backTrack() {
+
+  if (start_backtrack) {
+
+  
+      std::list<ufo::math::Vector3>::iterator backtrack_it;
+      for (backtrack_it = old_poses.list.end(); backtrack_it != old_poses.list.begin(); backtrack_it--) {
+
+      geometry_msgs::PoseStamped global_nodes2;
+      global_nodes2.pose.position.x = backtrack_it->x();
+      global_nodes2.pose.position.y = backtrack_it->y();
+      global_nodes2.pose.position.z = backtrack_it->z();
+      global_nodes2.header.stamp = ros::Time::now();
+      global_nodes2.header.frame_id = "world";
+      // current.path.poses.push_back(current.pose);
+      current.path.poses.push_back(global_nodes2);
+
+    // current.path.poses.clear();
+
+    }
+  }
 }
 
 void visualize(ros::Publisher* points_pub, ros::Publisher* chosen_path_visualization_pub, ros::Publisher* alc_points_visualization_pub,
@@ -1390,10 +1415,32 @@ int main(int argc, char *argv[])
       current.path.header.stamp = ros::Time::now();
       current.path.header.frame_id = "world";
 
+    bool travers;
+    bool go_global;
+
+    if (traversable.list.size() > 3) {
+      travers = true;
+    } else {
+      travers = false;
+    }
+
+    if (traversable.list.size() < 3 and global.list.size() != 0) {
+      go_global = true;
+    } else {
+      go_global = false;
+    }
 
     if (firstTime || next_pub(best_frontier)) {
-        
-        if (traversable.list.size() > 5) {
+
+      high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+      switch (travers) {
+
+        case 0:
+            go_global = true;
+            break;
+
+        case 1:
             firstTime = false;
             selectedfrontier = selectLocalFrontier(traversable.list, current.position, current.heading);
             best_frontier = publish_goal(selectedfrontier);
@@ -1402,16 +1449,32 @@ int main(int argc, char *argv[])
             current.path.poses.push_back(current.pose);
             current.path.poses.push_back(best_frontier);
             path_to_goal_pub.publish(current.path);
+
+            high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+            auto duration_total = duration_cast<std::chrono::duration<double>>(stop_total - start_total);
+
+            if (duration_total.count() > 30.00000) {
+              start_backtrack = true;
+              backTrack();
+              path_to_goal_pub.publish(current.path);
+              
+            } else {
+              start_backtrack = false;
+            }
             current.path.poses.clear();
-        }
-      if (traversable.list.size() < 3 and global.list.size() > 0) {
+            break;
+
+      }
+
+      if (go_global && !travers) {
+
                 tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
                 generateRRT(current.position.x(), current.position.y(), current.position.z());
                 node* rrt_pointer;
                 rrt_pointer = selectGlobalFrontier(global.list);
-                cout << "\nGoal Node X : " << ((rrt_pointer)->point)->x() << endl;
-                cout << "\nGoal Node Y : " << ((rrt_pointer)->point)->y() << endl;
-                cout << "\nGoal Node Z : " << ((rrt_pointer)->point)->z() << endl;
+                // cout << "\nGoal Node X : " << ((rrt_pointer)->point)->x() << endl;
+                // cout << "\nGoal Node Y : " << ((rrt_pointer)->point)->y() << endl;
+                // cout << "\nGoal Node Z : " << ((rrt_pointer)->point)->z() << endl;
                 ALC_POINTS = selectGlobalPath(global.list);
 
                 // cout << "\nloop closure points list size is: " << ALC_POINTS.size()<< endl;
@@ -1472,8 +1535,6 @@ int main(int argc, char *argv[])
 
                 }
 
-
-                
                 double close_dis;
                 double end_dis;
                 double my_end_dis = 100000000;
@@ -1513,8 +1574,13 @@ int main(int argc, char *argv[])
 
                 auto my_path = Astar(start_pos, end_pos, all_nodes);
 
-                if (my_path.empty())
+                if (my_path.empty()) {
                     std::cout << "\nNo good path :( \n";
+
+                    backTrack();
+                    path_to_goal_pub.publish(current.path);
+
+                }
                 else
                 {
                     std::cout << "\nPath found :) \n";

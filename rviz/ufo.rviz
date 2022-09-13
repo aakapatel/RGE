@@ -31,6 +31,7 @@ Panels:
         - /Marker9
         - /Marker10
         - /Marker11
+        - /PointStamped1
       Splitter Ratio: 0.5
     Tree Height: 934
   - Class: rviz/Selection
@@ -255,10 +256,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 38 113
-        "# Leaf Nodes": 108 920
-        Resolution: 20 cm
-        Size: 1,70 MiB
+        "# Inner Nodes": 16 121
+        "# Leaf Nodes": 41 624
+        Resolution: 30 cm
+        Size: 703,02 KiB
       Min. Depth: 1
       Name: UFOMap
       Occupancy Thresholds:
@@ -427,6 +428,17 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 255; 255; 255
+      Enabled: true
+      History Length: 100000
+      Name: PointStamped
+      Queue Size: 10
+      Radius: 0.05000000074505806
+      Topic: /hummingbird/odometry_sensor1/position
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -471,9 +483,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5197961330413818
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 1.5804044008255005
+      Yaw: 1.6304043531417847
     Saved: ~
 Window Geometry:
   Displays:
