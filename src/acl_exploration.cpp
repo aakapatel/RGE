@@ -571,7 +571,7 @@ void fetchTraversable(bool occupied_space = true, bool free_space = false,
       double roll = 0;  // TODO: Fix
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
-      if (!isInCollision(myMap, obb, true, false, false, 0) && calculateDistance(goal, current.position) > 3) {
+      if (!isInCollision(myMap, obb, true, false, false, 0) && calculateDistance(goal, current.position) > 4) {
         extracted.push_back(goal);
       }      
     }
