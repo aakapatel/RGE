@@ -758,12 +758,12 @@ return alc_candidates;
 
 }
 
-bool next_pub(geometry_msgs::PoseStamped best_frontier) {
+bool next_pub() {
 
   ufo::math::Vector3 pos;
-  pos.x() = best_frontier.pose.position.x;
-  pos.y() = best_frontier.pose.position.y;
-  pos.z() = best_frontier.pose.position.z;
+  pos.x() = published.reference.pose.position.x;
+  pos.y() = published.reference.pose.position.y;
+  pos.z() = published.reference.pose.position.z;
   double pub_dis = calculateDistance(pos, current.position);
   if (pub_dis < 3) {
     return true;
@@ -992,13 +992,13 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
 
   fetchTraversable(true, false, false, 0);
 
-  if (traversable.list.size() != 0) {
+  if (!traversable.list.empty()) {
     local.navigate = true;
   } else {
     local.navigate = false;
   }
 
-  if (traversable.list.size() == 0 and all.list.size() != 0) {
+  if (traversable.list.empty() and !all.list.empty()) {
     global.navigate = true;
   } else {
     global.navigate = false;
@@ -1122,7 +1122,7 @@ void findPath() {
       my_end_dis = end_dis;
       ending.x_ref = ((*closest_it).myposition.x);
       ending.y_ref = ((*closest_it).myposition.y);
-      ending.z_ref= ((*closest_it).myposition.z);
+      ending.z_ref = ((*closest_it).myposition.z);
     }
 
   }
@@ -1130,7 +1130,7 @@ void findPath() {
   Point start_pos { starting.x_ref, starting.y_ref, starting.z_ref };
   Point end_pos { ending.x_ref, ending.y_ref, ending.z_ref };
 
-  cout << "\nPlanning container has " << planning.node_container.size() << "nodes" << endl;
+  cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
 
   planned.traj = Astar(start_pos, end_pos, planning.node_container);
 
@@ -1192,12 +1192,8 @@ void globalReposition () {
           global_nodes.pose.position.z = ((*vert_it)).z;
           global_nodes.header.stamp = ros::Time::now();
           global_nodes.header.frame_id = "world";
-          // current.path.poses.push_back(current.pose);
           current.path.poses.push_back(global_nodes);
-          pub.path_to_goal_pub.publish(current.path);
-          current.path.poses.clear();
-          ufo::math::Vector3 lastpub(((*planned.traj.end())).x, ((*planned.traj.end())).z, ((*planned.traj.end())).z);
-          published.reference = publish_goal(lastpub); 
+
         }
 
       } else {
@@ -1209,16 +1205,19 @@ void globalReposition () {
         global_node.header.stamp = ros::Time::now();
         global_node.header.frame_id = "world";
         current.path.poses.push_back(global_node);
-        pub.path_to_goal_pub.publish(current.path);
-        current.path.poses.clear();
-        ufo::math::Vector3 lastpub(((*planned.traj.end())).x, ((*planned.traj.end())).z, ((*planned.traj.end())).z);
-        published.reference = publish_goal(lastpub); 
 
       }
-    
+
+      pub.path_to_goal_pub.publish(current.path);
+      current.path.poses.clear();
+      ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y, planned.traj.back().z);
+      published.reference = publish_goal(lastpub); 
+
     }
 
   }
+
+  planned.traj.clear();
 
 }
 
@@ -1527,7 +1526,7 @@ int main(int argc, char *argv[])
 
     */
 
-    if (firstTime || next_pub(published.reference)) {
+    if (firstTime || next_pub()) {
 
       firstTime = false;
 
@@ -1535,9 +1534,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-      }
-
-      if (global.navigate) {
+      } else if (!local.navigate and global.navigate) {
 
         globalReposition();
 
@@ -1545,12 +1542,12 @@ int main(int argc, char *argv[])
     
     }
 
-    visualize();
-    
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
     cout << "\033[;34m Total Execution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+
+    visualize();
     
     ros::spinOnce();
     rate.sleep();
