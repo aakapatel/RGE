@@ -213,7 +213,7 @@ public:
 struct Point {
     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
-    double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    double DistTo(Point & other) const { return(10*std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
     // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
     double x, y, z;
 
@@ -469,13 +469,17 @@ Frontier_main planned;
 Frontier_main published;
 Frontier_main starting;
 Frontier_main ending;
+Frontier_main home;
+
+// home.navigate = false;
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL BOUNDING SPACE CAN BE CONFIGURED HERE.
 
-void tuneGeneration(ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, float given_y, float given_z, ufo::map::DepthType min_depth = 3){
+void tuneGeneration(ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
+                                      float given_y, float given_z, ufo::map::DepthType min_depth = 3){
   highest_x = -9999;
   highest_y = -9999;
   highest_z = -9999;
@@ -525,17 +529,15 @@ void buildGraph(float given_x, float given_y, float given_z){
     (*it_clear_helper)->readyForDeletion();
     delete(*it_clear_helper);
   }
-  for(std::list<node*>::iterator it_clear_helper = myGoals.begin(); it_clear_helper != --myGoals.end(); it_clear_helper++){
-    (*it_clear_helper)->addParent(nullptr);
-  }
+
   Global_Graph.clear();
-  std::cout << "Building graph...\n " << std::endl;
+  std::cout << "\nBuilding graph... " << std::endl;
   node* origin = new node(given_x, given_y, given_z);
   origin->addParent(nullptr);
   Global_Graph.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(((Global_Graph.size() <= 10000 and RUN_BY_NODES) or (itterations <= NUMBER_OF_ITTERATIONS and !RUN_BY_NODES)) and itterations < 40000){
+  while((Global_Graph.size() <= 10000) and itterations < 40000){
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -565,23 +567,8 @@ void buildGraph(float given_x, float given_y, float given_z){
     };
     itterations++;
   };
-  std::cout << "Graph built successfully with " << Global_Graph.size() << " nodes\n" << std::endl;
-  
-  if(RUN_BY_NODES){
-    // std::cout << "Verifying tree" << std::endl;
-    int total_childs = 0;
-    int total_parents = 0;
-    std::list<node*>::iterator it_comeon;
-    for(it_comeon = Global_Graph.begin(); it_comeon != Global_Graph.end(); it_comeon++){
-      total_childs = total_childs + (*it_comeon)->myChilds.size();
-      if((*it_comeon)->myParent != nullptr){
-        total_parents++;
-      }
-    };
-    if(total_childs != 0){
-      RRT_created = true;
-    }
-  }
+  std::cout << "\nGraph built successfully with " << Global_Graph.size() << " nodes\n" << std::endl;
+
 };
 
 double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2) {
@@ -898,7 +885,6 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   current.heading = yaw * (180/3.14159);
 }
 
-
 void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
 
   frontiers_received = true;
@@ -1041,7 +1027,11 @@ void buildPlanningGraph () {
   tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
   buildGraph(current.position.x(), current.position.y(), current.position.z());
   
-  planning.graph_pointer = selectGlobalFrontier(all.list);
+  if (!home.navigate) {
+    planning.graph_pointer = selectGlobalFrontier(all.list);
+  } else {
+    planning.graph_pointer = home.graph_pointer;
+  }
   ALC_POINTS = selectGlobalPath(all.list);
   
   std::vector<Node> my_nodes;
@@ -1075,7 +1065,7 @@ void buildPlanningGraph () {
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
-      if (!isInCollision(myMap, obb, true, false, true, 0) && rang > 1 && rang < 4.5) {
+      if (!isInCollision(myMap, obb, true, false, true, 0) && rang > 1 && rang < 3) {
 
         sample_nd = *graph_it;
         sample_nd2 = *graph_it2;
@@ -1221,6 +1211,88 @@ void globalReposition () {
 
 }
 
+void homingCallback(const geometry_msgs::PoseStamped::ConstPtr& base) {
+
+  home.position.x() = base->pose.position.x;
+  home.position.y() = base->pose.position.y;
+  home.position.z() = base->pose.position.z;
+  home.navigate = true;
+
+}
+
+void return_to_base_planning() {
+
+  double homing_cost;
+  double myhoming_cost = 10000000000000;
+  for (auto rit_h = Global_Graph.begin(); rit_h != Global_Graph.end(); rit_h++) {
+    double home_dis = calculateDistance(*((*rit_h)->point), home.position);
+    homing_cost = home_dis;
+    if (homing_cost < myhoming_cost) {
+      myhoming_cost = homing_cost;
+      home.graph_pointer = *rit_h;
+    }
+  }
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+  buildPlanningGraph();
+  findPath();
+
+  while (planned.traj.empty()) {
+    std::cout << "\nDid not find a good path... retrying.... \n";
+    buildPlanningGraph();
+    findPath();
+
+  }
+
+  if (!planned.traj.empty()) {
+
+    high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+    auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+    cout << "\n\033[;34mReturn to base planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    
+    if (planned.traj.size() > 1) {
+    
+      cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
+
+      for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
+        cout << "X : " << ((*vert_it)).x << "\n ";
+        cout << "Y : " << ((*vert_it)).y << "\n ";
+        cout << "Z : " << ((*vert_it)).z << "\n ";
+        cout << "--------" << "\n ";
+        geometry_msgs::PoseStamped global_nodes;
+        global_nodes.pose.position.x = ((*vert_it)).x;
+        global_nodes.pose.position.y = ((*vert_it)).y;
+        global_nodes.pose.position.z = ((*vert_it)).z;
+        global_nodes.header.stamp = ros::Time::now();
+        global_nodes.header.frame_id = "world";
+        current.path.poses.push_back(global_nodes);
+
+      }
+
+    } else {
+
+      geometry_msgs::PoseStamped global_node;
+      global_node.pose.position.x = ((*(planned.traj.begin()))).x;
+      global_node.pose.position.y = ((*(planned.traj.begin()))).y;
+      global_node.pose.position.z = ((*(planned.traj.begin()))).z;
+      global_node.header.stamp = ros::Time::now();
+      global_node.header.frame_id = "world";
+      current.path.poses.push_back(global_node);
+
+    }
+
+    pub.path_to_goal_pub.publish(current.path);
+    current.path.poses.clear();
+    ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y, planned.traj.back().z);
+    published.reference = publish_goal(lastpub); 
+
+  }
+
+  planned.traj.clear();
+
+}
+
 nav_msgs::Path backTrack() {
 
 nav_msgs::Path retrace;
@@ -1285,7 +1357,6 @@ void visualize(){
     pub.points_pub.publish(GRAPH_line_list);
   }
 
-  if(1==1){
     CHOSEN_PATH_points.header.frame_id = CHOSEN_PATH_line_list.header.frame_id = "world";
     CHOSEN_PATH_points.ns = "points";
     CHOSEN_PATH_points.action = visualization_msgs::Marker::ADD;
@@ -1320,10 +1391,8 @@ void visualize(){
     }
     pub.chosen_path_visualization_pub.publish(CHOSEN_PATH_points);
     pub.chosen_path_visualization_pub.publish(CHOSEN_PATH_line_list);
-  }
 
-
-  if(ALC_POINTS.size() > 0){
+  if(!ALC_POINTS.empty()){
     ALC_points.header.frame_id = ALC_line_list.header.frame_id = "world";
     ALC_points.ns = "points";
     ALC_points.action = visualization_msgs::Marker::ADD;
@@ -1341,52 +1410,24 @@ void visualize(){
     ALC_line_list.color.b = 1.0;
     ALC_line_list.color.a = 1.0;
     std::list<node*>::iterator it_comeon_visualizer9;
-
     for(it_comeon_visualizer9 = ALC_POINTS.begin(); it_comeon_visualizer9 != ALC_POINTS.end(); it_comeon_visualizer9++){
       geometry_msgs::Point point1;
       point1.x = (*it_comeon_visualizer9)->point->x();
       point1.y = (*it_comeon_visualizer9)->point->y();
       point1.z = (*it_comeon_visualizer9)->point->z();
       ALC_points.points.push_back(point1);
-
       // geometry_msgs::Point point2;
       // point2.x = (*(std::next(it_comeon_visualizer9, 1)))->point->x();
       // point2.y = (*(std::next(it_comeon_visualizer9, 1)))->point->y();
       // point2.z = (*(std::next(it_comeon_visualizer9, 1)))->point->z();
           ALC_line_list.points.push_back(point1);
           // ALC_line_list.points.push_back(point2);
-
     }
     pub.alc_points_visualization_pub.publish(ALC_points);
     pub.alc_path_visualization_pub.publish(ALC_line_list);
   }
 
-  if(old_poses.list.size() >= 0){
-    POSITION_point.header.frame_id = "world";
-    POSITION_point.ns = "points";
-    POSITION_point.action = visualization_msgs::Marker::ADD;
-    POSITION_point.pose.orientation.w = 1.0;
-    POSITION_point.id = 0;
-    POSITION_point.type = visualization_msgs::Marker::POINTS;
-    POSITION_point.scale.x = 0.25;
-    POSITION_point.scale.y = 0.25;
-    // POSITION_point.scale.z = 0.25;
-    POSITION_point.color.r = 1.0f;
-    // POSITION_point.color.g = 1.0f;
-    POSITION_point.color.b = 1.0f;
-    POSITION_point.color.a = 1.0;
-    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer1;	
-    for(it_comeon_visualizer1 = old_poses.list.begin(); it_comeon_visualizer1 != old_poses.list.end(); it_comeon_visualizer1++){
-      geometry_msgs::Point p;
-      p.x = it_comeon_visualizer1->x();
-      p.y = it_comeon_visualizer1->y();
-      p.z = it_comeon_visualizer1->z();
-      POSITION_point.points.push_back(p);
-    }
-    pub.position_pub.publish(POSITION_point);
-  }
-
-  if(traversable.list.size() != 0){
+  if(!traversable.list.empty()){
     TRAVERSABLE_points.header.frame_id = "world";
     TRAVERSABLE_points.ns = "points";
     TRAVERSABLE_points.action = visualization_msgs::Marker::ADD;
@@ -1409,7 +1450,7 @@ void visualize(){
     pub.hits_pub.publish(TRAVERSABLE_points);
   }
 
-  if(local.list.size() != 0){
+  if(!local.list.empty()){
     local_frontier_nodes.header.frame_id = "world";
     local_frontier_nodes.ns = "points";
     local_frontier_nodes.action = visualization_msgs::Marker::ADD;
@@ -1430,7 +1471,7 @@ void visualize(){
     pub.local_nodes_pub.publish(local_frontier_nodes);
   }
 
-  if(global.list.size() != 0){
+  if(!global.list.empty()){
     global_frontier_nodes.header.frame_id = "world";
     global_frontier_nodes.ns = "points";
     global_frontier_nodes.action = visualization_msgs::Marker::ADD;
@@ -1453,11 +1494,8 @@ void visualize(){
     pub.global_nodes_pub.publish(global_frontier_nodes);
   }
 
-
   if (!old_poses.list.empty()) {
-
     nav_msgs::Path exploration_path;
-
     for (auto visited_it = old_poses.list.begin(); visited_it != old_poses.list.end(); visited_it++) {
       geometry_msgs::PoseStamped past_pose;
       past_pose.header.stamp = ros::Time::now();
@@ -1470,13 +1508,10 @@ void visualize(){
       past_pose.pose.orientation.z = 0;
       past_pose.pose.orientation.w = 0;
       exploration_path.poses.push_back(past_pose);
-
     }
-
     exploration_path.header.stamp = ros::Time::now();
     exploration_path.header.frame_id = "world";
     pub.explored_path.publish(exploration_path);
-
   }
 
 }
@@ -1503,6 +1538,7 @@ int main(int argc, char *argv[])
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
+  ros::Subscriber homing_sub = nh.subscribe("/return_home", 1, homingCallback);
   ros::Rate rate(10);
 
   dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
@@ -1530,13 +1566,19 @@ int main(int argc, char *argv[])
 
       firstTime = false;
 
-      if (local.navigate) {
+      if (local.navigate and !home.navigate) {
 
         exploreLocally();
 
-      } else if (!local.navigate and global.navigate) {
+      } else if (!local.navigate and global.navigate and !home.navigate) {
 
         globalReposition();
+
+      }
+
+      if (home.navigate) {
+
+        return_to_base_planning();
 
       }
     
