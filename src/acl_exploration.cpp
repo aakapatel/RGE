@@ -213,8 +213,8 @@ public:
 struct Point {
     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
-    double DistTo(Point & other) const { return(10*std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-    // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
+    double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
     double x, y, z;
 
     void Print(std::string name) const
@@ -338,7 +338,7 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 
         // Total cost is the sum of past distance and the heuristic (which assumes just line-of-flight)
-        child.total_dist = child.dist_to_start + child.myposition.DistTo(end_node.myposition);
+        child.total_dist = child.dist_to_start + child.myposition.DistToHeuristic(end_node.myposition);
 
             // Child is already in the open list
             if (std::find_if(open_list.begin(), open_list.end(), [&child](const Node & node) { return((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
@@ -856,7 +856,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     oldPoint = ufo::math::Vector3(m_prevPose.pose.pose.position.x, 
                                       m_prevPose.pose.pose.position.y, 
                                             m_prevPose.pose.pose.position.z);
-    if (calculateDistance(newPoint, oldPoint) > 1.5) {
+    if (calculateDistance(newPoint, oldPoint) > 0.5) {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
     }
@@ -1024,105 +1024,134 @@ void fetchGlobalFrontier () {
 
 void buildPlanningGraph () {
 
-  tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
-  buildGraph(current.position.x(), current.position.y(), current.position.z());
-  
-  if (!home.navigate) {
-    planning.graph_pointer = selectGlobalFrontier(all.list);
-  } else {
-    planning.graph_pointer = home.graph_pointer;
-  }
-  ALC_POINTS = selectGlobalPath(all.list);
-  
-  std::vector<Node> my_nodes;
-  
-  planning.node_container.clear();
-  my_nodes.clear();
 
-  Node sample_nd;
-  Node sample_nd2;
+    tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
+    buildGraph(current.position.x(), current.position.y(), current.position.z());
+    
+    // if (!home.navigate) {
+      planning.graph_pointer = selectGlobalFrontier(all.list);
+    // } else {
+      // planning.graph_pointer = home.graph_pointer;
+    // }
+    ALC_POINTS = selectGlobalPath(all.list);
+    
+    std::vector<Node> my_nodes;
+    
+    planning.node_container.clear();
+    my_nodes.clear();
 
-  for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++) {
+    Node sample_nd;
+    Node sample_nd2;
 
-    my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
+    if (!home.navigate) {
 
-  }
+      for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++) {
 
-  for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
+        my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
 
-    for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++) {
-      
-      ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
-      ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
+      }
+    }
 
-      ufo::math::Vector3 direction = d2 - d1;
-      ufo::math::Vector3 center = d1 + (direction / 2.0);
-      double distance = direction.norm();
-      direction /= distance;
-      double yaw = -atan2(direction[1], direction[0]);
-      double pitch = -asin(direction[2]);
-      double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
-              ufo::math::Quaternion(roll, pitch, yaw));
-      double rang = calculateDistance(d1, d2);
-      if (!isInCollision(myMap, obb, true, false, true, 0) && rang > 1 && rang < 3) {
+    if (home.navigate) {
 
-        sample_nd = *graph_it;
-        sample_nd2 = *graph_it2;
+      for (auto insert_helper = old_poses.list.begin(); insert_helper != old_poses.list.end(); insert_helper++) {
 
-        sample_nd.AddConnection(sample_nd2);
-        sample_nd2.AddConnection(sample_nd);
-        
-        planning.node_container.push_back(sample_nd);
-        planning.node_container.push_back(sample_nd2);
+        my_nodes.push_back( { Point{ insert_helper->x(), insert_helper->y(), insert_helper->z() } } );
 
       }
 
     }
 
-  }
+    for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
+
+      for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++) {
+        
+        ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+        ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
+
+        ufo::math::Vector3 direction = d2 - d1;
+        ufo::math::Vector3 center = d1 + (direction / 2.0);
+        double distance = direction.norm();
+        direction /= distance;
+        double yaw = -atan2(direction[1], direction[0]);
+        double pitch = -asin(direction[2]);
+        double roll = 0;  // TODO: Fix
+        ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+                ufo::math::Quaternion(roll, pitch, yaw));
+        double rang = calculateDistance(d1, d2);
+        if (!isInCollision(myMap, obb, true, false, true, 0) && rang > 1 && rang < 3) {
+
+          sample_nd = *graph_it;
+          sample_nd2 = *graph_it2;
+
+          sample_nd.AddConnection(sample_nd2);
+          sample_nd2.AddConnection(sample_nd);
+          
+          planning.node_container.push_back(sample_nd);
+          planning.node_container.push_back(sample_nd2);
+
+        }
+
+      }
+
+    }
 
 }
 
 void findPath() {
 
-  double close_dis;
-  double end_dis;
-  double my_end_dis = 100000000;
-  double my_close_dis = 100000000;
+  if (!home.navigate) {
 
-  for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++) {
-    
-    close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) + 
-                          std::pow((*closest_it).myposition.y - current.position.y(), 2) +
-                          std::pow((*closest_it).myposition.z - current.position.z(), 2));
+    double close_dis;
+    double end_dis;
+    double my_end_dis = 100000000;
+    double my_close_dis = 100000000;
 
-    end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((planning.graph_pointer)->point)->x(), 2) + 
-                          std::pow((*closest_it).myposition.y - ((planning.graph_pointer)->point)->y(), 2) +
-                          std::pow((*closest_it).myposition.z - ((planning.graph_pointer)->point)->z(), 2));
-                          
-    if (close_dis < my_close_dis) {
-      my_close_dis = close_dis;
-      starting.x_ref = ((*closest_it).myposition.x);
-      starting.y_ref = ((*closest_it).myposition.y);
-      starting.z_ref = ((*closest_it).myposition.z);
+    for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++) {
+      
+      close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) + 
+                            std::pow((*closest_it).myposition.y - current.position.y(), 2) +
+                            std::pow((*closest_it).myposition.z - current.position.z(), 2));
+
+      end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((planning.graph_pointer)->point)->x(), 2) + 
+                            std::pow((*closest_it).myposition.y - ((planning.graph_pointer)->point)->y(), 2) +
+                            std::pow((*closest_it).myposition.z - ((planning.graph_pointer)->point)->z(), 2));
+                            
+      if (close_dis < my_close_dis) {
+        my_close_dis = close_dis;
+        starting.x_ref = ((*closest_it).myposition.x);
+        starting.y_ref = ((*closest_it).myposition.y);
+        starting.z_ref = ((*closest_it).myposition.z);
+      }
+
+      if (end_dis < my_end_dis) {
+        my_end_dis = end_dis;
+        ending.x_ref = ((*closest_it).myposition.x);
+        ending.y_ref = ((*closest_it).myposition.y);
+        ending.z_ref = ((*closest_it).myposition.z);
+      }
+
     }
 
-    if (end_dis < my_end_dis) {
-      my_end_dis = end_dis;
-      ending.x_ref = ((*closest_it).myposition.x);
-      ending.y_ref = ((*closest_it).myposition.y);
-      ending.z_ref = ((*closest_it).myposition.z);
-    }
+    Point start_pos { starting.x_ref, starting.y_ref, starting.z_ref };
+    Point end_pos { ending.x_ref, ending.y_ref, ending.z_ref };
+
+    cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
+
+    planned.traj = Astar(start_pos, end_pos, planning.node_container);
+
+  } else if (home.navigate) {
+
+    cout << "\nHoming Graph has " << planning.node_container.size() << " nodes" << endl;
+
+    Point start_pos_h { ((planning.node_container.back()).myposition.x), ((planning.node_container.back()).myposition.y), ((planning.node_container.back()).myposition.z) };
+    Point end_pos_h { ((planning.node_container.front()).myposition.x), ((planning.node_container.front()).myposition.y), ((planning.node_container.front()).myposition.z) };
+
+    planned.traj = Astar(start_pos_h, end_pos_h, planning.node_container);
 
   }
 
-  Point start_pos { starting.x_ref, starting.y_ref, starting.z_ref };
-  Point end_pos { ending.x_ref, ending.y_ref, ending.z_ref };
-
-  cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
-
-  planned.traj = Astar(start_pos, end_pos, planning.node_container);
+  // planned.traj = Astar(start_pos, end_pos, planning.node_container);
 
 }
 
@@ -1253,7 +1282,7 @@ void return_to_base_planning() {
     
     if (planned.traj.size() > 1) {
     
-      cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
+      cout<< "\033[;32mPlanned path to Base is composed of these nodes: \033[0m\n ";
 
       for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
         cout << "X : " << ((*vert_it)).x << "\n ";
@@ -1551,6 +1580,7 @@ int main(int argc, char *argv[])
   published.reference.header.frame_id = "world";
   current.path.header.stamp = ros::Time::now();
   current.path.header.frame_id = "world";
+  home.navigate = false;
 
 
   while(ros::ok()){
