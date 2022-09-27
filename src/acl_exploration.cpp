@@ -23,6 +23,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Vector3Stamped.h>
+#include "std_msgs/String.h"
 #include <limits> 
 #include <set>
 #include <utility> 
@@ -214,7 +215,7 @@ struct Point {
     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
     double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-    double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
+    // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
     double x, y, z;
 
     void Print(std::string name) const
@@ -338,7 +339,8 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 
         // Total cost is the sum of past distance and the heuristic (which assumes just line-of-flight)
-        child.total_dist = child.dist_to_start + child.myposition.DistToHeuristic(end_node.myposition);
+        // child.total_dist = child.dist_to_start + child.myposition.DistToHeuristic(end_node.myposition);
+        child.total_dist = child.dist_to_start + child.myposition.DistTo(end_node.myposition);
 
             // Child is already in the open list
             if (std::find_if(open_list.begin(), open_list.end(), [&child](const Node & node) { return((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
@@ -406,6 +408,8 @@ float SCALER_DISTANCE;
 float SCALER_ACTUATION;
 float NEXT_POINT_DISTANCE;
 float NEXT_PATH_DISTANCE;
+double NEXT_PUB_DISTANCE;
+double LOCAL_RANGE;
 double RADIOUS;
 double RESOLUTION;
 double roll = 0;
@@ -470,6 +474,7 @@ Frontier_main published;
 Frontier_main starting;
 Frontier_main ending;
 Frontier_main home;
+Frontier_main explore;
 
 // home.navigate = false;
 
@@ -636,7 +641,7 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
                                                               double heading) {
   double angle = calculateAngle(front, position, heading);
   double distance = calculateDistance(front, position);
-    if (((angle < 40) && (angle > -40)) && distance < 15 && distance > 4) {
+    if (((angle < 40) && (angle > -40)) && distance < LOCAL_RANGE) {
       return true;
     } else {
       return false;
@@ -752,7 +757,7 @@ bool next_pub() {
   pos.y() = published.reference.pose.position.y;
   pos.z() = published.reference.pose.position.z;
   double pub_dis = calculateDistance(pos, current.position);
-  if (pub_dis < 3) {
+  if (pub_dis < NEXT_PUB_DISTANCE) {
     return true;
   } else {
     return false;
@@ -832,6 +837,8 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 	NEXT_PATH_DISTANCE = config.Next_path_distance;
 	NEXT_POINT_DISTANCE = config.Next_point_distance;
 	RESOLUTION = config.Resolution;
+  NEXT_PUB_DISTANCE = config.next_pub_distance;
+  LOCAL_RANGE = config.local_range;
 
 }
 
@@ -1025,76 +1032,73 @@ void fetchGlobalFrontier () {
 void buildPlanningGraph () {
 
 
-    tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
-    buildGraph(current.position.x(), current.position.y(), current.position.z());
-    
-    // if (!home.navigate) {
-      planning.graph_pointer = selectGlobalFrontier(all.list);
-    // } else {
-      // planning.graph_pointer = home.graph_pointer;
-    // }
-    ALC_POINTS = selectGlobalPath(all.list);
-    
-    std::vector<Node> my_nodes;
-    
-    planning.node_container.clear();
+  tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
+  buildGraph(current.position.x(), current.position.y(), current.position.z());
+  
+  planning.graph_pointer = selectGlobalFrontier(all.list);
+
+  ALC_POINTS = selectGlobalPath(all.list);
+  
+  std::vector<Node> my_nodes;
+  
+  planning.node_container.clear();
+  my_nodes.clear();
+
+  Node sample_nd;
+  Node sample_nd2;
+
+  if (!home.navigate) {
+
+    for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++) {
+
+      my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
+
+    }
+  }
+
+  if (home.navigate) {
     my_nodes.clear();
+    for (auto insert_helper = old_poses.list.begin(); insert_helper != old_poses.list.end(); insert_helper++) {
 
-    Node sample_nd;
-    Node sample_nd2;
-
-    if (!home.navigate) {
-
-      for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++) {
-
-        my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
-
-      }
-    }
-
-    if (home.navigate) {
-
-      for (auto insert_helper = old_poses.list.begin(); insert_helper != old_poses.list.end(); insert_helper++) {
-
-        my_nodes.push_back( { Point{ insert_helper->x(), insert_helper->y(), insert_helper->z() } } );
-
-      }
+      my_nodes.push_back( { Point{ insert_helper->x(), insert_helper->y(), insert_helper->z() } } );
 
     }
 
-    for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
+  }
 
-      for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++) {
+  for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
+
+    for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++) {
+      
+      ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+      ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
+
+      ufo::math::Vector3 direction = d2 - d1;
+      ufo::math::Vector3 center = d1 + (direction / 2.0);
+      double distance = direction.norm();
+      direction /= distance;
+      double yaw = -atan2(direction[1], direction[0]);
+      double pitch = -asin(direction[2]);
+      double roll = 0;  // TODO: Fix
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+              ufo::math::Quaternion(roll, pitch, yaw));
+      double rang = calculateDistance(d1, d2);
+      if (!isInCollision(myMap, obb, true, false, true, 0)) {
+
+        sample_nd = *graph_it;
+        sample_nd2 = *graph_it2;
+
+        sample_nd.AddConnection(sample_nd2);
+        sample_nd2.AddConnection(sample_nd);
         
-        ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
-        ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
-
-        ufo::math::Vector3 direction = d2 - d1;
-        ufo::math::Vector3 center = d1 + (direction / 2.0);
-        double distance = direction.norm();
-        direction /= distance;
-        double yaw = -atan2(direction[1], direction[0]);
-        double pitch = -asin(direction[2]);
-        double roll = 0;  // TODO: Fix
-        ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
-                ufo::math::Quaternion(roll, pitch, yaw));
-        double rang = calculateDistance(d1, d2);
-        if (!isInCollision(myMap, obb, true, false, true, 0) && rang > 1 && rang < 3) {
-
-          sample_nd = *graph_it;
-          sample_nd2 = *graph_it2;
-
-          sample_nd.AddConnection(sample_nd2);
-          sample_nd2.AddConnection(sample_nd);
-          
-          planning.node_container.push_back(sample_nd);
-          planning.node_container.push_back(sample_nd2);
-
-        }
+        planning.node_container.push_back(sample_nd);
+        planning.node_container.push_back(sample_nd2);
 
       }
 
     }
+
+  }
 
 }
 
@@ -1151,8 +1155,6 @@ void findPath() {
 
   }
 
-  // planned.traj = Astar(start_pos, end_pos, planning.node_container);
-
 }
 
 void globalReposition () {
@@ -1187,7 +1189,6 @@ void globalReposition () {
       std::cout << "\nDid not find a good path... retrying.... \n";
       buildPlanningGraph();
       findPath();
-
     }
 
     if (!planned.traj.empty()) {
@@ -1240,12 +1241,17 @@ void globalReposition () {
 
 }
 
-void homingCallback(const geometry_msgs::PoseStamped::ConstPtr& base) {
+void homingCallback(const std_msgs::String::ConstPtr& base) {
 
-  home.position.x() = base->pose.position.x;
-  home.position.y() = base->pose.position.y;
-  home.position.z() = base->pose.position.z;
   home.navigate = true;
+  explore.navigate = false;
+
+}
+
+void exploreCallback(const std_msgs::String::ConstPtr& base) {
+
+  explore.navigate = true;
+  home.navigate = false;
 
 }
 
@@ -1568,6 +1574,7 @@ int main(int argc, char *argv[])
   ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
   ros::Subscriber homing_sub = nh.subscribe("/return_home", 1, homingCallback);
+  ros::Subscriber explore_sub = nh.subscribe("/explore", 1, exploreCallback);
   ros::Rate rate(10);
 
   dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
@@ -1581,6 +1588,7 @@ int main(int argc, char *argv[])
   current.path.header.stamp = ros::Time::now();
   current.path.header.frame_id = "world";
   home.navigate = false;
+  explore.navigate = false;
 
 
   while(ros::ok()){
@@ -1596,17 +1604,17 @@ int main(int argc, char *argv[])
 
       firstTime = false;
 
-      if (local.navigate and !home.navigate) {
+      if (local.navigate and explore.navigate and !home.navigate) {
 
         exploreLocally();
 
-      } else if (!local.navigate and global.navigate and !home.navigate) {
+      } else if (!local.navigate and global.navigate and explore.navigate and !home.navigate) {
 
         globalReposition();
 
       }
 
-      if (home.navigate) {
+      if (home.navigate and !explore.navigate) {
 
         return_to_base_planning();
 
