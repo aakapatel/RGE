@@ -596,7 +596,7 @@ void fetchTraversable(bool occupied_space = true, bool free_space = false,
       double roll = 0;  // TODO: Fix
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
-      if (!isInCollision(myMap, obb, true, false, false, 0) && calculateDistance(goal, current.position) > 4) {
+      if (!isInCollision(myMap, obb, true, false, false, 0) && calculateDistance(goal, current.position) > 3) {
         extracted.push_back(goal);
       }      
     }
@@ -1599,6 +1599,7 @@ int main(int argc, char *argv[])
       main computations to be executed here on
 
     */
+    visualize();
 
     if (firstTime || next_pub()) {
 
@@ -1625,10 +1626,8 @@ int main(int argc, char *argv[])
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     
-    cout << "\033[;34m Total Execution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    // cout << "\033[;34m Total Execution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 
-    visualize();
-    
     ros::spinOnce();
     rate.sleep();
   }
