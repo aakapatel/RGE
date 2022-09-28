@@ -542,7 +542,7 @@ void buildGraph(float given_x, float given_y, float given_z){
   Global_Graph.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while((Global_Graph.size() <= 10000) and itterations < 40000){
+  while(itterations < 60000){
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -1083,7 +1083,7 @@ void buildPlanningGraph () {
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
-      if (!isInCollision(myMap, obb, true, false, true, 0) && rang < 4) {
+      if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
         sample_nd = *graph_it;
         sample_nd2 = *graph_it2;
@@ -1201,7 +1201,7 @@ void globalReposition () {
       
         cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
 
-        for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
+        for (auto vert_it = std::next(planned.traj.begin(),0); vert_it != planned.traj.end(); vert_it++) {
           cout << "X : " << ((*vert_it)).x << "\n ";
           cout << "Y : " << ((*vert_it)).y << "\n ";
           cout << "Z : " << ((*vert_it)).z << "\n ";
@@ -1290,7 +1290,7 @@ void return_to_base_planning() {
     
       cout<< "\033[;32mPlanned path to Base is composed of these nodes: \033[0m\n ";
 
-      for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
+      for (auto vert_it = std::next(planned.traj.begin(),0); vert_it != planned.traj.end(); vert_it++) {
         cout << "X : " << ((*vert_it)).x << "\n ";
         cout << "Y : " << ((*vert_it)).y << "\n ";
         cout << "Z : " << ((*vert_it)).z << "\n ";
