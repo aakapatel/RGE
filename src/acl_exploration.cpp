@@ -863,7 +863,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     oldPoint = ufo::math::Vector3(m_prevPose.pose.pose.position.x, 
                                       m_prevPose.pose.pose.position.y, 
                                             m_prevPose.pose.pose.position.z);
-    if (calculateDistance(newPoint, oldPoint) > 0.5) {
+    if (calculateDistance(newPoint, oldPoint) > 1) {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
     }
@@ -1083,7 +1083,7 @@ void buildPlanningGraph () {
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
-      if (!isInCollision(myMap, obb, true, false, true, 0)) {
+      if (!isInCollision(myMap, obb, true, false, true, 0) && rang < 4) {
 
         sample_nd = *graph_it;
         sample_nd2 = *graph_it2;
