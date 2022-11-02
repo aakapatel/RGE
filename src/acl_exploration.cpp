@@ -215,6 +215,7 @@ struct Point {
     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
     double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    double DistDistToHeuristicTo(Point & other) const { return( 0.1*(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
     // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
     double x, y, z;
 
@@ -339,8 +340,8 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 
         // Total cost is the sum of past distance and the heuristic (which assumes just line-of-flight)
-        // child.total_dist = child.dist_to_start + child.myposition.DistToHeuristic(end_node.myposition);
-        child.total_dist = child.dist_to_start + child.myposition.DistTo(end_node.myposition);
+        // child.total_dist = child.dist_to_start + child.myposition.DistDistToHeuristicTo(end_node.myposition);
+        child.total_dist = child.dist_to_start + 0.05* (child.myposition.DistTo(end_node.myposition));
 
             // Child is already in the open list
             if (std::find_if(open_list.begin(), open_list.end(), [&child](const Node & node) { return((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
@@ -529,7 +530,7 @@ bool isInCollision(ufo::map::OccupancyMapColor const& map,
   return false;
 }
 
-void buildGraph(float given_x, float given_y, float given_z){
+void buildGraph(float given_x, float given_y, float given_z) {
   for(std::list<node*>::iterator it_clear_helper = Global_Graph.begin(); it_clear_helper != --Global_Graph.end(); it_clear_helper++){
     (*it_clear_helper)->readyForDeletion();
     delete(*it_clear_helper);
@@ -542,7 +543,7 @@ void buildGraph(float given_x, float given_y, float given_z){
   Global_Graph.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(itterations < 60000){
+  while(itterations < 10000) {
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -646,6 +647,21 @@ bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
     } else {
       return false;
     }
+}
+
+ufo::math::Vector3 informativeFrontier () {
+  ufo::math::Vector3 most_info_frontier;
+  double radius = 0.1;
+  for (ufo::math::Vector3 f_point : local.list) {
+
+    ufo::geometry::Sphere sphere(f_point, radius);
+    if (isInCollision(myMap, sphere, false, true, false, 0) && !isInCollision(myMap, sphere, true, false, true, 0)) { 
+      radius = radius + 0.1;
+      most_info_frontier = f_point;
+    }
+
+  }
+  return most_info_frontier;
 }
 
 ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible, 
@@ -863,7 +879,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     oldPoint = ufo::math::Vector3(m_prevPose.pose.pose.position.x, 
                                       m_prevPose.pose.pose.position.y, 
                                             m_prevPose.pose.pose.position.z);
-    if (calculateDistance(newPoint, oldPoint) > 1) {
+    if (calculateDistance(newPoint, oldPoint) > 0.1) {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
     }
@@ -1001,7 +1017,11 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
 
 void exploreLocally() {
 
-  ufo::math::Vector3 traversable_goal = selectLocalFrontier(traversable.list, current.position, current.heading);
+  // ufo::math::Vector3 traversable_goal = selectLocalFrontier(traversable.list, current.position, current.heading);
+  ufo::math::Vector3 traversable_goal = informativeFrontier();
+  if (traversable_goal.x() == 0 and traversable_goal.y() == 0) {
+    traversable_goal = selectLocalFrontier(traversable.list, current.position, current.heading);
+  }
   published.reference = publish_goal(traversable_goal);
   current.path.poses.push_back(current.pose);
   current.path.poses.push_back(published.reference);
@@ -1010,7 +1030,6 @@ void exploreLocally() {
   ROS_INFO("Exploring Locally...");
 
 }
-
 
 void fetchGlobalFrontier () {
 
@@ -1031,6 +1050,7 @@ void fetchGlobalFrontier () {
 
 void buildPlanningGraph () {
 
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
   buildGraph(current.position.x(), current.position.y(), current.position.z());
@@ -1046,17 +1066,23 @@ void buildPlanningGraph () {
 
   Node sample_nd;
   Node sample_nd2;
+  if (!Global_Graph.empty()) {
+    
+    my_nodes.clear();
+    
+    if (!home.navigate) {
 
-  if (!home.navigate) {
+      for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++) {
 
-    for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++) {
+        my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
 
-      my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
-
+      }
     }
+
   }
 
   if (home.navigate) {
+
     my_nodes.clear();
     for (auto insert_helper = old_poses.list.begin(); insert_helper != old_poses.list.end(); insert_helper++) {
 
@@ -1065,12 +1091,13 @@ void buildPlanningGraph () {
     }
 
   }
-
+  bool pass_once = true;
   for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
+    
+    ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
 
-    for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++) {
+    for (auto graph_it2 = graph_it; graph_it2 != my_nodes.end(); graph_it2++) {
       
-      ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
       ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
       ufo::math::Vector3 direction = d2 - d1;
@@ -1080,29 +1107,38 @@ void buildPlanningGraph () {
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.3, 0.3),
               ufo::math::Quaternion(roll, pitch, yaw));
-      double rang = calculateDistance(d1, d2);
+      // double rang = calculateDistance(d1, d2);
+
       if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
-        sample_nd = *graph_it;
-        sample_nd2 = *graph_it2;
-
-        sample_nd.AddConnection(sample_nd2);
-        sample_nd2.AddConnection(sample_nd);
-        
-        planning.node_container.push_back(sample_nd);
-        planning.node_container.push_back(sample_nd2);
-
+        // pass_once = false;
+        // sample_nd = *graph_it;
+        // sample_nd2 = *graph_it2;
+        // (sample_nd).AddConnection(sample_nd2);
+        // (sample_nd2).AddConnection(sample_nd);
+        (*graph_it).AddConnection(*graph_it2);
+        (*graph_it2).AddConnection(*graph_it);
       }
-
+          // planning.node_container.push_back(sample_nd);
+          // planning.node_container.push_back(sample_nd2);
+      planning.node_container.push_back(*graph_it);
+      // planning.node_container.push_back(*graph_it2);
     }
-
+    // planning.node_container.push_back(sample_nd);
+    // planning.node_container.push_back(sample_nd2);
   }
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  cout << "\n\033[;34m Making the planning graph takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 
 }
 
 void findPath() {
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   if (!home.navigate) {
 
@@ -1127,6 +1163,10 @@ void findPath() {
         starting.y_ref = ((*closest_it).myposition.y);
         starting.z_ref = ((*closest_it).myposition.z);
       }
+
+    // starting.x_ref = current.position.x();
+    // starting.y_ref = current.position.y();
+    // starting.z_ref = current.position.z();
 
       if (end_dis < my_end_dis) {
         my_end_dis = end_dis;
@@ -1154,6 +1194,11 @@ void findPath() {
     planned.traj = Astar(start_pos_h, end_pos_h, planning.node_container);
 
   }
+
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 
 }
 
@@ -1185,7 +1230,7 @@ void globalReposition () {
     buildPlanningGraph();
     findPath();
 
-    while (planned.traj.empty()) {
+    if (planned.traj.empty()) {
       std::cout << "\nDid not find a good path... retrying.... \n";
       buildPlanningGraph();
       findPath();
@@ -1273,7 +1318,7 @@ void return_to_base_planning() {
   buildPlanningGraph();
   findPath();
 
-  while (planned.traj.empty()) {
+  if (planned.traj.empty()) {
     std::cout << "\nDid not find a good path... retrying.... \n";
     buildPlanningGraph();
     findPath();
@@ -1599,6 +1644,7 @@ int main(int argc, char *argv[])
       main computations to be executed here on
 
     */
+    
     visualize();
 
     if (firstTime || next_pub()) {

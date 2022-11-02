@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<launch>
+
+  <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
+
+  </node> 
+
+
+</launch>

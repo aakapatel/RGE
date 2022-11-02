@@ -11,12 +11,11 @@ Panels:
         - /UFOMap1/Voxel Rendering1
         - /UFOMap1/Voxel Rendering1/Occupied1
         - /PointCloud21
-        - /UFOMap2
         - /Axes1
         - /PoseWithCovariance1
         - /PoseWithCovariance1/Covariance1
-        - /UFOMap3
-        - /UFOMap3/Voxel Rendering1
+        - /UFOMap2
+        - /UFOMap2/Voxel Rendering1
         - /Marker1
         - /Marker1/Namespaces1
         - /Marker2
@@ -130,7 +129,7 @@ Visualization Manager:
           Scale: 1
           Style: Flat Squares
           Value: false
-    - Alpha: 0.5
+    - Alpha: 0.25
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
         Max Value: 6.562829971313477
@@ -139,7 +138,7 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 0; 255; 0
+      Color: 217; 238; 94
       Color Transformer: FlatColor
       Decay Time: 1e+09
       Enabled: true
@@ -151,67 +150,13 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.004999999888241291
+      Size (m): 0.004000000189989805
       Style: Flat Squares
       Topic: /hummingbird/velodyne_points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Class: UFOMap
-      Enabled: true
-      Information:
-        "# Inner Nodes": ""
-        "# Leaf Nodes": ""
-        Resolution: ""
-        Size: ""
-      Min. Depth: 0
-      Name: UFOMap
-      Occupancy Thresholds:
-        Free (%): 50
-        Occupied (%): 50
-      Queue size: 10
-      UFOMap Topic: ""
-      Use BBX:
-        BBX Frame: <Fixed Frame>
-        Maximum:
-          X: 1000
-          Y: 1000
-          Z: 1000
-        Minimum:
-          X: -1000
-          Y: -1000
-          Z: -1000
-        Value: false
-      Value: true
-      Voxel Rendering:
-        Free:
-          Alpha: 0.029999999329447746
-          Coloring:
-            Color: 0; 255; 0
-            Factor: 0.800000011920929
-            Value: Fixed
-          Scale: 1
-          Style: Flat Squares
-          Value: false
-        Occupied:
-          Alpha: 1
-          Coloring:
-            Color: 0; 0; 255
-            Factor: 0.800000011920929
-            Value: Voxel Color
-          Scale: 1
-          Style: Flat Squares
-          Value: true
-        Unknown:
-          Alpha: 0.029999999329447746
-          Coloring:
-            Color: 255; 255; 255
-            Factor: 0.800000011920929
-            Value: Fixed
-          Scale: 1
-          Style: Flat Squares
-          Value: false
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
@@ -255,10 +200,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 128 721
-        "# Leaf Nodes": 359 288
-        Resolution: 30 cm
-        Size: 5,69 MiB
+        "# Inner Nodes": 167 569
+        "# Leaf Nodes": 504 432
+        Resolution: 20 cm
+        Size: 7,68 MiB
       Min. Depth: 1
       Name: UFOMap
       Occupancy Thresholds:
@@ -400,7 +345,7 @@ Visualization Manager:
       Marker Topic: /ALC_PATH
       Name: Marker
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -420,7 +365,7 @@ Visualization Manager:
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.05000000074505806
+      Line Width: 0.10000000149011612
       Name: Path
       Offset:
         X: 0
@@ -474,7 +419,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 86.6455078125
+      Distance: 106.1339111328125
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -482,9 +427,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -21.43356704711914
-        Y: -2.4414618015289307
-        Z: -3.0787296295166016
+        X: -33.16948318481445
+        Y: 6.899714946746826
+        Z: -3.0876362323760986
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -492,7 +437,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 1.5803877115249634
+      Yaw: 1.5703871250152588
     Saved: ~
 Window Geometry:
   Displays:
@@ -510,5 +455,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1864
-  X: 56
-  Y: 401
+  X: 3416
+  Y: 0
