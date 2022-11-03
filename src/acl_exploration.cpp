@@ -1095,6 +1095,7 @@ void buildPlanningGraph () {
   for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
     
     ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+    
 
     for (auto graph_it2 = graph_it; graph_it2 != my_nodes.end(); graph_it2++) {
       
@@ -1109,22 +1110,29 @@ void buildPlanningGraph () {
       double roll = 0;  // TODO: Fix
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.3, 0.3),
               ufo::math::Quaternion(roll, pitch, yaw));
-      // double rang = calculateDistance(d1, d2);
+      double rang = calculateDistance(d1, d2);
 
-      if (!isInCollision(myMap, obb, true, false, true, 0)) {
+      if (rang < 2) {
 
-        // pass_once = false;
-        // sample_nd = *graph_it;
-        // sample_nd2 = *graph_it2;
-        // (sample_nd).AddConnection(sample_nd2);
-        // (sample_nd2).AddConnection(sample_nd);
-        (*graph_it).AddConnection(*graph_it2);
-        (*graph_it2).AddConnection(*graph_it);
+      
+      
+        if (!isInCollision(myMap, obb, true, false, true, 0)) {
+
+          // pass_once = false;
+          // sample_nd = *graph_it;
+          // sample_nd2 = *graph_it2;
+          // (sample_nd).AddConnection(sample_nd2);
+          // (sample_nd2).AddConnection(sample_nd);
+          (*graph_it).AddConnection(*graph_it2);
+          (*graph_it2).AddConnection(*graph_it);
+          planning.node_container.push_back(*graph_it);
+          planning.node_container.push_back(*graph_it2);
+        }
+      
       }
           // planning.node_container.push_back(sample_nd);
           // planning.node_container.push_back(sample_nd2);
-      planning.node_container.push_back(*graph_it);
-      // planning.node_container.push_back(*graph_it2);
+
     }
     // planning.node_container.push_back(sample_nd);
     // planning.node_container.push_back(sample_nd2);
