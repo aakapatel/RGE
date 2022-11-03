@@ -278,13 +278,13 @@ struct Frontier_main {
 
 std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> all_nodes)
 {
-    // Find the start and end nodes
+
     Node start_node;
     Node end_node;
 
     for (Node & node : all_nodes)
     {
-        if (node.myposition == end_pos) // start and end swaped here because A-Star traces from end to start
+        if (node.myposition == end_pos) 
             start_node = node;
         if (node.myposition == start_pos)
             end_node = node;
@@ -293,7 +293,7 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
     std::vector<Point> found_path; // Output path
 
 
-    std::set<Node> open_list; // Using set to be ordered
+    std::set<Node> open_list; 
     std::vector<Point> closed_list;
 
     open_list.emplace(start_node);
@@ -301,21 +301,16 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
     while (!open_list.empty())
     {
-        // Use node with lowest total_dist (the set is always sorted)
         Node current_node = *open_list.begin();
 
-        // Remove smallest and add to closed list
         open_list.erase(open_list.begin());
         closed_list.push_back(current_node.myposition);
 
 
-        // Found the goal
         if (current_node.myposition == end_node.myposition)
         {
-            // Found the goal
             Node * parent = &current_node;
 
-            // Jump from parent to parent to trace back
             while (parent != nullptr)
             {
                 found_path.push_back(parent->myposition);
@@ -329,26 +324,17 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
             Node child(node);
             child.parent.reset(new Node(current_node));
 
-            // Child is on the closed list
             if (std::find_if(closed_list.begin(), closed_list.end(), [&child](Point & pt) { return(pt == child.myposition); }) != closed_list.end())
                 continue;
 
-            // Create the total_dist, dist_to_start, and heurist_dist_to_end values for the new subnode
 
-            // Calculated the total distance to the start by adding the distance from the subnode to the current node.
-            // Note: This distance could be precomputed and just held together with the "connections"
             child.dist_to_start = current_node.dist_to_start + child.myposition.DistTo(current_node.myposition);
 
+            child.total_dist = child.dist_to_start + 0.05* (child.myposition.DistTo(end_node.myposition));
 
-        // Total cost is the sum of past distance and the heuristic (which assumes just line-of-flight)
-        // child.total_dist = child.dist_to_start + child.myposition.DistDistToHeuristicTo(end_node.myposition);
-        child.total_dist = child.dist_to_start + 0.05* (child.myposition.DistTo(end_node.myposition));
-
-            // Child is already in the open list
             if (std::find_if(open_list.begin(), open_list.end(), [&child](const Node & node) { return((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
                 continue;
 
-            // Add the child to the open list
             open_list.emplace(child);
         }
 
@@ -1055,14 +1041,14 @@ void buildPlanningGraph (bool improvement, int reit) {
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   int min = 20000;
   int max_it;
-  float original_planning_range = 20.0;
+  float original_planning_range = 30.0;
   float planning_range;
   if (improvement) {
     max_it = min + reit*min;
     planning_range = original_planning_range + (reit*original_planning_range);
   } else {
     max_it = min;
-    planning_range = 20.0;
+    planning_range = 30.0;
   }
 
   planningSpace(planning_range, myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
@@ -1141,12 +1127,10 @@ void buildPlanningGraph (bool improvement, int reit) {
         }
       
       }
-          // planning.node_container.push_back(sample_nd);
-          // planning.node_container.push_back(sample_nd2);
+
 
     }
-    // planning.node_container.push_back(sample_nd);
-    // planning.node_container.push_back(sample_nd2);
+
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
@@ -1182,10 +1166,6 @@ void findPath() {
         starting.y_ref = ((*closest_it).myposition.y);
         starting.z_ref = ((*closest_it).myposition.z);
       }
-
-    // starting.x_ref = current.position.x();
-    // starting.y_ref = current.position.y();
-    // starting.z_ref = current.position.z();
 
       if (end_dis < my_end_dis) {
         my_end_dis = end_dis;
