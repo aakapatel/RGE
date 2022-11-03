@@ -248,6 +248,7 @@ struct Node
 
 struct Frontier_main {
   bool navigate;
+  bool improve;
   std::list<ufo::math::Vector3> list;
   ufo::math::Vector3 position;
   geometry_msgs::PoseStamped pose;
@@ -484,16 +485,17 @@ Frontier_main explore;
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL BOUNDING SPACE CAN BE CONFIGURED HERE.
 
-void tuneGeneration(ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
+void planningSpace(float range, ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
                                       float given_y, float given_z, ufo::map::DepthType min_depth = 3){
+  
   highest_x = -9999;
   highest_y = -9999;
   highest_z = -9999;
   lowest_x = std::numeric_limits<float>::max();
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
-  ufo::math::Vector3 minPoint(given_x - 1 * SCALER_AABB, given_y - 1 * SCALER_AABB, given_z - 1 * SCALER_AABB);
-  ufo::math::Vector3 maxPoint(given_x + 1 * SCALER_AABB, given_y + 1 * SCALER_AABB, given_z + 1 * SCALER_AABB);
+  ufo::math::Vector3 minPoint(given_x - 1 * range, given_y - 1 * range, given_z - 1 * range);
+  ufo::math::Vector3 maxPoint(given_x + 1 * range, given_y + 1 * range, given_z + 1 * range);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
   for (auto it = map.beginLeaves(aabb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it) {
     if(it.getX() > highest_x){
@@ -530,12 +532,12 @@ bool isInCollision(ufo::map::OccupancyMapColor const& map,
   return false;
 }
 
-void buildGraph(float given_x, float given_y, float given_z) {
+void buildGraph(float given_x, float given_y, float given_z, int max_iterations) {
   for(std::list<node*>::iterator it_clear_helper = Global_Graph.begin(); it_clear_helper != --Global_Graph.end(); it_clear_helper++){
     (*it_clear_helper)->readyForDeletion();
     delete(*it_clear_helper);
   }
-
+  
   Global_Graph.clear();
   std::cout << "\nBuilding graph... " << std::endl;
   node* origin = new node(given_x, given_y, given_z);
@@ -543,7 +545,7 @@ void buildGraph(float given_x, float given_y, float given_z) {
   Global_Graph.push_back(origin);
   srand(time(0));
   itterations = 0;
-  while(itterations < 10000) {
+  while(itterations < max_iterations) {
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
@@ -1048,12 +1050,23 @@ void fetchGlobalFrontier () {
 
 }
 
-void buildPlanningGraph () {
+void buildPlanningGraph (bool improvement, int reit) {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
+  int min = 20000;
+  int max_it;
+  float original_planning_range = 20.0;
+  float planning_range;
+  if (improvement) {
+    max_it = min + reit*min;
+    planning_range = original_planning_range + (reit*original_planning_range);
+  } else {
+    max_it = min;
+    planning_range = 20.0;
+  }
 
-  tuneGeneration(myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
-  buildGraph(current.position.x(), current.position.y(), current.position.z());
+  planningSpace(planning_range, myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
+  buildGraph(current.position.x(), current.position.y(), current.position.z(), max_it);
   
   planning.graph_pointer = selectGlobalFrontier(all.list);
 
@@ -1112,10 +1125,8 @@ void buildPlanningGraph () {
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
 
-      if (rang < 2) {
+      if (rang < 2.5) {
 
-      
-      
         if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
           // pass_once = false;
@@ -1234,14 +1245,19 @@ void globalReposition () {
   } else {
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
-    buildPlanningGraph();
+    int reiterate = 1;
+    buildPlanningGraph(planning.improve, reiterate);
     findPath();
 
+    label: 
     if (planned.traj.empty()) {
-      std::cout << "\nDid not find a good path... retrying.... \n";
-      buildPlanningGraph();
+      reiterate = reiterate + 1;
+      std::cout << "\nDid not find a good path... requesting improvement.... \n";
+      planning.improve = true;
+      buildPlanningGraph(planning.improve, reiterate);
       findPath();
+      goto label;
+
     }
 
     if (!planned.traj.empty()) {
@@ -1323,18 +1339,25 @@ void return_to_base_planning() {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  buildPlanningGraph();
+  int reiterate = 1;
+  buildPlanningGraph(planning.improve, reiterate);
   findPath();
-
+  
+  label: 
   if (planned.traj.empty()) {
-    std::cout << "\nDid not find a good path... retrying.... \n";
-    buildPlanningGraph();
+    reiterate = reiterate + 1;
+    std::cout << "\nDid not find a good path... requesting improvement.... \n";
+    planning.improve = true;
+    buildPlanningGraph(planning.improve, reiterate);
     findPath();
+    goto label;
 
   }
+  
 
   if (!planned.traj.empty()) {
-
+    
+    planning.improve = false;
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     cout << "\n\033[;34mReturn to base planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
