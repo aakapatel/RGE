@@ -534,8 +534,9 @@ void buildGraph(float given_x, float given_y, float given_z, int max_iterations)
   while(itterations < max_iterations) {
     // Generate a random point
     float x = lowest_x + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
-    float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
-    float z = lowest_z + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_X;
+    float y = lowest_y + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_Y;
+    float z = lowest_z + abs(1024 * rand () / (RAND_MAX + 1.0)) * SCALER_Z;
+    // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
     ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
     if(!isInCollision(myMap, point_sphere, true, false, true, 0) and isInCollision(myMap, point_sphere, false, true, false, 0)){
