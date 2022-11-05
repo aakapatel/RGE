@@ -12,8 +12,6 @@ Panels:
         - /UFOMap1/Voxel Rendering1/Occupied1
         - /PointCloud21
         - /Axes1
-        - /PoseWithCovariance1
-        - /PoseWithCovariance1/Covariance1
         - /UFOMap2
         - /UFOMap2/Voxel Rendering1
         - /Marker1
@@ -31,7 +29,7 @@ Panels:
         - /Path2
         - /PointStamped1
       Splitter Ratio: 0.5
-    Tree Height: 934
+    Tree Height: 907
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -76,12 +74,12 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: false
     - Class: UFOMap
-      Enabled: false
+      Enabled: true
       Information:
-        "# Inner Nodes": 128 721
-        "# Leaf Nodes": 359 288
-        Resolution: 30 cm
-        Size: 5,69 MiB
+        "# Inner Nodes": 191 705
+        "# Leaf Nodes": 609 632
+        Resolution: 20 cm
+        Size: 9,04 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -100,7 +98,7 @@ Visualization Manager:
           Y: -1000
           Z: -1000
         Value: true
-      Value: false
+      Value: true
       Voxel Rendering:
         Free:
           Alpha: 0.029999999329447746
@@ -112,7 +110,7 @@ Visualization Manager:
           Style: Flat Squares
           Value: false
         Occupied:
-          Alpha: 0.5
+          Alpha: 0.05000000074505806
           Coloring:
             Color: 0; 0; 255
             Factor: 0.800000011920929
@@ -138,7 +136,7 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 217; 238; 94
+      Color: 62; 176; 236
       Color Transformer: FlatColor
       Decay Time: 1e+09
       Enabled: true
@@ -150,7 +148,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.004000000189989805
+      Size (m): 0.004999999888241291
       Style: Flat Squares
       Topic: /hummingbird/velodyne_points
       Unreliable: false
@@ -166,44 +164,13 @@ Visualization Manager:
       Reference Frame: hummingbird/base_link
       Show Trail: false
       Value: true
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz/PoseWithCovariance
-      Color: 255; 25; 0
-      Covariance:
-        Orientation:
-          Alpha: 0.5
-          Color: 255; 255; 127
-          Color Style: Unique
-          Frame: Local
-          Offset: 1
-          Scale: 1
-          Value: true
-        Position:
-          Alpha: 0.30000001192092896
-          Color: 204; 51; 204
-          Scale: 1
-          Value: true
-        Value: true
-      Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: PoseWithCovariance
-      Queue Size: 100000
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Arrow
-      Topic: /hummingbird/ground_truth/pose_with_covariance
-      Unreliable: false
-      Value: true
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 167 569
-        "# Leaf Nodes": 504 432
+        "# Inner Nodes": 191 705
+        "# Leaf Nodes": 609 632
         Resolution: 20 cm
-        Size: 7,68 MiB
+        Size: 9,04 MiB
       Min. Depth: 1
       Name: UFOMap
       Occupancy Thresholds:
@@ -345,7 +312,7 @@ Visualization Manager:
       Marker Topic: /ALC_PATH
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -419,7 +386,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 106.1339111328125
+      Distance: 108.66433715820312
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -427,9 +394,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -33.16948318481445
-        Y: 6.899714946746826
-        Z: -3.0876362323760986
+        X: -29.92759895324707
+        Y: 9.155492782592773
+        Z: -3.090696334838867
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -437,15 +404,15 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 1.5703871250152588
+      Yaw: 1.5953876972198486
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: true
-  Height: 1163
+  Height: 1136
   Hide Left Dock: true
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000004000000000000015600000431fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003d00000431000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000004c2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000004c2000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000074c0000003efc0100000002fb0000000800540069006d006500000000000000074c0000041800fffffffb0000000800540069006d00650100000000000004500000000000000000000007480000043100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000015600000416fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003d00000416000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000004c2fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000004c2000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000074c0000003efc0100000002fb0000000800540069006d006500000000000000074c0000041800fffffffb0000000800540069006d00650100000000000004500000000000000000000007480000041600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -455,5 +422,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1864
-  X: 3416
-  Y: 0
+  X: 56
+  Y: 27
