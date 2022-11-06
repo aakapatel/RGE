@@ -24,6 +24,7 @@
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include "std_msgs/String.h"
+#include "std_msgs/Int64.h"
 #include <limits> 
 #include <set>
 #include <utility> 
@@ -36,7 +37,7 @@
 #include <string>
 #include <climits> 
 #include <memory>
-
+#include <fstream>
 using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
@@ -273,6 +274,9 @@ struct Frontier_main {
   ros::Publisher path_to_goal_pub;
   ros::Publisher best_frontier_pub;
   geometry_msgs::PoseStamped reference;
+  ros::Publisher total_execution_pub;
+  ros::Publisher local_execution_pub;
+  ros::Publisher global_execution_pub;
 
 };
 
@@ -1004,6 +1008,10 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
     global.navigate = false;
   }
 
+  if (msg->points.empty()) {
+    home.navigate = true;
+  }
+
 }
 
 void exploreLocally() {
@@ -1256,7 +1264,7 @@ void graph_navigation () {
 
     label: 
     if (planned.traj.empty()) {
-      std::cout << "\nDid not find a good path... requesting improvement.... \n";
+      std::cout << "\nCould not find a good path... requesting improvement.... \n";
       reiterate = reiterate + 1;
       planning.improve = true;
       buildPlanningGraph(planning.improve, reiterate);
@@ -1269,7 +1277,7 @@ void graph_navigation () {
 
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-      cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+      // cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
       
       if (planned.traj.size() > 1) {
       
@@ -1351,7 +1359,7 @@ void return_to_base_planning() {
   label: 
   if (planned.traj.empty()) {
     reiterate = reiterate + 1;
-    std::cout << "\nDid not find a good path... requesting improvement.... \n";
+    std::cout << "\nCould not find a good path... requesting improvement.... \n";
     planning.improve = true;
     buildPlanningGraph(planning.improve, reiterate);
     findPath();
@@ -1369,13 +1377,13 @@ void return_to_base_planning() {
     
     if (planned.traj.size() > 1) {
     
-      cout<< "\033[;32mPlanned path to Base is composed of these nodes: \033[0m\n ";
+      // cout<< "\033[;32mPlanned path to Base is composed of these nodes: \033[0m\n ";
 
       for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
-        cout << "X : " << ((*vert_it)).x << "\n ";
-        cout << "Y : " << ((*vert_it)).y << "\n ";
-        cout << "Z : " << ((*vert_it)).z << "\n ";
-        cout << "--------" << "\n ";
+        // cout << "X : " << ((*vert_it)).x << "\n ";
+        // cout << "Y : " << ((*vert_it)).y << "\n ";
+        // cout << "Z : " << ((*vert_it)).z << "\n ";
+        // cout << "--------" << "\n ";
         geometry_msgs::PoseStamped global_nodes;
         global_nodes.pose.position.x = ((*vert_it)).x;
         global_nodes.pose.position.y = ((*vert_it)).y;
@@ -1650,6 +1658,9 @@ int main(int argc, char *argv[])
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   pub.global_nodes_pub = nh.advertise<visualization_msgs::Marker>("global_frontier_nodes_vis", 1);
+  pub.total_execution_pub = nh.advertise<std_msgs::Int64>("total_execution_time", 1);
+  pub.local_execution_pub = nh.advertise<std_msgs::Int64>("local_execution_time", 1);
+  pub.global_execution_pub = nh.advertise<std_msgs::Int64>("global_execution_time", 1);
   // pub.map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
@@ -1671,7 +1682,12 @@ int main(int argc, char *argv[])
   home.navigate = false;
   explore.navigate = false;
 
+  
+  std::list<int> exec;
+  ofstream myfile;
+  myfile.open("/home/godzilla/Documents/execution.txt");
 
+  int it = 0;
   while(ros::ok()){
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
@@ -1681,21 +1697,60 @@ int main(int argc, char *argv[])
 
     */
     
-    visualize();
 
-    if (firstTime || next_pub()) {
+    
+
+    if (firstTime and explore.navigate) {
 
       firstTime = false;
+      geometry_msgs::PoseStamped first_ref;
+      first_ref.pose.position.x = 4;
+      first_ref.pose.position.y = current.position.y();
+      first_ref.pose.position.z = 1.2;
+      first_ref.pose.orientation.w = 0;
+      first_ref.pose.orientation.x = 0;
+      first_ref.pose.orientation.y = 0;
+      first_ref.pose.orientation.z = 0;
+      pub.best_frontier_pub.publish(first_ref);
+      published.reference = first_ref;
+
+    }
+
+
+    if (next_pub()) {
+
+      
+      // firstTime = false;
 
       if (local.navigate and explore.navigate and !home.navigate) {
 
+        high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
         exploreLocally();
+
         graph_navigation();
+        
+        high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+        auto local_planning_duration = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+        std_msgs::Int64 local_planning_time;
+        local_planning_time.data = int(local_planning_duration.count());
+        pub.local_execution_pub.publish(local_planning_time);
+
 
       } else if (!local.navigate and global.navigate and explore.navigate and !home.navigate) {
+        
+        high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-        // globalReposition();
         graph_navigation();
+
+        high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+        auto global_planning_duration = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+
+        std_msgs::Int64 global_planning_time;
+        global_planning_time.data = int(global_planning_duration.count());
+        pub.global_execution_pub.publish(global_planning_time);
+
       }
 
       if (home.navigate and !explore.navigate) {
@@ -1703,17 +1758,41 @@ int main(int argc, char *argv[])
         return_to_base_planning();
 
       }
-    
+
+      high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+      auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+      
+      cout << "\033[;32mTotal planning execution time: \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+      
+      std_msgs::Int64 exec_time;
+      exec_time.data = int(duration_total.count());
+
+      pub.total_execution_pub.publish(exec_time);
+
+      exec.push_back(duration_total.count());
+
     }
 
-    high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-    auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-    
-    // cout << "\033[;34m Total Execution time\033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+
+
+    visualize();
 
     ros::spinOnce();
     rate.sleep();
   }
+
+      // if (myfile.is_open())
+
+      // {
+      //   cout << "file was opened " << endl;
+      //   for (auto i = exec.begin(); i != exec.end(); i++) {
+      //     myfile << "execution_time " <<  *i << " iteration " << std::distance(exec.begin(), i) << endl;
+      //   }
+      //   myfile.close();
+      // }
+      // else { cout << "Unable to open file";
+      // }
+
   return 0;
 }
 
