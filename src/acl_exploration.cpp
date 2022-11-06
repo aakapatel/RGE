@@ -1064,19 +1064,38 @@ void fetchGlobalFrontier () {
 
 }
 
-void buildPlanningGraph (bool improvement, int reit) {
+void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  int min = 20000;
+
+
   int max_it;
-  float original_planning_range = 60.0;
   float planning_range;
-  if (improvement) {
-    max_it = min + reit*min;
-    planning_range = original_planning_range + 0.4*(reit*original_planning_range);
+
+  if (local_exploration) {
+
+    int min = 5000;
+    float original_planning_range = 20.0;
+    
+    if (improvement) {
+      max_it = min + reit*min;
+      planning_range = original_planning_range + 0.4*(reit*original_planning_range);
+    } else {
+      max_it = min;
+      planning_range = 20.0;
+    }
+
   } else {
-    max_it = min;
-    planning_range = 60.0;
+
+    int min_G = 20000;
+    float original_planning_range_G = 60.0;
+    if (improvement) {
+      max_it = min_G + reit*min_G;
+      planning_range = original_planning_range_G + 0.4*(reit*original_planning_range_G);
+    } else {
+      max_it = min_G;
+      planning_range = 60.0;
+    }
   }
 
   planningSpace(planning_range, myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
@@ -1229,7 +1248,7 @@ void findPath() {
 
 }
 
-void graph_navigation () {
+void graph_navigation (bool local_nav) {
 
   if (global.navigate and !local.navigate) {
 
@@ -1259,7 +1278,7 @@ void graph_navigation () {
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
     int reiterate = 1;
-    buildPlanningGraph(planning.improve, reiterate);
+    buildPlanningGraph(local_nav, planning.improve, reiterate);
     findPath();
 
     label: 
@@ -1267,7 +1286,7 @@ void graph_navigation () {
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
       reiterate = reiterate + 1;
       planning.improve = true;
-      buildPlanningGraph(planning.improve, reiterate);
+      buildPlanningGraph(local_nav, planning.improve, reiterate);
       findPath();
       goto label;
 
@@ -1337,7 +1356,7 @@ void exploreCallback(const std_msgs::String::ConstPtr& base) {
 
 }
 
-void return_to_base_planning() {
+void return_to_base_planning(bool local_nav) {
 
   double homing_cost;
   double myhoming_cost = 10000000000000;
@@ -1353,7 +1372,7 @@ void return_to_base_planning() {
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   int reiterate = 1;
-  buildPlanningGraph(planning.improve, reiterate);
+  buildPlanningGraph(local_nav, planning.improve, reiterate);
   findPath();
   
   label: 
@@ -1361,7 +1380,7 @@ void return_to_base_planning() {
     reiterate = reiterate + 1;
     std::cout << "\nCould not find a good path... requesting improvement.... \n";
     planning.improve = true;
-    buildPlanningGraph(planning.improve, reiterate);
+    buildPlanningGraph(local_nav, planning.improve, reiterate);
     findPath();
     goto label;
 
@@ -1728,7 +1747,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        graph_navigation();
+        graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -1742,7 +1761,7 @@ int main(int argc, char *argv[])
         
         high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-        graph_navigation();
+        graph_navigation(false);
 
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto global_planning_duration = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
@@ -1755,7 +1774,7 @@ int main(int argc, char *argv[])
 
       if (home.navigate and !explore.navigate) {
 
-        return_to_base_planning();
+        return_to_base_planning(false);
 
       }
 
@@ -1772,8 +1791,6 @@ int main(int argc, char *argv[])
       exec.push_back(duration_total.count());
 
     }
-
-
 
     visualize();
 
