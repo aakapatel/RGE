@@ -17,7 +17,7 @@
 		<param name="min_range" value="0.5" />
 		<param name="robot_radius" value="0.5" />
 		<param name="robot_height" value="0.5" />
-		<param name="compress" value="False" />
+		<param name="compress" value="True" />
 		<param name="clear_robot" value="False" />
 		<param name="clearing_depth" value="0" />
 		<param name="publish_depth" value="0" />

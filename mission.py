@@ -33,6 +33,7 @@ class Server:
         self.waypoint = False
         self.frontier_received = False
         self.xbee_return_flag = False
+        self.land_flag = False
         self.local_heading_ref = 0
         self.heading_ref = 0
         self.x_c = 0
@@ -45,7 +46,7 @@ class Server:
 
         #############################################################################################
 
-        mission_duration = 6000
+        mission_duration = 400
 
         #############################################################################################
         
@@ -59,11 +60,17 @@ class Server:
         self.safety_publisher = rospy.Publisher('/hummingbird/safety_land', String, queue_size= 10)
         self.safety_msg = String()
 
+        self.return_publisher = rospy.Publisher('/return_home', String, queue_size= 10)
+        self.return_command = String()
+
+        self.explore_publisher = rospy.Publisher('/explore', String, queue_size= 10)
+        self.explore_command = String()
+
         self.frontier_subscriber = rospy.Subscriber('/frontier/point', Point, self.frontier_callback)
         
         rospy.Subscriber("/hummingbird/ground_truth/odometry", Odometry, self.read_callback)
 
-        rospy.Subscriber('/hummingbird/return',  String, self.return_to_base)
+        rospy.Subscriber('/return_home',  String, self.return_to_base)
 
         self.waypoint_subscriber = rospy.Subscriber('/hummingbird/path', Path, self.waypoint_callback)
 
@@ -117,6 +124,7 @@ class Server:
         self.vel_msg.pose.orientation.w = 0
 
         self.vel_publisher.publish(self.vel_msg)
+
         print('exploring....')
 
         return
@@ -135,15 +143,25 @@ class Server:
         if ((start - mission_timer) < mission_duration):
 
             print("%.2f" % (start - mission_timer))
+            
+            self.explore_publisher.publish(self.explore_command)
 
             if (self.xbee_return_flag == False):
 
                 if (self.waypoint):
                     self.explore()
+
+        if ((start - mission_timer) > mission_duration):
+
+            self.return_publisher.publish(self.return_command)
+
+            if (self.waypoint):
+                self.explore()
         
         if ((start - mission_timer) > mission_duration) and (self.d < 1.5):
             
             self.safety_publisher.publish(self.safety_msg)
+            self.land_flag = True
             print("safety landing....")
 
 

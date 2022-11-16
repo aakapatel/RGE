@@ -1,0 +1,5 @@
+#!/bin/bash
+
+read bag_name
+
+rosbag record -o $bag_name /tf /tf_static /ALC_PATH /ALC_PATH_array /ALC_POINTS /ALC_POINTS_array /Traversable_frontiers /acl_exploration_node/parameter_descriptions /acl_exploration_node/parameter_updates /clock /exploration_path /explore /frontier/point /frontier_nodes_vis /frontiers_nodes /global_execution_time /global_frontier_nodes_vis /global_frontier_nodes_vis_array /hummingbird/ground_truth/odometry /hummingbird/ground_truth/position /hummingbird/ground_truth/imu /hummingbird/path /hummingbird/reference /hummingbird/return /hummingbird/safety_land /hummingbird/set_start /hummingbird/velodyne_points /improved_path /improved_path_array /local_execution_time /local_frontier_nodes_vis /local_frontier_nodes_vis_array /occupied_nodes /planning_graph /planning_graph_array /potential_delta_p_hummingbird /return_home /total_execution_time /ufomap_mapping_server_node/info /ufomap_mapping_server_node/map /ufomap_mapping_server_node/parameter_descriptions /ufomap_mapping_server_node/parameter_updates /vis_next/visualization_marker /vis_next/visualization_marker_array /visited_nodes /visited_nodes_array 

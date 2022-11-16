@@ -265,7 +265,6 @@ struct Frontier_main {
   ros::Publisher chosen_path_visualization_pub;
   ros::Publisher alc_points_visualization_pub;
   ros::Publisher alc_path_visualization_pub;
-  ros::Publisher position_pub;
   ros::Publisher map_pub; 
   ros::Publisher hits_pub;
   ros::Publisher local_nodes_pub; 
@@ -422,7 +421,6 @@ int myindex = 0;
 int goaldis;
 bool explore_begin = true;
 bool travers;
-bool go_global;
 bool frontiers_received;
 
 ufo::math::Vector3 selectedfrontier;
@@ -467,6 +465,8 @@ Frontier_main starting;
 Frontier_main ending;
 Frontier_main home;
 Frontier_main explore;
+Frontier_main switch_global;
+Frontier_main temp_local;
 
 // home.navigate = false;
 
@@ -556,8 +556,16 @@ void buildGraph(float given_x, float given_y, float given_z, int max_iterations)
         }
       };
       ufo::math::Vector3 start_point(parent->point->x(), parent->point->y(), parent->point->z());
-      ufo::geometry::LineSegment myLine(random_point, start_point);
-      if(!isInCollision(myMap, myLine, true, false, true, 0)) {
+      ufo::math::Vector3 direction = random_point - start_point;
+      ufo::math::Vector3 center = start_point + (direction / 2.0);
+      double dis = direction.norm();
+      direction /= dis;
+      double yaw = -atan2(direction[1], direction[0]);
+      double pitch = -asin(direction[2]);
+      double roll = 0;  // TODO: Fix
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(dis / 2.0, 0.4, 0.4),
+              ufo::math::Quaternion(roll, pitch, yaw));
+      if(!isInCollision(myMap, obb, true, false, true, 0)) {
           node* new_node = new node(x, y, z);
           new_node->addParent(parent);
           parent->addChild(new_node);
@@ -697,6 +705,34 @@ node* selectGlobalFrontier(std::list<ufo::math::Vector3> global) {
     for (ufo::math::Vector3 globalfrontier : global) {
         score = calculateDistance(globalfrontier, current.position);
         if (score < myScore) {              
+            myScore = score;
+            selectg = globalfrontier;
+        }
+    }
+  double pen;
+  double mypen = 10000000000000;
+  node* my_nod;
+  for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
+
+    double nearest_dis = calculateDistance(*((*rit)->point), selectg);
+    pen = nearest_dis;
+    if (pen < mypen) {
+      mypen = pen;
+      my_nod = *rit;
+    }
+
+  }
+  return my_nod;
+}
+
+node* switchedGlobalFrontier(std::list<ufo::math::Vector3> global) {
+  double score;
+  double myScore = 0;
+  ufo::math::Vector3 selectg;
+
+    for (ufo::math::Vector3 globalfrontier : global) {
+        score = calculateDistance(globalfrontier, current.position);
+        if (score > myScore) {              
             myScore = score;
             selectg = globalfrontier;
         }
@@ -921,7 +957,7 @@ void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
   std::list<ufo::math::Vector3> mylist2;
   for (geometry_msgs::Point frontier : msg->points) {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
-    double radius = 0.3;
+    double radius = 0.8;
     ufo::geometry::Sphere sphere(frontier_point, radius);
     if (!isInCollision(myMap, sphere, true, false, false, 0)) {    
     mylist.push_back(frontier_point);
@@ -1075,35 +1111,41 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
   if (local_exploration) {
 
     int min = 5000;
-    float original_planning_range = 20.0;
+    float original_planning_range = 15.0;
     
     if (improvement) {
       max_it = min + reit*min;
       planning_range = original_planning_range + 0.4*(reit*original_planning_range);
     } else {
       max_it = min;
-      planning_range = 20.0;
+      planning_range = 15.0;
     }
 
   } else {
 
-    int min_G = 20000;
-    float original_planning_range_G = 60.0;
+    int min_G = 10000;
+    float original_planning_range_G = 30.0;
     if (improvement) {
       max_it = min_G + reit*min_G;
       planning_range = original_planning_range_G + 0.4*(reit*original_planning_range_G);
     } else {
       max_it = min_G;
-      planning_range = 60.0;
+      planning_range = 30.0;
     }
   }
 
   planningSpace(planning_range, myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
   buildGraph(current.position.x(), current.position.y(), current.position.z(), max_it);
   
-  planning.graph_pointer = selectGlobalFrontier(all.list);
+  // planning.graph_pointer = selectGlobalFrontier(global.list);
 
-  ALC_POINTS = selectGlobalPath(all.list);
+  if (switch_global.navigate) {
+
+    planning.graph_pointer = switchedGlobalFrontier(global.list);
+  } else {
+    planning.graph_pointer = selectGlobalFrontier(global.list);
+  }
+  // ALC_POINTS = selectGlobalPath(all.list);
   
   std::vector<Node> my_nodes;
   
@@ -1154,13 +1196,33 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.3, 0.3),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.6, 0.6),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
 
-      if (rang < 1.5) {
 
-        if (isInCollision(myMap, obb, false, true, false, 0)) {
+      if (local_exploration) {
+
+        if (isLocal(d2, current.position, current.heading) and isLocal(d1, current.position, current.heading) and rang < 2) {
+
+            if (isInCollision(myMap, obb, false, true, false, 2) ) {
+
+              (*graph_it).AddConnection(*graph_it2);
+              (*graph_it2).AddConnection(*graph_it);
+              planning.node_container.push_back(*graph_it);
+              planning.node_container.push_back(*graph_it2);
+              
+            }
+        }
+
+
+      } else {
+
+      if (rang > 2 and rang < 3) {
+
+        if (isInCollision(myMap, obb, false, true, false, 2) ) {
+
+        // if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
           // pass_once = false;
           // sample_nd = *graph_it;
@@ -1171,8 +1233,10 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
           (*graph_it2).AddConnection(*graph_it);
           planning.node_container.push_back(*graph_it);
           planning.node_container.push_back(*graph_it2);
+          
         }
       
+      }
       }
 
 
@@ -1274,7 +1338,6 @@ void graph_navigation (bool local_nav) {
     }
   
   }
-  //  if () {
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
     int reiterate = 1;
@@ -1302,7 +1365,7 @@ void graph_navigation (bool local_nav) {
       
         // cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
 
-        for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
+        for (auto vert_it = std::next(planned.traj.begin(),2); vert_it != planned.traj.end(); vert_it++) {
           // cout << "X : " << ((*vert_it)).x << "\n ";
           // cout << "Y : " << ((*vert_it)).y << "\n ";
           // cout << "Z : " << ((*vert_it)).z << "\n ";
@@ -1331,12 +1394,11 @@ void graph_navigation (bool local_nav) {
 
       pub.path_to_goal_pub.publish(current.path);
       current.path.poses.clear();
-      ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y, planned.traj.back().z);
+      ufo::math::Vector3 lastpub( std::prev( planned.traj.end(), 1)->x, std::prev( planned.traj.end(), 1)->y, std::prev( planned.traj.end(), 1)->z);
       published.reference = publish_goal(lastpub); 
 
     }
 
-  // }
 
   planned.traj.clear();
 
@@ -1353,6 +1415,13 @@ void exploreCallback(const std_msgs::String::ConstPtr& base) {
 
   explore.navigate = true;
   home.navigate = false;
+
+}
+
+void switchCallback (const std_msgs::String::ConstPtr& go_global) {
+
+  switch_global.navigate = true;
+  temp_local.navigate = false;
 
 }
 
@@ -1666,11 +1735,10 @@ int main(int argc, char *argv[])
 { 
   ros::init(argc, argv, "ACL_EXPLORATION");
   ros::NodeHandle nh;
-  pub.points_pub = nh.advertise<visualization_msgs::Marker>("RRT_NODES", 1);
-  pub.chosen_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("CHOSEN_RRT_PATH_VISUALIZATION", 1);
+  pub.points_pub = nh.advertise<visualization_msgs::Marker>("planning_graph", 1);
+  pub.chosen_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("improved_path", 1);
   pub.alc_points_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_POINTS", 1);
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_PATH", 1);
-  pub.position_pub = nh.advertise<visualization_msgs::Marker>("POSITION", 1);
   pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
   pub.path_to_goal_pub = nh.advertise<nav_msgs::Path>("/hummingbird/path", 1);
   pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
@@ -1686,6 +1754,7 @@ int main(int argc, char *argv[])
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
   ros::Subscriber homing_sub = nh.subscribe("/return_home", 1, homingCallback);
   ros::Subscriber explore_sub = nh.subscribe("/explore", 1, exploreCallback);
+  ros::Subscriber assist_sub = nh.subscribe("/go_global", 1, switchCallback);
   ros::Rate rate(10);
 
   dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
@@ -1700,11 +1769,12 @@ int main(int argc, char *argv[])
   current.path.header.frame_id = "world";
   home.navigate = false;
   explore.navigate = false;
+  switch_global.navigate = false;
 
   
   std::list<int> exec;
   ofstream myfile;
-  myfile.open("/home/godzilla/Documents/execution.txt");
+  // myfile.open("/home/godzilla/Documents/example.txt");
 
   int it = 0;
   while(ros::ok()){
@@ -1716,14 +1786,11 @@ int main(int argc, char *argv[])
 
     */
     
-
-    
-
     if (firstTime and explore.navigate) {
 
       firstTime = false;
       geometry_msgs::PoseStamped first_ref;
-      first_ref.pose.position.x = 4;
+      first_ref.pose.position.x = 12;
       first_ref.pose.position.y = current.position.y();
       first_ref.pose.position.z = 1.2;
       first_ref.pose.orientation.w = 0;
@@ -1736,12 +1803,11 @@ int main(int argc, char *argv[])
     }
 
 
-    if (next_pub()) {
-
+    if (next_pub() or switch_global.navigate) {
       
       // firstTime = false;
 
-      if (local.navigate and explore.navigate and !home.navigate) {
+      if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate) {
 
         high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
@@ -1750,14 +1816,20 @@ int main(int argc, char *argv[])
         graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
-        auto local_planning_duration = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+        auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);
 
         std_msgs::Int64 local_planning_time;
+
         local_planning_time.data = int(local_planning_duration.count());
+
+
         pub.local_execution_pub.publish(local_planning_time);
 
 
-      } else if (!local.navigate and global.navigate and explore.navigate and !home.navigate) {
+        exec.push_back(local_planning_duration.count());
+
+
+      } else if ((!local.navigate and global.navigate and explore.navigate and !home.navigate) or switch_global.navigate) {
         
         high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
@@ -1769,6 +1841,8 @@ int main(int argc, char *argv[])
         std_msgs::Int64 global_planning_time;
         global_planning_time.data = int(global_planning_duration.count());
         pub.global_execution_pub.publish(global_planning_time);
+
+        switch_global.navigate = false;
 
       }
 
@@ -1783,12 +1857,12 @@ int main(int argc, char *argv[])
       
       cout << "\033[;32mTotal planning execution time: \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
       
-      std_msgs::Int64 exec_time;
-      exec_time.data = int(duration_total.count());
+      // std_msgs::Int64 exec_time;
+      // exec_time.data = int(duration_total.count());
 
-      pub.total_execution_pub.publish(exec_time);
+      // pub.total_execution_pub.publish(exec_time);
 
-      exec.push_back(duration_total.count());
+      // exec.push_back(duration_total.count());
 
     }
 
@@ -1798,17 +1872,19 @@ int main(int argc, char *argv[])
     rate.sleep();
   }
 
-      // if (myfile.is_open())
+      myfile.open("/home/godzilla/Documents/example.txt");
+      
+      if (myfile.is_open())
 
-      // {
-      //   cout << "file was opened " << endl;
-      //   for (auto i = exec.begin(); i != exec.end(); i++) {
-      //     myfile << "execution_time " <<  *i << " iteration " << std::distance(exec.begin(), i) << endl;
-      //   }
-      //   myfile.close();
-      // }
-      // else { cout << "Unable to open file";
-      // }
+      {
+        cout << "file was opened " << endl;
+        for (auto i = exec.begin(); i != exec.end(); i++) {
+          myfile << "execution_time " <<  *i << " iteration " << std::distance(exec.begin(), i) << endl;
+        }
+        myfile.close();
+      }
+      else { cout << "Unable to open file";
+      }
 
   return 0;
 }
