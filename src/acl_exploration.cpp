@@ -1218,27 +1218,25 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
 
       } else {
 
-      if (rang > 2 and rang < 3) {
+        if (rang > 2 and rang < 3) {
 
-        if (isInCollision(myMap, obb, false, true, false, 2) ) {
+          if (isInCollision(myMap, obb, false, true, false, 2) ) {
 
-        // if (!isInCollision(myMap, obb, true, false, true, 0)) {
+          // if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
-          // pass_once = false;
-          // sample_nd = *graph_it;
-          // sample_nd2 = *graph_it2;
-          // (sample_nd).AddConnection(sample_nd2);
-          // (sample_nd2).AddConnection(sample_nd);
-          (*graph_it).AddConnection(*graph_it2);
-          (*graph_it2).AddConnection(*graph_it);
-          planning.node_container.push_back(*graph_it);
-          planning.node_container.push_back(*graph_it2);
-          
+            // pass_once = false;
+            // sample_nd = *graph_it;
+            // sample_nd2 = *graph_it2;
+            // (sample_nd).AddConnection(sample_nd2);
+            // (sample_nd2).AddConnection(sample_nd);
+            (*graph_it).AddConnection(*graph_it2);
+            (*graph_it2).AddConnection(*graph_it);
+            planning.node_container.push_back(*graph_it);
+            planning.node_container.push_back(*graph_it2);
+            
+          }
         }
-      
       }
-      }
-
 
     }
 
