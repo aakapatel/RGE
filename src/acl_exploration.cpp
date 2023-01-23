@@ -18,7 +18,7 @@
 #include <ros/package.h>
 #include <dynamic_reconfigure/server.h>
 #include <acl_exploration/ServerConfig.h>
-#include "exploration/Frontiers.h"
+#include "acl_exploration/Frontiers.h"
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
@@ -939,7 +939,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   current.heading = yaw * (180/3.14159);
 }
 
-void frontiersCallback(const exploration::Frontiers::ConstPtr& msg) {
+void frontiersCallback(const acl_exploration::Frontiers::ConstPtr& msg) {
 
   frontiers_received = true;
   ufo::math::Vector3 frontier_point;
@@ -1058,27 +1058,27 @@ void exploreLocally() {
     traversable_goal = selectLocalFrontier(traversable.list, current.position, current.heading);
   }
 
-  double pen;
-  double mypen = 10000000000000;
-  node* local_nod;
-  for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
+  // double pen;
+  // double mypen = 10000000000000;
+  // node* local_nod;
+  // for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
 
-    double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
-    pen = nearest_dis;
-    if (pen < mypen) {
-      mypen = pen;
-      local_nod = *rit;
-    }
+  //   double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
+  //   pen = nearest_dis;
+  //   if (pen < mypen) {
+  //     mypen = pen;
+  //     local_nod = *rit;
+  //   }
 
-  }
+  // }
 
-  planning.graph_pointer = local_nod;
+  // planning.graph_pointer = local_nod;
 
-  // published.reference = publish_goal(traversable_goal);
-  // current.path.poses.push_back(current.pose);
-  // current.path.poses.push_back(published.reference);
-  // pub.path_to_goal_pub.publish(current.path);
-  // current.path.poses.clear();
+  published.reference = publish_goal(traversable_goal);
+  current.path.poses.push_back(current.pose);
+  current.path.poses.push_back(published.reference);
+  pub.path_to_goal_pub.publish(current.path);
+  current.path.poses.clear();
   ROS_INFO("Exploring Locally...");
 
 }
@@ -1813,7 +1813,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        graph_navigation(true);
+        // graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);

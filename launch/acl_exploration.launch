@@ -1,15 +1,53 @@
 <?xml version="1.0" ?>
 <launch>
-<include file="$(find exploration)/launch/exploration.launch"></include>
-  <arg name="resolution" default="0.2" />
-	<arg name="depth_levels" default="16" />
-	<arg name="num_workers" default="1" />
-	<arg name="color" default="true" />
+
+  <node pkg="tage" type="exploration_node" name="exploration_node" output="screen">
+
+		<param name="xFiltering" value="true" />
+		<param name="yFiltering" value="true" />
+		<param name="zFiltering" value="true" />
+		<param name="publish_the_map" value="false" />
+
+		<param name="resolution" value="0.3" />
+		<!-- <param name="cloud_in" value="/camera/depth/color/points" /> -->
+
+		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+
+		<param name="distance" value="8" />
+
+		<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
+		<param name="frame_id" type="string" value="world" />
+
+		<!-- maximum range to integrate (speedup!) -->
+		<param name="sensor_model/max_range" value="9" />
+
+		<param name="odometry" value="hummingbird/ground_truth/odometry" />
+
+		<!-- data source to integrate (PointCloud2) -->
+
+		<!-- <remap from="cloud_in" to="/camera/depth/color/points" /> -->
+		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+
+		<param name="number_of_unknowns" value="1" />
+		
+  </node>
+
+		<arg name="resolution" default="0.2" />
+		<arg name="depth_levels" default="16" />
+		<arg name="num_workers" default="1" />
+		<arg name="color" default="true" />
+
 
   <node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="screen" required="true">
+		
+
+		
 		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+
 		<param name="frame_id" type="string" value="world" />
+
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+
     	<param name="robot_frame_id" value="hummingbird/base_link" />
 
 		<param name="num_workers" value="$(arg num_workers)" />
@@ -28,13 +66,9 @@
 		<param name="depth_levels" value="$(arg depth_levels)" />
 		<param name="color_map" value="$(arg color)"/>
   </node>
+
   <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
-
   </node> -->
-  <node pkg="exploration" type="vis_next" name="vis_next" output="screen">
-
-	</node>
-
 
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find acl_exploration)/rviz/ufo.rviz" />
 
