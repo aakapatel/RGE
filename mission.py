@@ -9,13 +9,12 @@ from math import pi, sin, cos, atan2, sqrt
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Vector3Stamped, Pose, PointStamped, Point
 from geometry_msgs.msg import PoseStamped
-from exploration.msg import Frontier
 import time
 import subprocess
 
 import math
 
-WP_SIZE = 1.2
+WP_SIZE = 0.5
 
 return_flag = 0
 m = 0
@@ -33,6 +32,7 @@ class Server:
         self.waypoint = False
         self.frontier_received = False
         self.xbee_return_flag = False
+        self.request_homing = False
         self.land_flag = False
         self.local_heading_ref = 0
         self.heading_ref = 0
@@ -46,7 +46,7 @@ class Server:
 
         #############################################################################################
 
-        mission_duration = 40000
+        mission_duration = 400
 
         #############################################################################################
         
@@ -98,7 +98,7 @@ class Server:
         self.z_r = msg.poses[self.wp_index].pose.position.z
         self.waypoint = True
 
-    def explore(self, current_time=None):
+    def navigate(self, current_time=None):
  
         while (sqrt((self.x_c - self.x_r) * (self.x_c - self.x_r)  + (self.y_c - self.y_r) * (self.y_c - self.y_r) + (self.z_c - self.z_r) * (self.z_c - self.z_r)) < WP_SIZE):
             if(self.wp_index < len(self.path.poses) - 1):
@@ -137,26 +137,37 @@ class Server:
 
         start = time.time()
 
-        self.d = ((self.x_c)*(self.x_c) + (self.y_c)*(self.y_c) + (self.z_c)*(self.z_c)) 
+        self.d = sqrt((self.x_c)*(self.x_c) + (self.y_c)*(self.y_c) + (self.z_c)*(self.z_c)) 
 
 
         if ((start - mission_timer) < mission_duration):
 
             print("%.2f" % (start - mission_timer))
             
-            self.explore_publisher.publish(self.explore_command)
+            # self.explore_publisher.publish(self.explore_command)
 
             if (self.xbee_return_flag == False):
 
                 if (self.waypoint):
-                    self.explore()
+                    self.navigate()
+            
+            else:
+                self.request_homing = True
+                self.return_publisher.publish(self.return_command)
+                print("Homing path requested")
+                if (self.waypoint):
+                    self.navigate()
+                    print("Returning to the base")
+
 
         if ((start - mission_timer) > mission_duration):
 
             self.return_publisher.publish(self.return_command)
 
+            print("Homing path requested")
+
             if (self.waypoint):
-                self.explore()
+                self.navigate()
         
         if ((start - mission_timer) > mission_duration) and (self.d < 1.5):
             
