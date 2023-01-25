@@ -371,7 +371,7 @@ float highest_z;
 
 double NEXT_PUB_DISTANCE;
 double LOCAL_RANGE;
-double RADIOUS;
+double RADIOUS = 0.5;
 double RESOLUTION;
 double roll = 0;
 double pitch = 0;
@@ -1712,6 +1712,10 @@ int main(int argc, char *argv[])
 { 
   ros::init(argc, argv, "ACL_EXPLORATION");
   ros::NodeHandle nh;
+  dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
+  dynamic_reconfigure::Server<acl_exploration::ServerConfig>::CallbackType f;
+  f = boost::bind(&config_callback, _1, _2);
+  server.setCallback(f);
   pub.points_pub = nh.advertise<visualization_msgs::Marker>("planning_graph", 1);
   pub.chosen_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("improved_path", 1);
   pub.alc_points_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_POINTS", 1);
@@ -1733,11 +1737,6 @@ int main(int argc, char *argv[])
   ros::Subscriber explore_sub = nh.subscribe("explore", 1, exploreCallback);
   ros::Subscriber assist_sub = nh.subscribe("go_global", 1, switchCallback);
   ros::Rate rate(10);
-
-  dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
-  dynamic_reconfigure::Server<acl_exploration::ServerConfig>::CallbackType f;
-  f = boost::bind(&config_callback, _1, _2);
-  server.setCallback(f);
 
   position_received = true;
   published.reference.header.stamp = ros::Time::now();
