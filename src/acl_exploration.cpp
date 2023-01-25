@@ -350,23 +350,12 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 
 bool start_backtrack = false;
-
-
-// Variables
-int NUMBER_OF_NODES;
-int NUMBER_OF_GOALS;
-int NUMBER_OF_ITTERATIONS;
-int NMPC_POINTS;
+bool position_received;
+bool map_received = false;
 int itterations;
-int advance_index = 0;
-float DISTANCE_BETWEEN_NODES; 
-float DISTANCE_BETWEEN_GOALS;
-float MINIMUM_DISTANCE_TO_GOAL;
-float SCALER_AABB;
-
-float SCALER_X = SCALER_AABB;
-float SCALER_Y = SCALER_AABB;
-float SCALER_Z = SCALER_AABB;
+float SCALER_X;
+float SCALER_Y;
+float SCALER_Z;
 float position_x = 0;
 float position_y = 0;
 float position_z = 0;
@@ -379,26 +368,7 @@ float lowest_z;
 float highest_x;
 float highest_y;
 float highest_z;
-float averageInfo = 50;
-float initialGoalInfo = 0.0;
-bool RUN_BY_NODES;
-bool map_received = false;
-bool RRT_created = false;
-bool GOALS_generated = false;
-bool fetched_path = false;
-bool newPath = false;
-bool allowNewPath = true;
-bool recoveryUnderway = false;
-bool position_received;
-float SENSOR_RANGE;
-float SENSOR_MIN;
-float SENSOR_VERTICAL;
-float SENSOR_HORIZONTAL;
-float SCALER_INFORMATION_GAIN;
-float SCALER_DISTANCE;
-float SCALER_ACTUATION;
-float NEXT_POINT_DISTANCE;
-float NEXT_PATH_DISTANCE;
+
 double NEXT_PUB_DISTANCE;
 double LOCAL_RANGE;
 double RADIOUS;
@@ -416,17 +386,26 @@ double head_ref;
 bool firstTime = true;
 bool start_flag = true;
 bool move_flag = false;
-bool first_gn;
-int myindex = 0;
-int goaldis;
-bool explore_begin = true;
 bool travers;
-bool frontiers_received;
+bool frontiers_received = false;
 
-ufo::math::Vector3 selectedfrontier;
-ufo::math::Vector3 selectedgfrontier;
-ufo::math::Vector3 nearest_to_global;
-double nearest_to_global_id;
+double RAW_GRAPH_COLISSION_MARGIN;
+double PLANNING_GRAPH_COLISSION_MARGIN;
+double RAW_FRONTIERS_COLISSION_MARGIN;
+double PLANNING_CHECK_DEPTH;
+double MIN_ITERATION_LOCAL;
+double MIN_ITERATION_GLOBAL;
+double MIN_PLANNING_SPACE_LOCAL;
+double MIN_PLANNING_SPACE_GLOBAL;
+double MAX_ITERATION_LOCAL;
+double MAX_ITERATION_GLOBAL;
+double MAX_PLANNING_SPACE_LOCAL;
+double MAX_PLANNING_SPACE_GLOBAL;
+double IMPROVEMENT_SCALE_FACTOR_IT;
+double IMPROVEMENT_SCALE_FACTOR_RANGE;
+
+
+
 nav_msgs::Odometry m_currentPose;
 nav_msgs::Odometry m_prevPose;
 
@@ -472,6 +451,30 @@ Frontier_main temp_local;
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
+void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
+{
+
+	RESOLUTION = config.Resolution;
+  NEXT_PUB_DISTANCE = config.next_pub_distance;
+  LOCAL_RANGE = config.local_range;
+  RAW_GRAPH_COLISSION_MARGIN = config.RAW_GRAPH_COLISSION_MARGIN;
+  PLANNING_GRAPH_COLISSION_MARGIN = config.PLANNING_GRAPH_COLISSION_MARGIN;
+  RAW_FRONTIERS_COLISSION_MARGIN = config.RAW_FRONTIERS_COLISSION_MARGIN;
+  PLANNING_CHECK_DEPTH = config.PLANNING_CHECK_DEPTH;
+  MIN_ITERATION_LOCAL = config.MIN_ITERATION_LOCAL;
+  MIN_ITERATION_GLOBAL = config.MIN_ITERATION_GLOBAL;
+  MIN_PLANNING_SPACE_LOCAL = config.MIN_PLANNING_SPACE_LOCAL;
+  MIN_PLANNING_SPACE_GLOBAL = config.MIN_PLANNING_SPACE_GLOBAL;
+  MAX_ITERATION_LOCAL = config.MAX_ITERATION_LOCAL;
+  MAX_ITERATION_GLOBAL = config.MAX_ITERATION_GLOBAL;
+  MAX_PLANNING_SPACE_LOCAL = config.MAX_PLANNING_SPACE_LOCAL;
+  MAX_PLANNING_SPACE_GLOBAL = config.MAX_PLANNING_SPACE_GLOBAL;
+  IMPROVEMENT_SCALE_FACTOR_IT = config.IMPROVEMENT_SCALE_FACTOR_IT;
+  IMPROVEMENT_SCALE_FACTOR_RANGE = config.IMPROVEMENT_SCALE_FACTOR_RANGE;
+
+
+
+}
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL PLANNING SPACE CONFIGURED HERE.
 
@@ -563,7 +566,7 @@ void buildGraph(float given_x, float given_y, float given_z, int max_iterations)
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(dis / 2.0, 0.4, 0.4),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(dis / 2.0, RAW_GRAPH_COLISSION_MARGIN, RAW_GRAPH_COLISSION_MARGIN),
               ufo::math::Quaternion(roll, pitch, yaw));
       if(!isInCollision(myMap, obb, true, false, true, 0)) {
           node* new_node = new node(x, y, z);
@@ -863,32 +866,6 @@ void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const& msg)
   }
 }
 
-void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
-{
-	// Read parameters
-	RUN_BY_NODES = config.Run_by_nodes;
-	NUMBER_OF_NODES = config.Number_of_nodes;
-	NUMBER_OF_GOALS = config.Number_of_goals;
-	DISTANCE_BETWEEN_NODES = config.Distance_between_nodes;
-	DISTANCE_BETWEEN_GOALS = config.Distance_between_goals;
-	MINIMUM_DISTANCE_TO_GOAL = config.Minimum_distance_to_goal;
-	RADIOUS = config.Radious;
-	SCALER_AABB = config.Bounding_box_radious;
-	SCALER_DISTANCE = config.Scaler_distance_cost;
-	SCALER_INFORMATION_GAIN = config.Scaler_information_gain;
-	SCALER_ACTUATION = config.Scaler_actuation_cost;
-	SENSOR_RANGE = config.Sensor_range;
-	SENSOR_MIN = config.Sensor_min;
-	SENSOR_HORIZONTAL = config.Sensor_angle_horizontal;
-	SENSOR_VERTICAL = config.Sensor_angle_vertical;
-	NEXT_PATH_DISTANCE = config.Next_path_distance;
-	NEXT_POINT_DISTANCE = config.Next_point_distance;
-	RESOLUTION = config.Resolution;
-  NEXT_PUB_DISTANCE = config.next_pub_distance;
-  LOCAL_RANGE = config.local_range;
-
-}
-
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   position_received = true;
   ufo::math::Vector3 oldPoint;
@@ -978,7 +955,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr& msg) {
   std::list<ufo::math::Vector3> mylist2;
   for (geometry_msgs::Point frontier : msg->points) {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
-    double radius = 0.8;
+    double radius = RAW_FRONTIERS_COLISSION_MARGIN;
     ufo::geometry::Sphere sphere(frontier_point, radius);
     if (!isInCollision(myMap, sphere, true, false, false, 0)) {    
     mylist.push_back(frontier_point);
@@ -1101,7 +1078,7 @@ void exploreLocally() {
   // current.path.poses.push_back(published.reference);
   // pub.path_to_goal_pub.publish(current.path);
   // current.path.poses.clear();
-  ROS_INFO("Exploring Locally...");
+  // ROS_INFO("Exploring Locally...");
 
 }
 
@@ -1122,14 +1099,14 @@ void fetchGlobalFrontier () {
 
 }
 
-void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
+void buildPlanningGraph (bool local_exploration, bool improvement, double reit, double range_up_scale)  {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
 
   int max_it;
   float planning_range;
-
+  IMPROVEMENT_SCALE_FACTOR_IT = reit;
   std::vector<Node> my_nodes;
   
   planning.node_container.clear();
@@ -1139,27 +1116,27 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
 
     if (local_exploration) {
 
-      int min = 5000;
-      float original_planning_range = 15.0;
+      int min = MIN_ITERATION_LOCAL;
+      float original_planning_range = MIN_PLANNING_SPACE_LOCAL;
       
-      if (improvement) {
-        max_it = min + reit*min;
-        planning_range = original_planning_range + 0.4*(reit*original_planning_range);
+      if (improvement and max_it < MAX_ITERATION_LOCAL and planning_range < MAX_PLANNING_SPACE_LOCAL) {
+        max_it = min + IMPROVEMENT_SCALE_FACTOR_IT*min;
+        planning_range = original_planning_range + (range_up_scale * original_planning_range);
       } else {
         max_it = min;
-        planning_range = 15.0;
+        planning_range = MIN_PLANNING_SPACE_LOCAL;
       }
 
     } else {
 
-      int min_G = 5000;
-      float original_planning_range_G = 20.0;
-      if (improvement) {
-        max_it = min_G + reit*min_G;
-        planning_range = original_planning_range_G + 0.4*(reit*original_planning_range_G);
+      int min_G = MIN_ITERATION_GLOBAL;
+      float original_planning_range_G = MIN_PLANNING_SPACE_GLOBAL;
+      if (improvement and max_it < MAX_ITERATION_GLOBAL and planning_range < MAX_PLANNING_SPACE_GLOBAL) {
+        max_it = min_G + IMPROVEMENT_SCALE_FACTOR_IT*min_G;
+        planning_range = original_planning_range_G + (range_up_scale * original_planning_range_G);
       } else {
         max_it = min_G;
-        planning_range = 20.0;
+        planning_range = MIN_PLANNING_SPACE_GLOBAL;
       }
     }
   
@@ -1219,7 +1196,7 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.4, 0.4),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, PLANNING_GRAPH_COLISSION_MARGIN, PLANNING_GRAPH_COLISSION_MARGIN),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
 
@@ -1358,15 +1335,18 @@ void graph_navigation (bool local_nav) {
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
     double reiterate = 1;
-    buildPlanningGraph(local_nav, planning.improve, reiterate);
+    double scale_range = 0.5;
+
+    buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
     findPath();
 
     label: 
     if (planned.traj.empty()) {
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
       reiterate = reiterate + 0.1;
+      scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
       planning.improve = true;
-      buildPlanningGraph(local_nav, planning.improve, reiterate);
+      buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
       findPath();
       goto label;
 
@@ -1437,19 +1417,20 @@ void return_to_base_planning(bool local_nav) {
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   double reiterate = 1;
-  buildPlanningGraph(local_nav, planning.improve, reiterate);
+  double scale_range = 0.5;
+  buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
   findPath();
   
   label: 
   if (planned.traj.empty()) {
     reiterate = reiterate + 0.1;
+    scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
     std::cout << "\nCould not find a valid homing path... requesting improvement.... \n";
     planning.improve = true;
-    buildPlanningGraph(local_nav, planning.improve, reiterate);
+    buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
     findPath();
-    if (reiterate < 10) {
     goto label;
-    }
+    
   }
   
   if (!planned.traj.empty()) {
