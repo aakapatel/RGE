@@ -273,11 +273,17 @@ struct Frontier_main {
   ros::Publisher global_nodes_pub;
   ros::Publisher explored_path;
   ros::Publisher path_to_goal_pub;
+  ros::Publisher local_path_pub;
+  ros::Publisher global_path_pub;
+  ros::Publisher homing_path_pub;
   ros::Publisher best_frontier_pub;
   geometry_msgs::PoseStamped reference;
   ros::Publisher total_execution_pub;
   ros::Publisher local_execution_pub;
   ros::Publisher global_execution_pub;
+  nav_msgs::Path temppath_homing;
+  nav_msgs::Path temppath_local;
+  nav_msgs::Path temppath;
 
 };
 
@@ -1082,14 +1088,15 @@ void exploreLocally() {
   ROS_INFO("Requesting a local path within planning graph");
 
     // published.reference = publish_goal(traversable_goal);
-    // nav_msgs::Path temppath_local;
-    // temppath_local.poses.push_back(current.pose);
-    // temppath_local.poses.push_back(published.reference);
-    // current.path.path = temppath_local;
+    // current.temppath_local.poses.push_back(current.pose);
+    // current.temppath_local.poses.push_back(published.reference);
+    // current.path.path = current.temppath_local;
     // current.path.type.data = "local";
     // pub.path_to_goal_pub.publish(current.path);
+    // pub.local_path_pub.publish(current.temppath_local)
     // current.path.path.poses.clear();
     // current.path.type.data.clear();
+    // current.temppath_local.poses.clear();
     // ROS_INFO("Exploring Locally...");
 
 }
@@ -1335,12 +1342,12 @@ void graph_navigation (bool local_nav) {
     if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
       published.reference = publish_goal(global_frontier.position);
-      nav_msgs::Path temppath;
-      temppath.poses.push_back(current.pose);
-      temppath.poses.push_back(published.reference);
-      current.path.path = temppath;
+      current.temppath.poses.push_back(current.pose);
+      current.temppath.poses.push_back(published.reference);
+      current.path.path = current.temppath;
       current.path.type.data = "traversable_global";
       pub.path_to_goal_pub.publish(current.path);
+      pub.global_path_pub.publish(current.temppath);
       ROS_INFO("Navigating to Traversable Global Node...");
       current.path.path.poses.clear();
       current.path.type.data.clear();
@@ -1390,9 +1397,8 @@ void graph_navigation (bool local_nav) {
           global_nodes.header.stamp = ros::Time::now();
           global_nodes.header.frame_id = ODOM_FRAME_ID;
 
-          nav_msgs::Path temppath;
-          temppath.poses.push_back(global_nodes);
-          current.path.path = temppath;
+          current.temppath.poses.push_back(global_nodes);
+          current.path.path = current.temppath;
           current.path.type.data = "global";
 
 
@@ -1407,16 +1413,17 @@ void graph_navigation (bool local_nav) {
         global_node.header.stamp = ros::Time::now();
         global_node.header.frame_id = ODOM_FRAME_ID;
 
-        nav_msgs::Path temppath;
-        temppath.poses.push_back(global_node);
-        current.path.path = temppath;
+        current.temppath.poses.push_back(global_node);
+        current.path.path = current.temppath;
         current.path.type.data = "global";
 
       }
 
       pub.path_to_goal_pub.publish(current.path);
+      pub.global_path_pub.publish(current.temppath);
       current.path.path.poses.clear();
       current.path.type.data.clear();
+      current.temppath.poses.clear();
       ufo::math::Vector3 lastpub(std::prev( planned.traj.end(), 1)->x, std::prev( planned.traj.end(), 1)->y, std::prev( planned.traj.end(), 1)->z);
       published.reference = publish_goal(lastpub); 
 
@@ -1477,9 +1484,9 @@ void return_to_base_planning(bool local_nav) {
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
 
-        nav_msgs::Path temppath_homing;
-        temppath_homing.poses.push_back(global_nodes);
-        current.path.path = temppath_homing;
+        
+        current.temppath_homing.poses.push_back(global_nodes);
+        current.path.path = current.temppath_homing;
         current.path.type.data = "homing";
 
       }
@@ -1493,16 +1500,17 @@ void return_to_base_planning(bool local_nav) {
       global_node.header.stamp = ros::Time::now();
       global_node.header.frame_id = ODOM_FRAME_ID;
 
-      nav_msgs::Path temppath_homing;
-      temppath_homing.poses.push_back(global_node);
-      current.path.path = temppath_homing;
+      current.temppath_homing.poses.push_back(global_node);
+      current.path.path = current.temppath_homing;
       current.path.type.data = "homing";
 
     }
 
     pub.path_to_goal_pub.publish(current.path);
+    pub.global_path_pub.publish(current.temppath_homing);
     current.path.path.poses.clear();
     current.path.type.data.clear();
+    current.temppath_homing.poses.clear();
     ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y, planned.traj.back().z);
     published.reference = publish_goal(lastpub); 
 
@@ -1752,6 +1760,11 @@ int main(int argc, char *argv[])
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_PATH", 1);
   pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>(REF_TOPIC, 1);
   pub.path_to_goal_pub = nh.advertise<acl_exploration::path>(PATH_TOPIC, 1);
+
+  pub.local_path_pub = nh.advertise<nav_msgs::Path>("/local_path", 1);
+  pub.global_path_pub = nh.advertise<nav_msgs::Path>("/global_path", 1);
+  pub.homing_path_pub = nh.advertise<nav_msgs::Path>("/homing_path", 1);
+
   pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
@@ -1773,6 +1786,17 @@ int main(int argc, char *argv[])
   published.reference.header.frame_id = ODOM_FRAME_ID;
   current.path.path.header.stamp = ros::Time::now();
   current.path.path.header.frame_id = ODOM_FRAME_ID;
+
+  current.temppath.header.stamp = ros::Time::now();
+  current.temppath.header.frame_id = ODOM_FRAME_ID;
+
+  current.temppath_local.header.stamp = ros::Time::now();
+  current.temppath_local.header.frame_id = ODOM_FRAME_ID;
+
+  current.temppath_homing.header.stamp = ros::Time::now();
+  current.temppath_homing.header.frame_id = ODOM_FRAME_ID;
+
+
   home.navigate = false;
   explore.navigate = false;
   switch_global.navigate = false;

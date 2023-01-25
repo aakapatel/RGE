@@ -51,6 +51,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   tf_conversions
   std_msgs
+  nav_msgs
   move_base_msgs
   actionlib
   message_generation
