@@ -1079,27 +1079,28 @@ void exploreLocally() {
     traversable_goal = selectLocalFrontier(traversable.list, current.position, current.heading);
   }
 
-  // double pen;
-  // double mypen = 10000000000000;
-  // node* local_nod;
-  // for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
+  double pen;
+  double mypen = 10000000000000;
+  node* local_nod;
+  for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
 
-  //   double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
-  //   pen = nearest_dis;
-  //   if (pen < mypen) {
-  //     mypen = pen;
-  //     local_nod = *rit;
-  //   }
+    double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
+    pen = nearest_dis;
+    if (pen < mypen) {
+      mypen = pen;
+      local_nod = *rit;
+    }
 
-  // }
+  }
 
-  // planning.graph_pointer = local_nod;
+  planning.graph_pointer = local_nod;
+  ROS_INFO("Requesting a local path within planning graph");
 
-  published.reference = publish_goal(traversable_goal);
-  current.path.poses.push_back(current.pose);
-  current.path.poses.push_back(published.reference);
-  pub.path_to_goal_pub.publish(current.path);
-  current.path.poses.clear();
+  // published.reference = publish_goal(traversable_goal);
+  // current.path.poses.push_back(current.pose);
+  // current.path.poses.push_back(published.reference);
+  // pub.path_to_goal_pub.publish(current.path);
+  // current.path.poses.clear();
   ROS_INFO("Exploring Locally...");
 
 }
@@ -1151,14 +1152,14 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
 
     } else {
 
-      int min_G = 10000;
-      float original_planning_range_G = 30.0;
+      int min_G = 5000;
+      float original_planning_range_G = 20.0;
       if (improvement) {
         max_it = min_G + reit*min_G;
         planning_range = original_planning_range_G + 0.4*(reit*original_planning_range_G);
       } else {
         max_it = min_G;
-        planning_range = 30.0;
+        planning_range = 20.0;
       }
     }
   
@@ -1226,7 +1227,7 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
 
         if (isLocal(d2, current.position, current.heading) and isLocal(d1, current.position, current.heading) and rang < 2) {
 
-            if (isInCollision(myMap, obb, false, true, false, 0) ) {
+            if (isInCollision(myMap, obb, false, true, false, 2) ) {
 
               (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
@@ -1240,7 +1241,7 @@ void buildPlanningGraph (bool local_exploration, bool improvement, int reit) {
 
         if (rang > 2 and rang < 3) {
 
-          if (isInCollision(myMap, obb, false, true, false, 0) ) {
+          if (isInCollision(myMap, obb, false, true, false, 2) ) {
 
             (*graph_it).AddConnection(*graph_it2);
             (*graph_it2).AddConnection(*graph_it);
@@ -1309,14 +1310,13 @@ void findPath() {
 
   } else {
 
-    // cout << "\nHoming Graph has " << planning.node_container.size() << " nodes" << endl;
+    Point current_state { ((planning.node_container.back()).myposition.x), ((planning.node_container.back()).myposition.y), ((planning.node_container.back()).myposition.z) };
+    Point home_state { ((planning.node_container.front()).myposition.x), ((planning.node_container.front()).myposition.y), ((planning.node_container.front()).myposition.z) };
 
-    Point start_pos_h { ((planning.node_container.back()).myposition.x), ((planning.node_container.back()).myposition.y), ((planning.node_container.back()).myposition.z) };
-    Point end_pos_h { ((planning.node_container.front()).myposition.x), ((planning.node_container.front()).myposition.y), ((planning.node_container.front()).myposition.z) };
-
-    planned.traj = Astar(start_pos_h, end_pos_h, planning.node_container);
+    planned.traj = Astar(current_state, home_state, planning.node_container);
 
     if (planned.traj.size() > 1) {
+
       cout << "homing path is valid" << endl;
     }
 
@@ -1357,14 +1357,14 @@ void graph_navigation (bool local_nav) {
   }
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
-    int reiterate = 1;
+    double reiterate = 1;
     buildPlanningGraph(local_nav, planning.improve, reiterate);
     findPath();
 
     label: 
     if (planned.traj.empty()) {
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
-      reiterate = reiterate + 1;
+      reiterate = reiterate + 0.1;
       planning.improve = true;
       buildPlanningGraph(local_nav, planning.improve, reiterate);
       findPath();
@@ -1382,7 +1382,7 @@ void graph_navigation (bool local_nav) {
       
         // cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
 
-        for (auto vert_it = std::next(planned.traj.begin(),2); vert_it != planned.traj.end(); vert_it++) {
+        for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
           // cout << "X : " << ((*vert_it)).x << "\n ";
           // cout << "Y : " << ((*vert_it)).y << "\n ";
           // cout << "Z : " << ((*vert_it)).z << "\n ";
@@ -1411,7 +1411,7 @@ void graph_navigation (bool local_nav) {
 
       pub.path_to_goal_pub.publish(current.path);
       current.path.poses.clear();
-      ufo::math::Vector3 lastpub( std::prev( planned.traj.end(), 1)->x, std::prev( planned.traj.end(), 1)->y, std::prev( planned.traj.end(), 1)->z);
+      ufo::math::Vector3 lastpub(std::prev( planned.traj.end(), 1)->x, std::prev( planned.traj.end(), 1)->y, std::prev( planned.traj.end(), 1)->z);
       published.reference = publish_goal(lastpub); 
 
     }
@@ -1436,13 +1436,13 @@ void return_to_base_planning(bool local_nav) {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-  int reiterate = 1;
+  double reiterate = 1;
   buildPlanningGraph(local_nav, planning.improve, reiterate);
   findPath();
   
   label: 
   if (planned.traj.empty()) {
-    reiterate = reiterate + 1;
+    reiterate = reiterate + 0.1;
     std::cout << "\nCould not find a valid homing path... requesting improvement.... \n";
     planning.improve = true;
     buildPlanningGraph(local_nav, planning.improve, reiterate);
@@ -1781,9 +1781,10 @@ int main(int argc, char *argv[])
 
       firstTime = false;
       geometry_msgs::PoseStamped first_ref;
-      first_ref.pose.position.x = 0;
-      first_ref.pose.position.y = current.position.y();
-      first_ref.pose.position.z = 2;
+      first_ref.pose.position.x = 15;
+      // first_ref.pose.position.y = current.position.y();
+      first_ref.pose.position.y = 0;
+      first_ref.pose.position.z = 1.5;
       first_ref.pose.orientation.w = 0;
       first_ref.pose.orientation.x = 0;
       first_ref.pose.orientation.y = 0;
@@ -1802,7 +1803,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        // graph_navigation(true);
+        graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);

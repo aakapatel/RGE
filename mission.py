@@ -46,7 +46,7 @@ class Server:
 
         #############################################################################################
 
-        mission_duration = 400
+        mission_duration = 80
 
         #############################################################################################
         
@@ -125,7 +125,10 @@ class Server:
 
         self.vel_publisher.publish(self.vel_msg)
 
-        print('exploring....')
+        if (self.request_homing == False):
+            print('exploring....')
+        else:
+            print("On my way home...")
 
         return
 

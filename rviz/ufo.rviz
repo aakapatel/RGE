@@ -50,12 +50,12 @@ Visualization Manager:
   Class: ""
   Displays:
     - Class: UFOMap
-      Enabled: true
+      Enabled: false
       Information:
-        "# Inner Nodes": 208 889
-        "# Leaf Nodes": 752 832
+        "# Inner Nodes": 427 833
+        "# Leaf Nodes": 2 026 336
         Resolution: 20 cm
-        Size: 10,52 MiB
+        Size: 25,25 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -74,7 +74,7 @@ Visualization Manager:
           Y: -1000
           Z: -1000
         Value: true
-      Value: true
+      Value: false
       Voxel Rendering:
         Free:
           Alpha: 0.029999999329447746
@@ -217,7 +217,8 @@ Visualization Manager:
       Marker Topic: /planning_graph
       Name: Marker
       Namespaces:
-        {}
+        "": true
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
