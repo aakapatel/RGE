@@ -1358,7 +1358,7 @@ void graph_navigation (bool local_nav) {
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
     double reiterate = 1;
-    double scale_range = 0.5;
+    double scale_range = 1;
 
     buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
     findPath();
@@ -1366,7 +1366,7 @@ void graph_navigation (bool local_nav) {
     label: 
     if (planned.traj.empty()) {
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
-      reiterate = reiterate + 0.1;
+      reiterate = reiterate + 1;
       scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
       planning.improve = true;
       buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
@@ -1450,13 +1450,13 @@ void return_to_base_planning(bool local_nav) {
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   double reiterate = 1;
-  double scale_range = 0.5;
+  double scale_range = 1;
   buildPlanningGraph(local_nav, planning.improve, reiterate, scale_range);
   findPath();
   
   label: 
   if (planned.traj.empty()) {
-    reiterate = reiterate + 0.1;
+    reiterate = reiterate + 1;
     scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
     std::cout << "\nCould not find a valid homing path... requesting improvement.... \n";
     planning.improve = true;
@@ -1820,7 +1820,7 @@ int main(int argc, char *argv[])
 
       firstTime = false;
       geometry_msgs::PoseStamped first_ref;
-      first_ref.pose.position.x = 1;
+      first_ref.pose.position.x = 15;
       // first_ref.pose.position.y = current.position.y();
       first_ref.pose.position.y = 1;
       first_ref.pose.position.z = 1.5;
