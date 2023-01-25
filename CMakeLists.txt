@@ -106,12 +106,14 @@ add_message_files(
   FILES
   Frontiers.msg
   Frontier.msg
+  path.msg
 )
 
 generate_messages(
   DEPENDENCIES
   geometry_msgs
-  std_msgs  # Or other packages containing msgs
+  std_msgs 
+  nav_msgs # Or other packages containing msgs
 )
 
 catkin_package(

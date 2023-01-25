@@ -19,6 +19,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <acl_exploration/ServerConfig.h>
 #include "acl_exploration/Frontiers.h"
+#include "acl_exploration/path.h"
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
@@ -248,6 +249,7 @@ struct Node
 };
 
 struct Frontier_main {
+  acl_exploration::path path;
   bool navigate;
   bool improve;
   std::list<ufo::math::Vector3> list;
@@ -257,7 +259,7 @@ struct Frontier_main {
   double x_ref;
   double y_ref;
   double z_ref;
-  nav_msgs::Path path;
+  // nav_msgs::Path path;
   std::vector<Node> node_container; 
   node* graph_pointer;
   std::vector<Point> traj;
@@ -371,7 +373,7 @@ float highest_z;
 
 double NEXT_PUB_DISTANCE;
 double LOCAL_RANGE;
-double RADIOUS = 0.5;
+double RADIOUS;
 double RESOLUTION;
 double roll = 0;
 double pitch = 0;
@@ -458,6 +460,7 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 {
 
 	RESOLUTION = config.Resolution;
+  RADIOUS = config.RADIOUS;
   NEXT_PUB_DISTANCE = config.next_pub_distance;
   LOCAL_RANGE = config.local_range;
   RAW_GRAPH_COLISSION_MARGIN = config.RAW_GRAPH_COLISSION_MARGIN;
@@ -1078,12 +1081,16 @@ void exploreLocally() {
   planning.graph_pointer = local_nod;
   ROS_INFO("Requesting a local path within planning graph");
 
-  // published.reference = publish_goal(traversable_goal);
-  // current.path.poses.push_back(current.pose);
-  // current.path.poses.push_back(published.reference);
-  // pub.path_to_goal_pub.publish(current.path);
-  // current.path.poses.clear();
-  // ROS_INFO("Exploring Locally...");
+    // published.reference = publish_goal(traversable_goal);
+    // nav_msgs::Path temppath_local;
+    // temppath_local.poses.push_back(current.pose);
+    // temppath_local.poses.push_back(published.reference);
+    // current.path.path = temppath_local;
+    // current.path.type.data = "local";
+    // pub.path_to_goal_pub.publish(current.path);
+    // current.path.path.poses.clear();
+    // current.path.type.data.clear();
+    // ROS_INFO("Exploring Locally...");
 
 }
 
@@ -1328,11 +1335,15 @@ void graph_navigation (bool local_nav) {
     if (!isInCollision(myMap, obb, true, false, true, 0)) {
 
       published.reference = publish_goal(global_frontier.position);
-      current.path.poses.push_back(current.pose);
-      current.path.poses.push_back(published.reference);
+      nav_msgs::Path temppath;
+      temppath.poses.push_back(current.pose);
+      temppath.poses.push_back(published.reference);
+      current.path.path = temppath;
+      current.path.type.data = "traversable_global";
       pub.path_to_goal_pub.publish(current.path);
       ROS_INFO("Navigating to Traversable Global Node...");
-      current.path.poses.clear();
+      current.path.path.poses.clear();
+      current.path.type.data.clear();
 
     }
   
@@ -1378,7 +1389,12 @@ void graph_navigation (bool local_nav) {
           global_nodes.pose.position.z = ((*vert_it)).z;
           global_nodes.header.stamp = ros::Time::now();
           global_nodes.header.frame_id = ODOM_FRAME_ID;
-          current.path.poses.push_back(global_nodes);
+
+          nav_msgs::Path temppath;
+          temppath.poses.push_back(global_nodes);
+          current.path.path = temppath;
+          current.path.type.data = "global";
+
 
         }
 
@@ -1390,12 +1406,17 @@ void graph_navigation (bool local_nav) {
         global_node.pose.position.z = ((*(planned.traj.begin()))).z;
         global_node.header.stamp = ros::Time::now();
         global_node.header.frame_id = ODOM_FRAME_ID;
-        current.path.poses.push_back(global_node);
+
+        nav_msgs::Path temppath;
+        temppath.poses.push_back(global_node);
+        current.path.path = temppath;
+        current.path.type.data = "global";
 
       }
 
       pub.path_to_goal_pub.publish(current.path);
-      current.path.poses.clear();
+      current.path.path.poses.clear();
+      current.path.type.data.clear();
       ufo::math::Vector3 lastpub(std::prev( planned.traj.end(), 1)->x, std::prev( planned.traj.end(), 1)->y, std::prev( planned.traj.end(), 1)->z);
       published.reference = publish_goal(lastpub); 
 
@@ -1455,7 +1476,11 @@ void return_to_base_planning(bool local_nav) {
         global_nodes.pose.position.z = ((*vert_it)).z;
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
-        current.path.poses.push_back(global_nodes);
+
+        nav_msgs::Path temppath_homing;
+        temppath_homing.poses.push_back(global_nodes);
+        current.path.path = temppath_homing;
+        current.path.type.data = "homing";
 
       }
 
@@ -1467,12 +1492,17 @@ void return_to_base_planning(bool local_nav) {
       global_node.pose.position.z = ((*(planned.traj.begin()))).z;
       global_node.header.stamp = ros::Time::now();
       global_node.header.frame_id = ODOM_FRAME_ID;
-      current.path.poses.push_back(global_node);
+
+      nav_msgs::Path temppath_homing;
+      temppath_homing.poses.push_back(global_node);
+      current.path.path = temppath_homing;
+      current.path.type.data = "homing";
 
     }
 
     pub.path_to_goal_pub.publish(current.path);
-    current.path.poses.clear();
+    current.path.path.poses.clear();
+    current.path.type.data.clear();
     ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y, planned.traj.back().z);
     published.reference = publish_goal(lastpub); 
 
@@ -1721,7 +1751,7 @@ int main(int argc, char *argv[])
   pub.alc_points_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_POINTS", 1);
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_PATH", 1);
   pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>(REF_TOPIC, 1);
-  pub.path_to_goal_pub = nh.advertise<nav_msgs::Path>(PATH_TOPIC, 1);
+  pub.path_to_goal_pub = nh.advertise<acl_exploration::path>(PATH_TOPIC, 1);
   pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
@@ -1741,8 +1771,8 @@ int main(int argc, char *argv[])
   position_received = true;
   published.reference.header.stamp = ros::Time::now();
   published.reference.header.frame_id = ODOM_FRAME_ID;
-  current.path.header.stamp = ros::Time::now();
-  current.path.header.frame_id = ODOM_FRAME_ID;
+  current.path.path.header.stamp = ros::Time::now();
+  current.path.path.header.frame_id = ODOM_FRAME_ID;
   home.navigate = false;
   explore.navigate = false;
   switch_global.navigate = false;
@@ -1766,9 +1796,9 @@ int main(int argc, char *argv[])
 
       firstTime = false;
       geometry_msgs::PoseStamped first_ref;
-      first_ref.pose.position.x = 15;
+      first_ref.pose.position.x = 1;
       // first_ref.pose.position.y = current.position.y();
-      first_ref.pose.position.y = 0;
+      first_ref.pose.position.y = 1;
       first_ref.pose.position.z = 1.5;
       first_ref.pose.orientation.w = 0;
       first_ref.pose.orientation.x = 0;

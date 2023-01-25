@@ -9,6 +9,7 @@ from math import pi, sin, cos, atan2, sqrt
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Vector3Stamped, Pose, PointStamped, Point
 from geometry_msgs.msg import PoseStamped
+from acl_exploration.msg import path
 import time
 import subprocess
 
@@ -46,7 +47,7 @@ class Server:
 
         #############################################################################################
 
-        mission_duration = 80
+        mission_duration = 35
 
         #############################################################################################
         
@@ -72,7 +73,7 @@ class Server:
 
         rospy.Subscriber('/return_home',  String, self.return_to_base)
 
-        self.waypoint_subscriber = rospy.Subscriber('/hummingbird/path', Path, self.waypoint_callback)
+        self.waypoint_subscriber = rospy.Subscriber('/hummingbird/path', path, self.waypoint_callback)
 
         self.f_x = 0
         self.f_y = 0
@@ -92,45 +93,108 @@ class Server:
     def waypoint_callback(self, msg):
 
         self.wp_index = 0
-        self.path = msg
-        self.x_r = msg.poses[self.wp_index].pose.position.x
-        self.y_r = msg.poses[self.wp_index].pose.position.y
-        self.z_r = msg.poses[self.wp_index].pose.position.z
+        
+        self.path = msg.path
+        self.path_type = msg.type.data
+        self.x_r = msg.path.poses[self.wp_index].pose.position.x
+        self.y_r = msg.path.poses[self.wp_index].pose.position.y
+        self.z_r = msg.path.poses[self.wp_index].pose.position.z
         self.waypoint = True
 
-    def navigate(self, current_time=None):
- 
-        while (sqrt((self.x_c - self.x_r) * (self.x_c - self.x_r)  + (self.y_c - self.y_r) * (self.y_c - self.y_r) + (self.z_c - self.z_r) * (self.z_c - self.z_r)) < WP_SIZE):
-            if(self.wp_index < len(self.path.poses) - 1):
-                self.wp_index = self.wp_index + 1
-            else:
-                break
-            self.x_r = self.path.poses[self.wp_index].pose.position.x
-            self.y_r = self.path.poses[self.wp_index].pose.position.y
-            self.z_r = self.path.poses[self.wp_index].pose.position.z
+    def explore_locally(self, current_time=None):
 
-        header = std_msgs.msg.Header()
-        header.stamp = rospy.Time.now()
-        header.frame_id = 'world'
+        if(self.path_type == "local"):
+            while (sqrt((self.x_c - self.x_r) * (self.x_c - self.x_r)  + (self.y_c - self.y_r) * (self.y_c - self.y_r) + (self.z_c - self.z_r) * (self.z_c - self.z_r)) < WP_SIZE):
+                if(self.wp_index < len(self.path.poses) - 1):
+                    self.wp_index = self.wp_index + 1
+                else:
+                    break
+                self.x_r = self.path.poses[self.wp_index].pose.position.x
+                self.y_r = self.path.poses[self.wp_index].pose.position.y
+                self.z_r = self.path.poses[self.wp_index].pose.position.z
 
-        self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
+            header = std_msgs.msg.Header()
+            header.stamp = rospy.Time.now()
+            header.frame_id = 'world'
+            self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
+            self.vel_msg.pose.position.x = self.x_r
+            self.vel_msg.pose.position.y = self.y_r
+            self.vel_msg.pose.position.z = self.z_r
+            self.vel_msg.pose.orientation.x = 0
+            self.vel_msg.pose.orientation.y = 0
+            self.vel_msg.pose.orientation.z = self.heading_ref
+            self.vel_msg.pose.orientation.w = 0
+            self.vel_publisher.publish(self.vel_msg)
 
-        self.vel_msg.pose.position.x = self.x_r
-        self.vel_msg.pose.position.y = self.y_r
-        self.vel_msg.pose.position.z = self.z_r
-        self.vel_msg.pose.orientation.x = 0
-        self.vel_msg.pose.orientation.y = 0
-        self.vel_msg.pose.orientation.z = self.heading_ref
-        self.vel_msg.pose.orientation.w = 0
+            if (self.request_homing == False):
+                print('locally exploring....')
 
-        self.vel_publisher.publish(self.vel_msg)
 
-        if (self.request_homing == False):
-            print('exploring....')
-        else:
-            print("On my way home...")
+            return
 
-        return
+
+    def global_reposition(self, current_time=None):
+
+        if(self.path_type == "global"):
+            while (sqrt((self.x_c - self.x_r) * (self.x_c - self.x_r)  + (self.y_c - self.y_r) * (self.y_c - self.y_r) + (self.z_c - self.z_r) * (self.z_c - self.z_r)) < WP_SIZE):
+                if(self.wp_index < len(self.path.poses) - 1):
+                    self.wp_index = self.wp_index + 1
+                else:
+                    break
+                self.x_r = self.path.poses[self.wp_index].pose.position.x
+                self.y_r = self.path.poses[self.wp_index].pose.position.y
+                self.z_r = self.path.poses[self.wp_index].pose.position.z
+
+            header = std_msgs.msg.Header()
+            header.stamp = rospy.Time.now()
+            header.frame_id = 'world'
+            self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
+            self.vel_msg.pose.position.x = self.x_r
+            self.vel_msg.pose.position.y = self.y_r
+            self.vel_msg.pose.position.z = self.z_r
+            self.vel_msg.pose.orientation.x = 0
+            self.vel_msg.pose.orientation.y = 0
+            self.vel_msg.pose.orientation.z = self.heading_ref
+            self.vel_msg.pose.orientation.w = 0
+            self.vel_publisher.publish(self.vel_msg)
+
+            if (self.request_homing == False):
+                print('repositioning to global frontier....')
+            return
+    
+
+    def return_to_base(self, current_time=None):
+
+        if(self.path_type == "homing"):
+            
+            while (sqrt((self.x_c - self.x_r) * (self.x_c - self.x_r)  + (self.y_c - self.y_r) * (self.y_c - self.y_r) + (self.z_c - self.z_r) * (self.z_c - self.z_r)) < WP_SIZE):
+                if(self.wp_index < len(self.path.poses) - 1):
+                    self.wp_index = self.wp_index + 1
+                else:
+                    break
+                self.x_r = self.path.poses[self.wp_index].pose.position.x
+                self.y_r = self.path.poses[self.wp_index].pose.position.y
+                self.z_r = self.path.poses[self.wp_index].pose.position.z
+            header = std_msgs.msg.Header()
+            header.stamp = rospy.Time.now()
+            header.frame_id = 'world'
+            self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
+            self.vel_msg.pose.position.x = self.x_r
+            self.vel_msg.pose.position.y = self.y_r
+            self.vel_msg.pose.position.z = self.z_r
+            self.vel_msg.pose.orientation.x = 0
+            self.vel_msg.pose.orientation.y = 0
+            self.vel_msg.pose.orientation.z = self.heading_ref
+            self.vel_msg.pose.orientation.w = 0
+
+            self.vel_publisher.publish(self.vel_msg)
+
+            if (self.request_homing == False):
+                print('On my way Home....')
+
+            return
+    
+
 
     def read_callback(self, msg):
         
@@ -147,36 +211,38 @@ class Server:
 
             print("%.2f" % (start - mission_timer))
             
-            # self.explore_publisher.publish(self.explore_command)
+            self.explore_publisher.publish(self.explore_command)
 
             if (self.xbee_return_flag == False):
 
-                if (self.waypoint):
-                    self.navigate()
+                if (self.waypoint and self.path_type == "local"):
+                    self.explore_locally()
+                
+                if (self.waypoint and self.path_type == "global"):
+                    self.global_reposition()
+                    
             
             else:
                 self.request_homing = True
                 self.return_publisher.publish(self.return_command)
                 print("Homing path requested")
-                if (self.waypoint):
-                    self.navigate()
-                    print("Returning to the base")
+                if (self.waypoint and self.path_type == "homing"):
+                    self.return_to_base()
 
 
-        if ((start - mission_timer) > mission_duration):
+        else:
 
             self.return_publisher.publish(self.return_command)
 
             print("Homing path requested")
 
-            if (self.waypoint):
-                self.navigate()
-        
-        if ((start - mission_timer) > mission_duration) and (self.d < 1.5):
-            
-            self.safety_publisher.publish(self.safety_msg)
-            self.land_flag = True
-            print("safety landing....")
+            if (self.waypoint and self.path_type == "homing"):
+                self.return_to_base()
+                
+            if (self.d < 1.5):
+                self.safety_publisher.publish(self.safety_msg)
+                self.land_flag = True
+                print("Reached Base, safety landing....")
 
 
         end = time.time()
