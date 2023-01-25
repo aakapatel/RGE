@@ -396,6 +396,11 @@ bool start_flag = true;
 bool move_flag = false;
 bool travers;
 bool frontiers_received = false;
+bool INITIALIZE;
+double FIRST_REF_X;
+double FIRST_REF_Y;
+double FIRST_REF_Z;
+
 
 double RAW_GRAPH_COLISSION_MARGIN;
 double PLANNING_GRAPH_COLISSION_MARGIN;
@@ -487,6 +492,10 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
   ODOM_FRAME_ID = config.ODOM_FRAME_ID;
   REF_TOPIC = config.REF_TOPIC;
   PATH_TOPIC = config.PATH_TOPIC;
+  INITIALIZE = config.INITIALIZE;
+  FIRST_REF_X = config.FIRST_REF_X;
+  FIRST_REF_Y = config.FIRST_REF_Y;
+  FIRST_REF_Z = config.FIRST_REF_Z;
 
 }
 
@@ -1070,35 +1079,43 @@ void exploreLocally() {
     traversable_goal = selectLocalFrontier(traversable.list, current.position, current.heading);
   }
 
-  double pen;
-  double mypen = 10000000000000;
-  node* local_nod;
-  for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
+// -------------------------- graph based local exploration -------------------// 
+  
+  // double pen;
+  // double mypen = 10000000000000;
+  // node* local_nod;
+  // for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
 
-    double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
-    pen = nearest_dis;
-    if (pen < mypen) {
-      mypen = pen;
-      local_nod = *rit;
-    }
+  //   double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
+  //   pen = nearest_dis;
+  //   if (pen < mypen) {
+  //     mypen = pen;
+  //     local_nod = *rit;
+  //   }
 
-  }
+  // }
 
-  planning.graph_pointer = local_nod;
-  ROS_INFO("Requesting a local path within planning graph");
+  // planning.graph_pointer = local_nod;
+  // ROS_INFO("Requesting a local path within planning graph");
 
-    // published.reference = publish_goal(traversable_goal);
-    // current.temppath_local.poses.push_back(current.pose);
-    // current.temppath_local.poses.push_back(published.reference);
-    // current.path.path = current.temppath_local;
-    // current.path.type.data = "local";
-    // pub.path_to_goal_pub.publish(current.path);
-    // pub.local_path_pub.publish(current.temppath_local)
-    // current.path.path.poses.clear();
-    // current.path.type.data.clear();
-    // current.temppath_local.poses.clear();
-    // ROS_INFO("Exploring Locally...");
+// -----------------------------------------------------------------------//
 
+
+// -------------------------- direct local exploration -------------------//
+
+    published.reference = publish_goal(traversable_goal);
+    current.temppath_local.poses.push_back(current.pose);
+    current.temppath_local.poses.push_back(published.reference);
+    current.path.path = current.temppath_local;
+    current.path.type.data = "local";
+    pub.path_to_goal_pub.publish(current.path);
+    pub.local_path_pub.publish(current.temppath_local);
+    current.path.path.poses.clear();
+    current.path.type.data.clear();
+    current.temppath_local.poses.clear();
+    ROS_INFO("Exploring Locally...");
+
+// -----------------------------------------------------------------------//
 }
 
 void fetchGlobalFrontier () {
@@ -1760,11 +1777,9 @@ int main(int argc, char *argv[])
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_PATH", 1);
   pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>(REF_TOPIC, 1);
   pub.path_to_goal_pub = nh.advertise<acl_exploration::path>(PATH_TOPIC, 1);
-
   pub.local_path_pub = nh.advertise<nav_msgs::Path>("/local_path", 1);
   pub.global_path_pub = nh.advertise<nav_msgs::Path>("/global_path", 1);
   pub.homing_path_pub = nh.advertise<nav_msgs::Path>("/homing_path", 1);
-
   pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
@@ -1804,7 +1819,7 @@ int main(int argc, char *argv[])
   
   std::list<int> exec;
   ofstream myfile;
-  // myfile.open("/home/godzilla/Documents/example.txt");
+  // myfile.open("/home/aakapatel/Documents/example.txt");
 
   int it = 0;
   while(ros::ok()){
@@ -1816,14 +1831,14 @@ int main(int argc, char *argv[])
 
     */
     
-    if (firstTime and explore.navigate) {
+    if (firstTime and explore.navigate and INITIALIZE) {
 
       firstTime = false;
       geometry_msgs::PoseStamped first_ref;
-      first_ref.pose.position.x = 15;
+      first_ref.pose.position.x = FIRST_REF_X;
       // first_ref.pose.position.y = current.position.y();
-      first_ref.pose.position.y = 1;
-      first_ref.pose.position.z = 1.5;
+      first_ref.pose.position.y = FIRST_REF_Y;
+      first_ref.pose.position.z = FIRST_REF_Z;
       first_ref.pose.orientation.w = 0;
       first_ref.pose.orientation.x = 0;
       first_ref.pose.orientation.y = 0;
@@ -1842,7 +1857,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        graph_navigation(true);
+        // graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);
@@ -1904,7 +1919,7 @@ int main(int argc, char *argv[])
 
   /*
   
-      myfile.open("/home/godzilla/Documents/example.txt");
+      myfile.open("/home/aakapatel/Documents/example.txt");
       
       if (myfile.is_open())
 
