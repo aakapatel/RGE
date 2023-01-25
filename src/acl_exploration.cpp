@@ -404,7 +404,10 @@ double MAX_PLANNING_SPACE_GLOBAL;
 double IMPROVEMENT_SCALE_FACTOR_IT;
 double IMPROVEMENT_SCALE_FACTOR_RANGE;
 
-
+std::string ODOMETRY_IN;
+std::string ODOM_FRAME_ID;
+std::string REF_TOPIC;
+std::string PATH_TOPIC;
 
 nav_msgs::Odometry m_currentPose;
 nav_msgs::Odometry m_prevPose;
@@ -471,8 +474,10 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
   MAX_PLANNING_SPACE_GLOBAL = config.MAX_PLANNING_SPACE_GLOBAL;
   IMPROVEMENT_SCALE_FACTOR_IT = config.IMPROVEMENT_SCALE_FACTOR_IT;
   IMPROVEMENT_SCALE_FACTOR_RANGE = config.IMPROVEMENT_SCALE_FACTOR_RANGE;
-
-
+  ODOMETRY_IN = config.ODOMETRY_IN;
+  ODOM_FRAME_ID = config.ODOM_FRAME_ID;
+  REF_TOPIC = config.REF_TOPIC;
+  PATH_TOPIC = config.PATH_TOPIC;
 
 }
 
@@ -1372,7 +1377,7 @@ void graph_navigation (bool local_nav) {
           global_nodes.pose.position.y = ((*vert_it)).y;
           global_nodes.pose.position.z = ((*vert_it)).z;
           global_nodes.header.stamp = ros::Time::now();
-          global_nodes.header.frame_id = "world";
+          global_nodes.header.frame_id = ODOM_FRAME_ID;
           current.path.poses.push_back(global_nodes);
 
         }
@@ -1384,7 +1389,7 @@ void graph_navigation (bool local_nav) {
         global_node.pose.position.y = ((*(planned.traj.begin()))).y;
         global_node.pose.position.z = ((*(planned.traj.begin()))).z;
         global_node.header.stamp = ros::Time::now();
-        global_node.header.frame_id = "world";
+        global_node.header.frame_id = ODOM_FRAME_ID;
         current.path.poses.push_back(global_node);
 
       }
@@ -1449,7 +1454,7 @@ void return_to_base_planning(bool local_nav) {
         global_nodes.pose.position.y = ((*vert_it)).y;
         global_nodes.pose.position.z = ((*vert_it)).z;
         global_nodes.header.stamp = ros::Time::now();
-        global_nodes.header.frame_id = "world";
+        global_nodes.header.frame_id = ODOM_FRAME_ID;
         current.path.poses.push_back(global_nodes);
 
       }
@@ -1461,7 +1466,7 @@ void return_to_base_planning(bool local_nav) {
       global_node.pose.position.y = ((*(planned.traj.begin()))).y;
       global_node.pose.position.z = ((*(planned.traj.begin()))).z;
       global_node.header.stamp = ros::Time::now();
-      global_node.header.frame_id = "world";
+      global_node.header.frame_id = ODOM_FRAME_ID;
       current.path.poses.push_back(global_node);
 
     }
@@ -1491,7 +1496,7 @@ retrace.poses.push_back(current.pose);
       global_nodes2.pose.position.y = backtrack_it->y();
       global_nodes2.pose.position.z = backtrack_it->z();
       global_nodes2.header.stamp = ros::Time::now();
-      global_nodes2.header.frame_id = "world";
+      global_nodes2.header.frame_id = ODOM_FRAME_ID;
       retrace.poses.push_back(global_nodes2);
 
     }
@@ -1506,7 +1511,7 @@ void visualize(){
                                                 local_frontier_nodes, global_frontier_nodes;
 
   if (!Global_Graph.empty()) {
-    GRAPH_nodes.header.frame_id = GRAPH_line_list.header.frame_id = "world";
+    GRAPH_nodes.header.frame_id = GRAPH_line_list.header.frame_id = ODOM_FRAME_ID;
     GRAPH_nodes.ns = "points";
     GRAPH_nodes.action = visualization_msgs::Marker::ADD;
     GRAPH_nodes.pose.orientation.w = 1.0;
@@ -1541,7 +1546,7 @@ void visualize(){
     pub.points_pub.publish(GRAPH_line_list);
   }
 
-    CHOSEN_PATH_points.header.frame_id = CHOSEN_PATH_line_list.header.frame_id = "world";
+    CHOSEN_PATH_points.header.frame_id = CHOSEN_PATH_line_list.header.frame_id = ODOM_FRAME_ID;
     CHOSEN_PATH_points.ns = "points";
     CHOSEN_PATH_points.action = visualization_msgs::Marker::ADD;
     CHOSEN_PATH_points.pose.orientation.w = 1.0;
@@ -1577,7 +1582,7 @@ void visualize(){
     pub.chosen_path_visualization_pub.publish(CHOSEN_PATH_line_list);
 
   if(!ALC_POINTS.empty()){
-    ALC_points.header.frame_id = ALC_line_list.header.frame_id = "world";
+    ALC_points.header.frame_id = ALC_line_list.header.frame_id = ODOM_FRAME_ID;
     ALC_points.ns = "points";
     ALC_points.action = visualization_msgs::Marker::ADD;
     ALC_points.pose.orientation.w = 1.0;
@@ -1612,7 +1617,7 @@ void visualize(){
   }
 
   if(!traversable.list.empty()){
-    TRAVERSABLE_points.header.frame_id = "world";
+    TRAVERSABLE_points.header.frame_id = ODOM_FRAME_ID;
     TRAVERSABLE_points.ns = "points";
     TRAVERSABLE_points.action = visualization_msgs::Marker::ADD;
     TRAVERSABLE_points.pose.orientation.w = 1.0;
@@ -1635,7 +1640,7 @@ void visualize(){
   }
 
   if(!local.list.empty()){
-    local_frontier_nodes.header.frame_id = "world";
+    local_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
     local_frontier_nodes.ns = "points";
     local_frontier_nodes.action = visualization_msgs::Marker::ADD;
     local_frontier_nodes.pose.orientation.w = 1.0;
@@ -1656,7 +1661,7 @@ void visualize(){
   }
 
   if(!global.list.empty()){
-    global_frontier_nodes.header.frame_id = "world";
+    global_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
     global_frontier_nodes.ns = "points";
     global_frontier_nodes.action = visualization_msgs::Marker::ADD;
     global_frontier_nodes.pose.orientation.w = 1.0;
@@ -1683,7 +1688,7 @@ void visualize(){
     for (auto visited_it = old_poses.list.begin(); visited_it != old_poses.list.end(); visited_it++) {
       geometry_msgs::PoseStamped past_pose;
       past_pose.header.stamp = ros::Time::now();
-      past_pose.header.frame_id = "world";
+      past_pose.header.frame_id = ODOM_FRAME_ID;
       past_pose.pose.position.x = visited_it->x();
       past_pose.pose.position.y = visited_it->y();
       past_pose.pose.position.z = visited_it->z();
@@ -1694,7 +1699,7 @@ void visualize(){
       exploration_path.poses.push_back(past_pose);
     }
     exploration_path.header.stamp = ros::Time::now();
-    exploration_path.header.frame_id = "world";
+    exploration_path.header.frame_id = ODOM_FRAME_ID;
     pub.explored_path.publish(exploration_path);
   }
 
@@ -1711,8 +1716,8 @@ int main(int argc, char *argv[])
   pub.chosen_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("improved_path", 1);
   pub.alc_points_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_POINTS", 1);
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_PATH", 1);
-  pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("/hummingbird/reference", 1);
-  pub.path_to_goal_pub = nh.advertise<nav_msgs::Path>("/hummingbird/path", 1);
+  pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>(REF_TOPIC, 1);
+  pub.path_to_goal_pub = nh.advertise<nav_msgs::Path>(PATH_TOPIC, 1);
   pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
@@ -1722,7 +1727,7 @@ int main(int argc, char *argv[])
   pub.global_execution_pub = nh.advertise<std_msgs::Int64>("global_execution_time", 1);
   // pub.map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
-  ros::Subscriber sub = nh.subscribe("/hummingbird/ground_truth/odometry", 1, odomCallback);
+  ros::Subscriber sub = nh.subscribe(ODOMETRY_IN, 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
   ros::Subscriber homing_sub = nh.subscribe("return_home", 1, homingCallback);
   ros::Subscriber explore_sub = nh.subscribe("explore", 1, exploreCallback);
@@ -1736,9 +1741,9 @@ int main(int argc, char *argv[])
 
   position_received = true;
   published.reference.header.stamp = ros::Time::now();
-  published.reference.header.frame_id = "world";
+  published.reference.header.frame_id = ODOM_FRAME_ID;
   current.path.header.stamp = ros::Time::now();
-  current.path.header.frame_id = "world";
+  current.path.header.frame_id = ODOM_FRAME_ID;
   home.navigate = false;
   explore.navigate = false;
   switch_global.navigate = false;

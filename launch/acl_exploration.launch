@@ -12,6 +12,7 @@
 		<!-- <param name="cloud_in" value="/camera/depth/color/points" /> -->
 
 		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+		<!-- <param name="cloud_in" value="/velodyne_points" /> -->
 
 		<param name="distance" value="11" />
 
@@ -22,11 +23,13 @@
 		<param name="sensor_model/max_range" value="14" />
 
 		<param name="odometry" value="hummingbird/ground_truth/odometry" />
+		<!-- <param name="odometry" value="/odometry/imu" /> -->
 
 		<!-- data source to integrate (PointCloud2) -->
 
 		<!-- <remap from="cloud_in" to="/camera/depth/color/points" /> -->
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+		<!-- <remap from="cloud_in" to="/velodyne_points" /> -->
 
 		<param name="number_of_unknowns" value="4" />
 		
@@ -41,12 +44,15 @@
   <node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="screen" required="true">
 		
 		<param name="cloud_in" value="/hummingbird/velodyne_points" />
+		<!-- <param name="cloud_in" value="/velodyne_points" /> -->
 
 		<param name="frame_id" type="string" value="world" />
 
 		<remap from="cloud_in" to="/hummingbird/velodyne_points" />
+		<!-- <remap from="cloud_in" to="/velodyne_points" /> -->
 
     	<param name="robot_frame_id" value="hummingbird/base_link" />
+		<!-- <param name="robot_frame_id" value="base_link" /> -->
 
 		<param name="num_workers" value="$(arg num_workers)" />
 		<param name="max_range" value="40" />
@@ -54,7 +60,13 @@
 		<param name="robot_radius" value="0.5" />
 		<param name="robot_height" value="0.5" />
 		<param name="compress" value="True" />
+
 		<param name="clear_robot" value="False" />
+
+		<!-- FOR SHAFTER/PIONEER/SPOT CLEAR ROBOT SHOULD BE SET TO TRUE -->
+
+		<!-- <param name="clear_robot" value="True" /> -->
+
 		<param name="clearing_depth" value="0" />
 		<param name="publish_depth" value="0" />
 		<param name="pub_rate" value="1" />
