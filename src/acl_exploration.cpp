@@ -462,6 +462,7 @@ Frontier_main home;
 Frontier_main explore;
 Frontier_main switch_global;
 Frontier_main temp_local;
+Frontier_main finish;
 
 // home.navigate = false;
 
@@ -1291,11 +1292,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.2, 0.2),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.3, 0.3),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
 
-          // if (rang > 2 and rang < 3) {
+          if (rang > 2 and rang < 3) {
 
             if (isInCollision(myMap, obb, false, true, false, 2) ) {
 
@@ -1306,7 +1307,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
               
             }
           
-          // }
+          }
 
       }
 
@@ -1536,7 +1537,6 @@ void return_to_base_planning() {
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
 
-        
         current.temppath_homing.poses.push_back(global_nodes);
         current.path.path = current.temppath_homing;
         current.path.type.data = "homing";
@@ -1550,7 +1550,7 @@ void return_to_base_planning() {
     }
 
     pub.path_to_goal_pub.publish(current.path);
-    pub.global_path_pub.publish(current.temppath_homing);
+    pub.homing_path_pub.publish(current.temppath_homing);
     current.path.path.poses.clear();
     current.path.type.data.clear();
     current.temppath_homing.poses.clear();
@@ -1875,7 +1875,7 @@ int main(int argc, char *argv[])
     }
 
 
-    if (next_pub() or switch_global.navigate or home.navigate) {
+    if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate) {
       
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate) {
 
@@ -1921,9 +1921,10 @@ int main(int argc, char *argv[])
         std::cout << "returning home" << std::endl;
         local.navigate = false;
         global.navigate = false;
-        explore.navigate = false;
+        // explore.navigate = false;
 
         return_to_base_planning();
+        finish.navigate = true;
 
       }
 
