@@ -1469,17 +1469,6 @@ void graph_navigation (bool local_nav) {
 
         goto label;
 
-        // geometry_msgs::PoseStamped global_node;
-        // global_node.pose.position.x = ((*(planned.traj.begin()))).x;
-        // global_node.pose.position.y = ((*(planned.traj.begin()))).y;
-        // global_node.pose.position.z = ((*(planned.traj.begin()))).z;
-        // global_node.header.stamp = ros::Time::now();
-        // global_node.header.frame_id = ODOM_FRAME_ID;
-
-        // current.temppath.poses.push_back(global_node);
-        // current.path.path = current.temppath;
-        // current.path.type.data = "global";
-
       }
 
       pub.path_to_goal_pub.publish(current.path);
@@ -1557,17 +1546,6 @@ void return_to_base_planning() {
     } else {
 
       goto label;
-
-      // geometry_msgs::PoseStamped global_node;
-      // global_node.pose.position.x = ((*(planned.traj.begin()))).x;
-      // global_node.pose.position.y = ((*(planned.traj.begin()))).y;
-      // global_node.pose.position.z = ((*(planned.traj.begin()))).z;
-      // global_node.header.stamp = ros::Time::now();
-      // global_node.header.frame_id = ODOM_FRAME_ID;
-
-      // current.temppath_homing.poses.push_back(global_node);
-      // current.path.path = current.temppath_homing;
-      // current.path.type.data = "homing";
 
     }
 
