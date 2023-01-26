@@ -1292,11 +1292,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.3, 0.3),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.2, 0.2),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
 
-          if (rang > 2 and rang < 3) {
+          if (rang > 1 and rang < 8) {
 
             if (isInCollision(myMap, obb, false, true, false, 2) ) {
 
