@@ -15,7 +15,7 @@ import subprocess
 
 import math
 
-WP_SIZE = 0.8
+WP_SIZE = 1.2
 
 return_flag = 0
 m = 0
@@ -47,7 +47,7 @@ class Server:
 
         #############################################################################################
 
-        mission_duration = 80
+        mission_duration = 80000
 
         #############################################################################################
         
@@ -56,9 +56,15 @@ class Server:
         self.last_time = self.current_time
 
         self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
+        
+        # self.vel_publisher = rospy.Publisher('/shafter3d/reference', PoseStamped, queue_size = 1)
+        
         self.vel_msg = PoseStamped()
 
         self.safety_publisher = rospy.Publisher('/hummingbird/safety_land', String, queue_size= 10)
+        
+        # self.safety_publisher = rospy.Publisher('/shafter3d/safety_land', String, queue_size= 10)
+        
         self.safety_msg = String()
 
         self.return_publisher = rospy.Publisher('/return_home', String, queue_size= 10)
@@ -66,14 +72,15 @@ class Server:
 
         self.explore_publisher = rospy.Publisher('/explore', String, queue_size= 10)
         self.explore_command = String()
-
-        self.frontier_subscriber = rospy.Subscriber('/frontier/point', Point, self.frontier_callback)
         
         rospy.Subscriber("/hummingbird/ground_truth/odometry", Odometry, self.read_callback)
+        # rospy.Subscriber("/odometry/imu", Odometry, self.read_callback)
 
         rospy.Subscriber('/return_home',  String, self.return_to_base)
 
-        self.waypoint_subscriber = rospy.Subscriber('/hummingbird/path', path, self.waypoint_callback)
+        self.waypoint_subscriber = rospy.Subscriber('/hummingbird/exploration_path', path, self.waypoint_callback)
+        
+        # self.waypoint_subscriber = rospy.Subscriber('/shafter3d/exploration_path', path, self.waypoint_callback)
 
         self.f_x = 0
         self.f_y = 0

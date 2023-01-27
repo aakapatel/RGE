@@ -1806,14 +1806,13 @@ int main(int argc, char *argv[])
   pub.local_path_pub = nh.advertise<nav_msgs::Path>("/local_path", 1);
   pub.global_path_pub = nh.advertise<nav_msgs::Path>("/global_path", 1);
   pub.homing_path_pub = nh.advertise<nav_msgs::Path>("/homing_path", 1);
-  pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
+  pub.explored_path = nh.advertise<nav_msgs::Path>("/explored_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   pub.global_nodes_pub = nh.advertise<visualization_msgs::Marker>("global_frontier_nodes_vis", 1);
   pub.total_execution_pub = nh.advertise<std_msgs::Int64>("total_execution_time", 1);
   pub.local_execution_pub = nh.advertise<std_msgs::Int64>("local_execution_time", 1);
   pub.global_execution_pub = nh.advertise<std_msgs::Int64>("global_execution_time", 1);
-  // pub.map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe(ODOMETRY_IN, 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
