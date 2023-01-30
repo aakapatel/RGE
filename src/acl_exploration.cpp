@@ -549,7 +549,7 @@ bool isInCollision(ufo::map::OccupancyMapColor const& map,
   return false;
 }
 
-void buildGraph(float given_x, float given_y, float given_z, int max_iterations) {
+void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 final_point, int max_iterations) {
   for(std::list<node*>::iterator it_clear_helper = Global_Graph.begin(); it_clear_helper != --Global_Graph.end(); it_clear_helper++){
     (*it_clear_helper)->readyForDeletion();
     delete(*it_clear_helper);
@@ -558,8 +558,12 @@ void buildGraph(float given_x, float given_y, float given_z, int max_iterations)
   Global_Graph.clear();
   // std::cout << "\nBuilding graph... " << std::endl;
   node* origin = new node(given_x, given_y, given_z);
+  node* goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
+  goal_pt->addParent(nullptr);
   origin->addParent(nullptr);
   Global_Graph.push_back(origin);
+  Global_Graph.push_back(goal_pt);
+
   srand(time(0));
   itterations = 0;
   while(itterations < max_iterations) {
@@ -724,7 +728,7 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
   return select;
 }
 
-node* selectGlobalFrontier(std::list<ufo::math::Vector3> global) {
+node* temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global) {
   double score;
   double myScore = 100000000;
   ufo::math::Vector3 selectg;
@@ -750,6 +754,23 @@ node* selectGlobalFrontier(std::list<ufo::math::Vector3> global) {
 
   }
   return my_nod;
+}
+
+
+ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global) {
+  double score;
+  double myScore = 100000000;
+  ufo::math::Vector3 selectg;
+
+    for (ufo::math::Vector3 globalfrontier : global) {
+        score = calculateDistance(globalfrontier, current.position);
+        if (score < myScore) {              
+            myScore = score;
+            selectg = globalfrontier;
+        }
+    }
+
+  return selectg;
 }
 
 node* switchedGlobalFrontier(std::list<ufo::math::Vector3> global) {
@@ -782,7 +803,7 @@ node* switchedGlobalFrontier(std::list<ufo::math::Vector3> global) {
 
 
 
-std::list<node*> selectGlobalPath(std::list<ufo::math::Vector3> global) {
+std::list<node*> LoopClosurePath(std::list<ufo::math::Vector3> global) {
   double score1;
   double myScore1 = 100000000;
   ufo::math::Vector3 selectg1;
@@ -1139,8 +1160,6 @@ void fetchGlobalFrontier () {
 void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement, double reit, double range_up_scale)  {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
-
   int max_it;
   float planning_range;
   IMPROVEMENT_SCALE_FACTOR_IT = reit;
@@ -1188,10 +1207,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
         planning_range = MIN_PLANNING_SPACE_GLOBAL;
       }
     }
-  
+
+    ufo::math::Vector3 end_pt = selectGlobalFrontier(all.list);
 
     planningSpace(planning_range, myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
-    buildGraph(current.position.x(), current.position.y(), current.position.z(), max_it);
+    buildGraph(current.position.x(), current.position.y(), current.position.z(), end_pt, max_it);
   
     if (!Global_Graph.empty()) {
       
@@ -1205,19 +1225,17 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       
     }
 
-    // planning.graph_pointer = selectGlobalFrontier(global.list);
-
       if (switch_global.navigate) {
 
-        planning.graph_pointer = switchedGlobalFrontier(global.list);
+        planning.graph_pointer = switchedGlobalFrontier(all.list);
 
       } else if (!home.navigate and !go_home) {
 
-        planning.graph_pointer = selectGlobalFrontier(global.list);
+        planning.graph_pointer = temp_selectGlobalFrontier(all.list);
 
       }
 
-    // ALC_POINTS = selectGlobalPath(all.list);
+    // ALC_POINTS = LoopClosurePath(all.list);
       
       for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++) {
         
@@ -1256,7 +1274,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
             if (rang > 2 and rang < 3) {
 
-              if (isInCollision(myMap, obb, false, true, false, 2) ) {
+              if (isInCollision(myMap, obb, false, true, false, 0) ) {
 
                 (*graph_it).AddConnection(*graph_it2);
                 (*graph_it2).AddConnection(*graph_it);
@@ -1579,8 +1597,8 @@ retrace.poses.push_back(current.pose);
       global_nodes2.header.stamp = ros::Time::now();
       global_nodes2.header.frame_id = ODOM_FRAME_ID;
       retrace.poses.push_back(global_nodes2);
-
     }
+
   }
 
   return retrace;
@@ -1602,12 +1620,14 @@ void visualize(){
     GRAPH_line_list.type = visualization_msgs::Marker::LINE_LIST;
     GRAPH_nodes.scale.x = 0.3;
     GRAPH_line_list.scale.x = 0.08;
-    GRAPH_nodes.color.r = 0.8f;
-    GRAPH_nodes.color.g = 0.8f;
-    // GRAPH_nodes.color.b = 0.8f;
-    GRAPH_nodes.color.a = 1.0;
+    // GRAPH_nodes.color.r = 0.8f;
+    // GRAPH_nodes.color.g = 0.8f;
+    GRAPH_nodes.color.b = 0.8;
+    GRAPH_nodes.color.a = 0.8;
+    GRAPH_line_list.color.r = 0.8;
+    GRAPH_line_list.color.g = 0.8;
     GRAPH_line_list.color.b = 0.8;
-    GRAPH_line_list.color.a = 1.0;
+    GRAPH_line_list.color.a = 0.8;
     std::list<node*>::iterator it_comeon_visualizer;
     for(it_comeon_visualizer = Global_Graph.begin(); it_comeon_visualizer != Global_Graph.end(); it_comeon_visualizer++){
       geometry_msgs::Point p;
@@ -1806,13 +1826,14 @@ int main(int argc, char *argv[])
   pub.local_path_pub = nh.advertise<nav_msgs::Path>("/local_path", 1);
   pub.global_path_pub = nh.advertise<nav_msgs::Path>("/global_path", 1);
   pub.homing_path_pub = nh.advertise<nav_msgs::Path>("/homing_path", 1);
-  pub.explored_path = nh.advertise<nav_msgs::Path>("/explored_path", 1);
+  pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   pub.global_nodes_pub = nh.advertise<visualization_msgs::Marker>("global_frontier_nodes_vis", 1);
   pub.total_execution_pub = nh.advertise<std_msgs::Int64>("total_execution_time", 1);
   pub.local_execution_pub = nh.advertise<std_msgs::Int64>("local_execution_time", 1);
   pub.global_execution_pub = nh.advertise<std_msgs::Int64>("global_execution_time", 1);
+  // pub.map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
   ros::Subscriber sub = nh.subscribe(ODOMETRY_IN, 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
