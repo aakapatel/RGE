@@ -55,10 +55,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 375 017
-        "# Leaf Nodes": 1 790 720
-        Resolution: 20 cm
-        Size: 22,25 MiB
+        "# Inner Nodes": 33 617
+        "# Leaf Nodes": 113 664
+        Resolution: 30 cm
+        Size: 1,64 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -172,7 +172,7 @@ Visualization Manager:
       Marker Topic: /Traversable_frontiers
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -188,7 +188,8 @@ Visualization Manager:
       Marker Topic: /planning_graph
       Name: Marker
       Namespaces:
-        {}
+        "": true
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -236,7 +237,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /explored_path
+      Topic: /exploration_path
       Unreliable: false
       Value: true
     - Alpha: 0.15000000596046448
@@ -366,7 +367,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 65.36661529541016
+      Distance: 44.102359771728516
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -374,9 +375,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -3.3307886123657227
-        Y: 2.0870168209075928
-        Z: -2.4631898403167725
+        X: 4.733372688293457
+        Y: -1.9557158946990967
+        Z: -3.8870575428009033
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -384,7 +385,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 1.4604605436325073
+      Yaw: 1.600460410118103
     Saved: ~
 Window Geometry:
   Displays:

@@ -1272,9 +1272,9 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
           } else {
 
-            if (rang > 2 and rang < 3) {
+            if (rang > 2 and rang < 4) {
 
-              if (isInCollision(myMap, obb, false, true, false, 0) ) {
+              if (!isInCollision(myMap, obb, true, false, true, 0) and isInCollision(myMap, obb, false, true, false, 0)) {
 
                 (*graph_it).AddConnection(*graph_it2);
                 (*graph_it2).AddConnection(*graph_it);
@@ -1619,27 +1619,27 @@ void visualize(){
     GRAPH_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
     GRAPH_line_list.type = visualization_msgs::Marker::LINE_LIST;
     GRAPH_nodes.scale.x = 0.3;
-    GRAPH_line_list.scale.x = 0.08;
-    // GRAPH_nodes.color.r = 0.8f;
-    // GRAPH_nodes.color.g = 0.8f;
+    GRAPH_line_list.scale.x = 0.1;
+    GRAPH_nodes.color.r = 0.8f;
+    GRAPH_nodes.color.g = 0.8f;
     GRAPH_nodes.color.b = 0.8;
     GRAPH_nodes.color.a = 0.8;
-    GRAPH_line_list.color.r = 0.8;
+    // GRAPH_line_list.color.r = 0.8;
     GRAPH_line_list.color.g = 0.8;
-    GRAPH_line_list.color.b = 0.8;
+    GRAPH_line_list.color.b = 0.2;
     GRAPH_line_list.color.a = 0.8;
-    std::list<node*>::iterator it_comeon_visualizer;
-    for(it_comeon_visualizer = Global_Graph.begin(); it_comeon_visualizer != Global_Graph.end(); it_comeon_visualizer++){
+    std::list<node*>::iterator it_vis;
+    for(it_vis = Global_Graph.begin(); it_vis != Global_Graph.end(); it_vis++){
       geometry_msgs::Point p;
-      p.x = (*it_comeon_visualizer)->point->x();
-      p.y = (*it_comeon_visualizer)->point->y();
-      p.z = (*it_comeon_visualizer)->point->z();
+      p.x = (*it_vis)->point->x();
+      p.y = (*it_vis)->point->y();
+      p.z = (*it_vis)->point->z();
       GRAPH_nodes.points.push_back(p);
-      if((*it_comeon_visualizer)->myParent != nullptr){
+      if((*it_vis)->myParent != nullptr){
         GRAPH_line_list.points.push_back(p);
-        p.x = (*it_comeon_visualizer)->myParent->point->x();
-        p.y = (*it_comeon_visualizer)->myParent->point->y();
-        p.z = (*it_comeon_visualizer)->myParent->point->z();
+        p.x = (*it_vis)->myParent->point->x();
+        p.y = (*it_vis)->myParent->point->y();
+        p.z = (*it_vis)->myParent->point->z();
         GRAPH_line_list.points.push_back(p);
       }
     }
@@ -1662,19 +1662,19 @@ void visualize(){
     CHOSEN_PATH_points.color.a = 1.0;
     CHOSEN_PATH_line_list.color.b = 1.0;
     CHOSEN_PATH_line_list.color.a = 1.0;
-    std::list<node*>::iterator it_comeon_visualizer8;
-    for(it_comeon_visualizer8 = CHOSEN_PATH.begin(); it_comeon_visualizer8 != CHOSEN_PATH.end(); it_comeon_visualizer8++){
+    std::list<node*>::iterator it_vis8;
+    for(it_vis8 = CHOSEN_PATH.begin(); it_vis8 != CHOSEN_PATH.end(); it_vis8++){
       geometry_msgs::Point p8;
-      p8.x = (*it_comeon_visualizer8)->point->x();
-      p8.y = (*it_comeon_visualizer8)->point->y();
-      p8.z = (*it_comeon_visualizer8)->point->z();
+      p8.x = (*it_vis8)->point->x();
+      p8.y = (*it_vis8)->point->y();
+      p8.z = (*it_vis8)->point->z();
       CHOSEN_PATH_points.points.push_back(p8);
-      if((*it_comeon_visualizer8)->myParent != nullptr){
-        if(*it_comeon_visualizer8 != *CHOSEN_PATH.begin()){
+      if((*it_vis8)->myParent != nullptr){
+        if(*it_vis8 != *CHOSEN_PATH.begin()){
           CHOSEN_PATH_line_list.points.push_back(p8);
-          p8.x = (*it_comeon_visualizer8)->myParent->point->x();
-          p8.y = (*it_comeon_visualizer8)->myParent->point->y();
-          p8.z = (*it_comeon_visualizer8)->myParent->point->z();
+          p8.x = (*it_vis8)->myParent->point->x();
+          p8.y = (*it_vis8)->myParent->point->y();
+          p8.z = (*it_vis8)->myParent->point->z();
           CHOSEN_PATH_line_list.points.push_back(p8);
         }
       }
@@ -1699,17 +1699,17 @@ void visualize(){
     ALC_points.color.a = 1.0;
     ALC_line_list.color.b = 1.0;
     ALC_line_list.color.a = 1.0;
-    std::list<node*>::iterator it_comeon_visualizer9;
-    for(it_comeon_visualizer9 = ALC_POINTS.begin(); it_comeon_visualizer9 != ALC_POINTS.end(); it_comeon_visualizer9++){
+    std::list<node*>::iterator it_vis9;
+    for(it_vis9 = ALC_POINTS.begin(); it_vis9 != ALC_POINTS.end(); it_vis9++){
       geometry_msgs::Point point1;
-      point1.x = (*it_comeon_visualizer9)->point->x();
-      point1.y = (*it_comeon_visualizer9)->point->y();
-      point1.z = (*it_comeon_visualizer9)->point->z();
+      point1.x = (*it_vis9)->point->x();
+      point1.y = (*it_vis9)->point->y();
+      point1.z = (*it_vis9)->point->z();
       ALC_points.points.push_back(point1);
       // geometry_msgs::Point point2;
-      // point2.x = (*(std::next(it_comeon_visualizer9, 1)))->point->x();
-      // point2.y = (*(std::next(it_comeon_visualizer9, 1)))->point->y();
-      // point2.z = (*(std::next(it_comeon_visualizer9, 1)))->point->z();
+      // point2.x = (*(std::next(it_vis9, 1)))->point->x();
+      // point2.y = (*(std::next(it_vis9, 1)))->point->y();
+      // point2.z = (*(std::next(it_vis9, 1)))->point->z();
           ALC_line_list.points.push_back(point1);
           // ALC_line_list.points.push_back(point2);
     }
@@ -1729,12 +1729,12 @@ void visualize(){
     TRAVERSABLE_points.color.g = 1.0f;
     TRAVERSABLE_points.color.b = 1.0f;
     TRAVERSABLE_points.color.a = 1.0;
-    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer2;	
-    for(it_comeon_visualizer2 = traversable.list.begin(); it_comeon_visualizer2 != traversable.list.end(); it_comeon_visualizer2++){
+    std::list<ufo::math::Vector3>::iterator it_vis2;	
+    for(it_vis2 = traversable.list.begin(); it_vis2 != traversable.list.end(); it_vis2++){
       geometry_msgs::Point p;
-      p.x = it_comeon_visualizer2->x();
-      p.y = it_comeon_visualizer2->y();
-      p.z = it_comeon_visualizer2->z();
+      p.x = it_vis2->x();
+      p.y = it_vis2->y();
+      p.z = it_vis2->z();
       TRAVERSABLE_points.points.push_back(p);
     }
     pub.hits_pub.publish(TRAVERSABLE_points);
@@ -1750,12 +1750,12 @@ void visualize(){
     local_frontier_nodes.scale.x = 0.4;
     local_frontier_nodes.color.g = 0.7f;
     local_frontier_nodes.color.a = 0.6;
-    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer3;	
-    for(it_comeon_visualizer3 = local.list.begin(); it_comeon_visualizer3 != local.list.end(); it_comeon_visualizer3++){
+    std::list<ufo::math::Vector3>::iterator it_vis3;	
+    for(it_vis3 = local.list.begin(); it_vis3 != local.list.end(); it_vis3++){
       geometry_msgs::Point p;
-      p.x = it_comeon_visualizer3->x();
-      p.y = it_comeon_visualizer3->y();
-      p.z = it_comeon_visualizer3->z();
+      p.x = it_vis3->x();
+      p.y = it_vis3->y();
+      p.z = it_vis3->z();
       local_frontier_nodes.points.push_back(p);
     }
     pub.local_nodes_pub.publish(local_frontier_nodes);
@@ -1773,12 +1773,12 @@ void visualize(){
     global_frontier_nodes.color.r = 0.8f;
     global_frontier_nodes.color.g = 0.8f;
     global_frontier_nodes.color.a = 0.6;
-    std::list<ufo::math::Vector3>::iterator it_comeon_visualizer5;	
-    for(it_comeon_visualizer5 = global.list.begin(); it_comeon_visualizer5 != global.list.end(); it_comeon_visualizer5++){
+    std::list<ufo::math::Vector3>::iterator it_vis5;	
+    for(it_vis5 = global.list.begin(); it_vis5 != global.list.end(); it_vis5++){
       geometry_msgs::Point p0;
-      p0.x = it_comeon_visualizer5->x();
-      p0.y = it_comeon_visualizer5->y();
-      p0.z = it_comeon_visualizer5->z();
+      p0.x = it_vis5->x();
+      p0.y = it_vis5->y();
+      p0.z = it_vis5->z();
       global_frontier_nodes.points.push_back(p0);
     }
     pub.global_nodes_pub.publish(global_frontier_nodes);
