@@ -169,12 +169,12 @@ public:
   }
 };
  
-class DijkstraAlgorithm{
+class Dijkstra{
 public:
   Vertex *source;
   priority_queue<Vertex*, vector<Vertex*>, Compare> vertexQueue;
 
-  DijkstraAlgorithm(Vertex *s){
+  Dijkstra(Vertex *s){
     this->source = s;
   }
   void computePath(){
@@ -1310,13 +1310,13 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.2, 0.2),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
       double rang = calculateDistance(d1, d2);
 
           if (rang > 1 and rang < 8) {
 
-            if (isInCollision(myMap, obb, false, true, false, 2) ) {
+            if (!isInCollision(myMap, obb, true, false, true, 0) and isInCollision(myMap, obb, false, true, false, 0) ) {
 
               (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
@@ -1826,7 +1826,7 @@ int main(int argc, char *argv[])
   pub.local_path_pub = nh.advertise<nav_msgs::Path>("/local_path", 1);
   pub.global_path_pub = nh.advertise<nav_msgs::Path>("/global_path", 1);
   pub.homing_path_pub = nh.advertise<nav_msgs::Path>("/homing_path", 1);
-  pub.explored_path = nh.advertise<nav_msgs::Path>("/exploration_path", 1);
+  pub.explored_path = nh.advertise<nav_msgs::Path>("/explored_path", 1);
   pub.hits_pub = nh.advertise<visualization_msgs::Marker>("Traversable_frontiers", 1);
   pub.local_nodes_pub = nh.advertise<visualization_msgs::Marker>("local_frontier_nodes_vis", 1);
   pub.global_nodes_pub = nh.advertise<visualization_msgs::Marker>("global_frontier_nodes_vis", 1);

@@ -55,10 +55,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 33 617
-        "# Leaf Nodes": 113 664
+        "# Inner Nodes": 20 129
+        "# Leaf Nodes": 59 440
         Resolution: 30 cm
-        Size: 1,64 MiB
+        Size: 936,15 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -237,7 +237,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /exploration_path
+      Topic: /explored_path
       Unreliable: false
       Value: true
     - Alpha: 0.15000000596046448
@@ -367,7 +367,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 44.102359771728516
+      Distance: 38.81007766723633
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -375,9 +375,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 4.733372688293457
-        Y: -1.9557158946990967
-        Z: -3.8870575428009033
+        X: -1.7067636251449585
+        Y: 0.036075811833143234
+        Z: -3.889239549636841
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
