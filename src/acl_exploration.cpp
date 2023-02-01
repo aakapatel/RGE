@@ -426,7 +426,7 @@ nav_msgs::Odometry m_currentPose;
 nav_msgs::Odometry m_prevPose;
 
 
-ufo::map::OccupancyMapColor myMap(RESOLUTION);
+ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 std::list<ufo::math::Vector3> ext;
 std::list<ufo::math::Vector3> accessible;
 std::list<ufo::math::Vector3> positionslist;
@@ -502,7 +502,7 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL PLANNING SPACE CONFIGURED HERE.
 
-void planningSpace(float range, ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
+void planningSpace(bool local_graph, float range, ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
                                       float given_y, float given_z, ufo::map::DepthType min_depth = 3){
   
   highest_x = -9999;
@@ -511,6 +511,16 @@ void planningSpace(float range, ufo::map::OccupancyMapColor const& map, bool occ
   lowest_x = std::numeric_limits<float>::max();
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
+  // ufo::math::Vector3 minPoint;
+  // if (local_graph) {
+  //   minPoint.x() = given_x - 1 * 0.1*range;
+  //   minPoint.y() = given_y - 1 * 0.1*range;
+  //   minPoint.z() = given_z - 1 * 0.1*range;
+  // } else {
+  //   minPoint.x() = given_x - 1 * range;
+  //   minPoint.y() = given_y - 1 * range;
+  //   minPoint.z() = given_z - 1 * range;
+  // }
   ufo::math::Vector3 minPoint(given_x - 1 * range, given_y - 1 * range, given_z - 1 * range);
   ufo::math::Vector3 maxPoint(given_x + 1 * range, given_y + 1 * range, given_z + 1 * range);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
@@ -574,7 +584,7 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
     // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
     ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
-    if(!isInCollision(myMap, point_sphere, true, false, true, 0) and isInCollision(myMap, point_sphere, false, true, false, 0)){
+    if(!isInCollision(ufoMAP, point_sphere, true, false, true, 0) and isInCollision(ufoMAP, point_sphere, false, true, false, 0)){
       float distance = std::numeric_limits<float>::max();
       node* parent;
       std::list<node*>::iterator it_node;
@@ -596,7 +606,7 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
       double roll = 0;  // TODO: Fix
       ufo::geometry::OBB obb(center, ufo::math::Vector3(dis / 2.0, RAW_GRAPH_COLISSION_MARGIN, RAW_GRAPH_COLISSION_MARGIN),
               ufo::math::Quaternion(roll, pitch, yaw));
-      if(!isInCollision(myMap, obb, true, false, true, 0)) {
+      if(!isInCollision(ufoMAP, obb, true, false, true, 0)) {
           node* new_node = new node(x, y, z);
           new_node->addParent(parent);
           parent->addChild(new_node);
@@ -629,7 +639,7 @@ void fetchTraversable(bool occupied_space = true, bool free_space = false,
       double roll = 0;  // TODO: Fix
       ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
               ufo::math::Quaternion(roll, pitch, yaw));
-      if (!isInCollision(myMap, obb, true, false, false, 0) && calculateDistance(goal, current.position) > 3) {
+      if (!isInCollision(ufoMAP, obb, true, false, false, 0) && calculateDistance(goal, current.position) > 3) {
         extracted.push_back(goal);
       }      
     }
@@ -687,8 +697,8 @@ ufo::math::Vector3 informativeFrontier () {
   for (ufo::math::Vector3 f_point : local.list) {
 
     ufo::geometry::Sphere sphere(f_point, radius);
-    if (isInCollision(myMap, sphere, false, true, false, 0) && !isInCollision(myMap, sphere, true, false, true, 0)) { 
-      radius = radius + 0.1;
+    if (isInCollision(ufoMAP, sphere, false, true, false, 0) && !isInCollision(ufoMAP, sphere, true, false, true, 0)) { 
+      radius = radius + 0.3;
       most_info_frontier = f_point;
     }
 
@@ -822,7 +832,7 @@ std::list<node*> LoopClosurePath(std::list<ufo::math::Vector3> global) {
 
       ufo::math::Vector3 start_pt((*old_poses_it).x(), (*old_poses_it).y(), (*old_poses_it).z());
       ufo::geometry::LineSegment myLine(selectg1, start_pt);
-      if(!isInCollision(myMap, myLine, true, false, true, 0)) {
+      if(!isInCollision(ufoMAP, myLine, true, false, true, 0)) {
         successful_ray.push_back(*old_poses_it);
       }
   }
@@ -904,7 +914,7 @@ geometry_msgs::PoseStamped publish_goal(ufo::math::Vector3 selected) {
 //--------------------------------------------------  CALL BACK FUNCTIONS --------------------------------------------//
 void mapCallback(ufomap_msgs::UFOMapStamped::ConstPtr const& msg)
 {
-  if(ufomap_msgs::msgToUfo(msg->map, myMap)) {
+  if(ufomap_msgs::msgToUfo(msg->map, ufoMAP)) {
     map_received = true;
   } else {
     ROS_INFO("Map conversion failed");
@@ -1002,7 +1012,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr& msg) {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
     double radius = RAW_FRONTIERS_COLISSION_MARGIN;
     ufo::geometry::Sphere sphere(frontier_point, radius);
-    if (!isInCollision(myMap, sphere, true, false, false, 0)) {    
+    if (!isInCollision(ufoMAP, sphere, true, false, false, 0)) {    
     mylist.push_back(frontier_point);
     all.list = mylist;
     if (isLocal(frontier_point, current.position, current.heading)) {
@@ -1103,39 +1113,39 @@ void exploreLocally() {
 
 // -------------------------- graph based local exploration -------------------// 
   
-  // double pen;
-  // double mypen = 10000000000000;
-  // node* local_nod;
-  // for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
+  double pen;
+  double mypen = 10000000000000;
+  node* local_nod;
+  for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
 
-  //   double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
-  //   pen = nearest_dis;
-  //   if (pen < mypen) {
-  //     mypen = pen;
-  //     local_nod = *rit;
-  //   }
+    double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
+    pen = nearest_dis;
+    if (pen < mypen) {
+      mypen = pen;
+      local_nod = *rit;
+    }
 
-  // }
+  }
 
-  // planning.graph_pointer = local_nod;
-  // ROS_INFO("Requesting a local path within planning graph");
+  planning.graph_pointer = local_nod;
+  ROS_INFO("Local is path within planning graph");
 
 // -----------------------------------------------------------------------//
 
 
 // -------------------------- direct local exploration -------------------//
 
-    published.reference = publish_goal(traversable_goal);
-    current.temppath_local.poses.push_back(current.pose);
-    current.temppath_local.poses.push_back(published.reference);
-    current.path.path = current.temppath_local;
-    current.path.type.data = "local";
-    pub.path_to_goal_pub.publish(current.path);
-    pub.local_path_pub.publish(current.temppath_local);
-    current.path.path.poses.clear();
-    current.path.type.data.clear();
-    current.temppath_local.poses.clear();
-    ROS_INFO("Exploring Locally...");
+    // published.reference = publish_goal(traversable_goal);
+    // current.temppath_local.poses.push_back(current.pose);
+    // current.temppath_local.poses.push_back(published.reference);
+    // current.path.path = current.temppath_local;
+    // current.path.type.data = "local";
+    // pub.path_to_goal_pub.publish(current.path);
+    // pub.local_path_pub.publish(current.temppath_local);
+    // current.path.path.poses.clear();
+    // current.path.type.data.clear();
+    // current.temppath_local.poses.clear();
+    // ROS_INFO("Exploring Locally...");
 
 // -----------------------------------------------------------------------//
 }
@@ -1208,9 +1218,15 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       }
     }
 
-    ufo::math::Vector3 end_pt = selectGlobalFrontier(all.list);
+    ufo::math::Vector3 end_pt(0,0,1);
 
-    planningSpace(planning_range, myMap, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
+    if (local_exploration) {
+      ufo::math::Vector3 end_pt = informativeFrontier();
+    } else {
+        ufo::math::Vector3 end_pt = selectGlobalFrontier(all.list);
+    }
+    
+    planningSpace(local_exploration, planning_range, ufoMAP, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
     buildGraph(current.position.x(), current.position.y(), current.position.z(), end_pt, max_it);
   
     if (!Global_Graph.empty()) {
@@ -1260,7 +1276,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
             if (isLocal(d2, current.position, current.heading) and isLocal(d1, current.position, current.heading) and rang < 2) {
 
-                if (isInCollision(myMap, obb, false, true, false, 2) ) {
+                if (isInCollision(ufoMAP, obb, false, true, false, 2) ) {
 
                   (*graph_it).AddConnection(*graph_it2);
                   (*graph_it2).AddConnection(*graph_it);
@@ -1274,7 +1290,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
             if (rang > 2 and rang < 4) {
 
-              if (!isInCollision(myMap, obb, true, false, true, 0) and isInCollision(myMap, obb, false, true, false, 0)) {
+              if (!isInCollision(ufoMAP, obb, true, false, true, 0) and isInCollision(ufoMAP, obb, false, true, false, 0)) {
 
                 (*graph_it).AddConnection(*graph_it2);
                 (*graph_it2).AddConnection(*graph_it);
@@ -1316,7 +1332,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
           if (rang > 1 and rang < 8) {
 
-            if (!isInCollision(myMap, obb, true, false, true, 0) and isInCollision(myMap, obb, false, true, false, 0) ) {
+            if (!isInCollision(ufoMAP, obb, true, false, true, 0) and isInCollision(ufoMAP, obb, false, true, false, 0) ) {
 
               (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
@@ -1345,8 +1361,8 @@ void findPath() {
 
   if (!home.navigate) {
 
-    double close_dis;
-    double end_dis;
+    double close_dis = 1000000;
+    double end_dis = 1000000;
     double my_end_dis = 100000000;
     double my_close_dis = 100000000;
 
@@ -1379,9 +1395,21 @@ void findPath() {
     Point start_pos { starting.x_ref, starting.y_ref, starting.z_ref };
     Point end_pos { ending.x_ref, ending.y_ref, ending.z_ref };
 
-    // cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
+    cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
 
     planned.traj = Astar(start_pos, end_pos, planning.node_container);
+
+    cout << "\nI am looking for path " << endl;
+
+    if (!planned.traj.empty()) {
+
+      cout << "\nplanned path has " << planned.traj.size() << " points" << endl; 
+
+    } else {
+
+      cout << "\nthe planned traj was empty " << endl;
+
+    }
 
   } else if (!planning.node_container.empty()) {
 
@@ -1419,7 +1447,7 @@ void graph_navigation (bool local_nav) {
     double roll = 0;  // TODO: Fix
     ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
             ufo::math::Quaternion(roll, pitch, yaw));
-    if (!isInCollision(myMap, obb, true, false, true, 0)) {
+    if (!isInCollision(ufoMAP, obb, true, false, true, 0)) {
 
       published.reference = publish_goal(global_frontier.position);
       current.temppath.poses.push_back(current.pose);
@@ -1444,7 +1472,7 @@ void graph_navigation (bool local_nav) {
     findPath();
 
     label: 
-    if (planned.traj.empty()) {
+    if (planned.traj.size() < 3) {
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
       reiterate = reiterate + 1;
       scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
@@ -1455,13 +1483,11 @@ void graph_navigation (bool local_nav) {
 
     }
 
-    if (!planned.traj.empty()) {
+    if (planned.traj.size() >= 3) {
 
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
       // cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
-      
-      if (planned.traj.size() > 1) {
       
         // cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
 
@@ -1484,12 +1510,6 @@ void graph_navigation (bool local_nav) {
 
         }
 
-      } else {
-
-        goto label;
-
-      }
-
       pub.path_to_goal_pub.publish(current.path);
       pub.global_path_pub.publish(current.temppath);
       current.path.path.poses.clear();
@@ -1497,6 +1517,10 @@ void graph_navigation (bool local_nav) {
       current.temppath.poses.clear();
       ufo::math::Vector3 lastpub(std::prev( planned.traj.end(), 1)->x, std::prev( planned.traj.end(), 1)->y, std::prev( planned.traj.end(), 1)->z);
       published.reference = publish_goal(lastpub); 
+
+    } else {
+
+      goto label;
 
     }
 
@@ -1903,7 +1927,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        // graph_navigation(true);
+        graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);

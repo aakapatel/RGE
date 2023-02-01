@@ -61,7 +61,7 @@
 		<param name="robot_height" value="0.5" />
 		<param name="compress" value="True" />
 
-		<param name="clear_robot" value="False" />
+		<param name="clear_robot" value="True" />
 
 		<!-- FOR SHAFTER/PIONEER/SPOT CLEAR ROBOT SHOULD BE SET TO TRUE -->
 
