@@ -1103,39 +1103,39 @@ void exploreLocally() {
 
 // -------------------------- graph based local exploration -------------------// 
   
-  // double pen;
-  // double mypen = 10000000000000;
-  // node* local_nod;
-  // for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
+  double pen;
+  double mypen = 10000000000000;
+  node* local_nod;
+  for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++) {
 
-  //   double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
-  //   pen = nearest_dis;
-  //   if (pen < mypen) {
-  //     mypen = pen;
-  //     local_nod = *rit;
-  //   }
+    double nearest_dis = calculateDistance(*((*rit)->point), traversable_goal);
+    pen = nearest_dis;
+    if (pen < mypen) {
+      mypen = pen;
+      local_nod = *rit;
+    }
 
-  // }
+  }
 
-  // planning.graph_pointer = local_nod;
-  // ROS_INFO("Requesting a local path within planning graph");
+  planning.graph_pointer = local_nod;
+  ROS_INFO("Local path is within planning graph");
 
 // -----------------------------------------------------------------------//
 
 
 // -------------------------- direct local exploration -------------------//
 
-    published.reference = publish_goal(traversable_goal);
-    current.temppath_local.poses.push_back(current.pose);
-    current.temppath_local.poses.push_back(published.reference);
-    current.path.path = current.temppath_local;
-    current.path.type.data = "local";
-    pub.path_to_goal_pub.publish(current.path);
-    pub.local_path_pub.publish(current.temppath_local);
-    current.path.path.poses.clear();
-    current.path.type.data.clear();
-    current.temppath_local.poses.clear();
-    ROS_INFO("Exploring Locally...");
+    // published.reference = publish_goal(traversable_goal);
+    // current.temppath_local.poses.push_back(current.pose);
+    // current.temppath_local.poses.push_back(published.reference);
+    // current.path.path = current.temppath_local;
+    // current.path.type.data = "local";
+    // pub.path_to_goal_pub.publish(current.path);
+    // pub.local_path_pub.publish(current.temppath_local);
+    // current.path.path.poses.clear();
+    // current.path.type.data.clear();
+    // current.temppath_local.poses.clear();
+    // ROS_INFO("Exploring Locally...");
 
 // -----------------------------------------------------------------------//
 }
@@ -1903,7 +1903,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        // graph_navigation(true);
+        graph_navigation(true);
         
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);
