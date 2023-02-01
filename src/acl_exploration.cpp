@@ -532,7 +532,7 @@ if (local_graph) {
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0;  // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3( abs(dis / 2.0), 10, 10),
+      ufo::geometry::OBB obb(center, ufo::math::Vector3( abs(dis / 2.0), -10, 10),
               ufo::math::Quaternion(roll, pitch, yaw));
 
   for (auto it = map.beginLeaves(obb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it) {
@@ -552,7 +552,6 @@ if (local_graph) {
       lowest_z = it.getZ();
     }
   }
-
 
 } else {
 
@@ -578,8 +577,6 @@ if (local_graph) {
   }
 
 }
-
-
 
   SCALER_X = highest_x - lowest_x;
   SCALER_Y = highest_y - lowest_y;
@@ -1164,11 +1161,10 @@ void exploreLocally() {
       mypen = pen;
       local_nod = *rit;
     }
-
   }
 
   planning.graph_pointer = local_nod;
-  ROS_INFO("Local is path within planning graph");
+  cout << "Local path from Local planning graph" << endl;
 
 // -----------------------------------------------------------------------//
 
@@ -1185,7 +1181,7 @@ void exploreLocally() {
     // current.path.path.poses.clear();
     // current.path.type.data.clear();
     // current.temppath_local.poses.clear();
-    // ROS_INFO("Exploring Locally...");
+    // cout << "Exploring Locally..." << endl;
 
 // -----------------------------------------------------------------------//
 }
@@ -1238,6 +1234,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       float original_planning_range = MIN_PLANNING_SPACE_LOCAL;
       
       if (improvement and max_it < MAX_ITERATION_LOCAL and planning_range < MAX_PLANNING_SPACE_LOCAL) {
+        // if (improvement and max_it < MAX_ITERATION_LOCAL) {
         max_it = min + IMPROVEMENT_SCALE_FACTOR_IT*min;
         planning_range = original_planning_range + (range_up_scale * original_planning_range);
       } else {
@@ -1250,6 +1247,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       int min_G = MIN_ITERATION_GLOBAL;
       float original_planning_range_G = MIN_PLANNING_SPACE_GLOBAL;
       if (improvement and max_it < MAX_ITERATION_GLOBAL and planning_range < MAX_PLANNING_SPACE_GLOBAL) {
+        // if (improvement and max_it < MAX_ITERATION_GLOBAL) {
         max_it = min_G + IMPROVEMENT_SCALE_FACTOR_IT*min_G;
         planning_range = original_planning_range_G + (range_up_scale * original_planning_range_G);
       } else {
@@ -1277,8 +1275,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
           my_nodes.push_back( { Point{ (((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z()) } } );
 
-        }
-      
+        }      
     }
 
       if (switch_global.navigate) {
@@ -1301,7 +1298,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
           
           ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
-          ufo::math::Vector3 direction = d2 - d1;
+          ufo::math::Vector3 direction = d1 - d2;
           ufo::math::Vector3 center = d1 + (direction / 2.0);
           double distance = direction.norm();
           direction /= distance;
@@ -1359,7 +1356,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       
       ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
-      ufo::math::Vector3 direction = d2 - d1;
+      ufo::math::Vector3 direction = d1 - d2;
       ufo::math::Vector3 center = d1 + (direction / 2.0);
       double distance = direction.norm();
       direction /= distance;
@@ -1435,11 +1432,11 @@ void findPath() {
     Point start_pos { starting.x_ref, starting.y_ref, starting.z_ref };
     Point end_pos { ending.x_ref, ending.y_ref, ending.z_ref };
 
-    cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
+    // cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
 
     planned.traj = Astar(start_pos, end_pos, planning.node_container);
 
-    cout << "\nI am looking for path " << endl;
+    // cout << "\nI am looking for path " << endl;
 
     if (!planned.traj.empty()) {
 
@@ -1466,7 +1463,6 @@ void findPath() {
 
   }
 
-
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
   // cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
@@ -1475,34 +1471,34 @@ void findPath() {
 
 void graph_navigation (bool local_nav) {
 
-  if (global.navigate and !local.navigate) {
+  // if (global.navigate and !local.navigate) {
 
-    fetchGlobalFrontier();
-    ufo::math::Vector3 direction = global_frontier.position - current.position;
-    ufo::math::Vector3 center = current.position + (direction / 2.0);
-    double distance = direction.norm();
-    direction /= distance;
-    double yaw = -atan2(direction[1], direction[0]);
-    double pitch = -asin(direction[2]);
-    double roll = 0;  // TODO: Fix
-    ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
-            ufo::math::Quaternion(roll, pitch, yaw));
-    if (!isInCollision(ufoMAP, obb, true, false, true, 0)) {
+  //   fetchGlobalFrontier();
+  //   ufo::math::Vector3 direction = global_frontier.position - current.position;
+  //   ufo::math::Vector3 center = current.position + (direction / 2.0);
+  //   double distance = direction.norm();
+  //   direction /= distance;
+  //   double yaw = -atan2(direction[1], direction[0]);
+  //   double pitch = -asin(direction[2]);
+  //   double roll = 0;  // TODO: Fix
+  //   ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, 0.5, 0.5),
+  //           ufo::math::Quaternion(roll, pitch, yaw));
+  //   if (!isInCollision(ufoMAP, obb, true, false, true, 0)) {
 
-      published.reference = publish_goal(global_frontier.position);
-      current.temppath.poses.push_back(current.pose);
-      current.temppath.poses.push_back(published.reference);
-      current.path.path = current.temppath;
-      current.path.type.data = "traversable_global";
-      pub.path_to_goal_pub.publish(current.path);
-      pub.global_path_pub.publish(current.temppath);
-      ROS_INFO("Navigating to Traversable Global Node...");
-      current.path.path.poses.clear();
-      current.path.type.data.clear();
+  //     published.reference = publish_goal(global_frontier.position);
+  //     current.temppath.poses.push_back(current.pose);
+  //     current.temppath.poses.push_back(published.reference);
+  //     current.path.path = current.temppath;
+  //     current.path.type.data = "traversable_global";
+  //     pub.path_to_goal_pub.publish(current.path);
+  //     pub.global_path_pub.publish(current.temppath);
+  //     ROS_INFO("Navigating to Traversable Global Node...");
+  //     current.path.path.poses.clear();
+  //     current.path.type.data.clear();
 
-    }
+  //   }
   
-  }
+  // }
     
     high_resolution_clock::time_point start_total = high_resolution_clock::now();
     double reiterate = 1;
@@ -1545,9 +1541,11 @@ void graph_navigation (bool local_nav) {
 
           current.temppath.poses.push_back(global_nodes);
           current.path.path = current.temppath;
-          current.path.type.data = "global";
-
-
+          if (local_nav) {
+            current.path.type.data = "local";
+          } else {
+            current.path.type.data = "global";
+          }
         }
 
       pub.path_to_goal_pub.publish(current.path);
@@ -1904,7 +1902,7 @@ int main(int argc, char *argv[])
   ros::Subscriber homing_sub = nh.subscribe("return_home", 1, homingCallback);
   ros::Subscriber explore_sub = nh.subscribe("explore", 1, exploreCallback);
   ros::Subscriber assist_sub = nh.subscribe("go_global", 1, switchCallback);
-  ros::Rate rate(10);
+  ros::Rate rate(20);
 
   position_received = true;
   published.reference.header.stamp = ros::Time::now();
@@ -2013,9 +2011,10 @@ int main(int argc, char *argv[])
 
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-      cout << "\033[;32mTotal planning execution time: \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+      cout << "\n \033[;32mTotal planning execution time: \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
       
       // std_msgs::Int64 exec_time;
+      
       // exec_time.data = int(duration_total.count());
 
       // pub.total_execution_pub.publish(exec_time);

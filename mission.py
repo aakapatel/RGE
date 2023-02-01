@@ -168,7 +168,7 @@ class Server:
                 print("Homing path requested")
                 if (self.waypoint and self.path_type == "homing"):
                     self.navigate()
-                    print("Returning To Base ^_^ ^_^ ")
+                    print("Returning To Base ----    ^_^ ^_^ ")
                     
                 if (self.d < 1.5):
                     self.safety_publisher.publish(self.safety_msg)
@@ -184,7 +184,7 @@ class Server:
 
             if (self.waypoint and self.path_type == "homing"):
                 self.navigate()
-                print("Returning To Base ^_^ ^_^ ")
+                print("Returning To Base ----    ^_^ ^_^ ")
                 
                 if (self.d < 1.5):
                     self.safety_publisher.publish(self.safety_msg)
