@@ -502,7 +502,7 @@ void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL PLANNING SPACE CONFIGURED HERE.
 
-void planningSpace(bool local_graph, float range, ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
+void planningSpace(bool local_graph, ufo::math::Vector3 end_pt, float range, ufo::map::OccupancyMapColor const& map, bool occupied_space, bool free_space, bool unknown_space, float given_x, 
                                       float given_y, float given_z, ufo::map::DepthType min_depth = 3){
   
   highest_x = -9999;
@@ -521,6 +521,41 @@ void planningSpace(bool local_graph, float range, ufo::map::OccupancyMapColor co
   //   minPoint.y() = given_y - 1 * range;
   //   minPoint.z() = given_z - 1 * range;
   // }
+
+if (local_graph) {
+
+      ufo::math::Vector3 current_point(given_x, given_y, given_z);
+      ufo::math::Vector3 direction = current_point - end_pt;
+      ufo::math::Vector3 center = current_point + (direction / 2.0);
+      double dis = direction.norm();
+      direction /= dis;
+      double yaw = -atan2(direction[1], direction[0]);
+      double pitch = -asin(direction[2]);
+      double roll = 0;  // TODO: Fix
+      ufo::geometry::OBB obb(center, ufo::math::Vector3( abs(dis / 2.0), 10, 10),
+              ufo::math::Quaternion(roll, pitch, yaw));
+
+  for (auto it = map.beginLeaves(obb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it) {
+    if(it.getX() > highest_x){
+      highest_x = it.getX();
+    }if(it.getX() < lowest_x){
+      lowest_x = it.getX();
+    }
+    if(it.getY() > highest_y){
+      highest_y = it.getY();
+    }if(it.getY() < lowest_y){
+      lowest_y = it.getY();
+    }
+    if(it.getZ() > highest_z){
+      highest_z = it.getZ();
+    }if(it.getZ() < lowest_z){
+      lowest_z = it.getZ();
+    }
+  }
+
+
+} else {
+
   ufo::math::Vector3 minPoint(given_x - 1 * range, given_y - 1 * range, given_z - 1 * range);
   ufo::math::Vector3 maxPoint(given_x + 1 * range, given_y + 1 * range, given_z + 1 * range);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
@@ -541,6 +576,11 @@ void planningSpace(bool local_graph, float range, ufo::map::OccupancyMapColor co
       lowest_z = it.getZ();
     }
   }
+
+}
+
+
+
   SCALER_X = highest_x - lowest_x;
   SCALER_Y = highest_y - lowest_y;
   SCALER_Z = highest_z - lowest_z;
@@ -1226,7 +1266,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
         ufo::math::Vector3 end_pt = selectGlobalFrontier(all.list);
     }
     
-    planningSpace(local_exploration, planning_range, ufoMAP, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
+    planningSpace(local_exploration, end_pt, planning_range, ufoMAP, false, true, false, current.position.x(), current.position.y(), current.position.z(), 0);
     buildGraph(current.position.x(), current.position.y(), current.position.z(), end_pt, max_it);
   
     if (!Global_Graph.empty()) {
@@ -1898,7 +1938,6 @@ int main(int argc, char *argv[])
     
     /*
       main computations to be executed here on
-
     */
     
     if (firstTime and explore.navigate and INITIALIZE) {
@@ -1996,7 +2035,6 @@ int main(int argc, char *argv[])
       myfile.open("/home/aakapatel/Documents/example.txt");
       
       if (myfile.is_open())
-
       {
         cout << "file was opened " << endl;
         for (auto i = exec.begin(); i != exec.end(); i++) {
@@ -2018,7 +2056,6 @@ int main(int argc, char *argv[])
 // TODO LIST 
 
 /*
-
 1) Fix frontiers detection -- done
 2) Compute information gain -- TBD
 3) Fix heading deviation based search -- done
@@ -2029,7 +2066,5 @@ int main(int argc, char *argv[])
 8) Improve computation time 
 9) Implement adaptive graph expansion
 10) FIX Plots
-
 -- AP
-
 */
