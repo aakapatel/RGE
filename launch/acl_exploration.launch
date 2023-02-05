@@ -55,13 +55,13 @@
 		<!-- <param name="robot_frame_id" value="base_link" /> -->
 
 		<param name="num_workers" value="$(arg num_workers)" />
-		<param name="max_range" value="40" />
+		<param name="max_range" value="20" />
 		<param name="min_range" value="0.5" />
 		<param name="robot_radius" value="0.5" />
 		<param name="robot_height" value="0.5" />
 		<param name="compress" value="True" />
 
-		<param name="clear_robot" value="True" />
+		<param name="clear_robot" value="False" />
 
 		<!-- FOR SHAFTER/PIONEER/SPOT CLEAR ROBOT SHOULD BE SET TO TRUE -->
 

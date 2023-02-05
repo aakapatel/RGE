@@ -468,37 +468,37 @@ Frontier_main finish;
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
-void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
-{
+// void config_callback(acl_exploration::ServerConfig &config, uint32_t level)
+// {
 
-	RESOLUTION = config.Resolution;
-  RADIOUS = config.RADIOUS;
-  NEXT_PUB_DISTANCE = config.next_pub_distance;
-  LOCAL_RANGE = config.local_range;
-  RAW_GRAPH_COLISSION_MARGIN = config.RAW_GRAPH_COLISSION_MARGIN;
-  PLANNING_GRAPH_COLISSION_MARGIN = config.PLANNING_GRAPH_COLISSION_MARGIN;
-  RAW_FRONTIERS_COLISSION_MARGIN = config.RAW_FRONTIERS_COLISSION_MARGIN;
-  PLANNING_CHECK_DEPTH = config.PLANNING_CHECK_DEPTH;
-  MIN_ITERATION_LOCAL = config.MIN_ITERATION_LOCAL;
-  MIN_ITERATION_GLOBAL = config.MIN_ITERATION_GLOBAL;
-  MIN_PLANNING_SPACE_LOCAL = config.MIN_PLANNING_SPACE_LOCAL;
-  MIN_PLANNING_SPACE_GLOBAL = config.MIN_PLANNING_SPACE_GLOBAL;
-  MAX_ITERATION_LOCAL = config.MAX_ITERATION_LOCAL;
-  MAX_ITERATION_GLOBAL = config.MAX_ITERATION_GLOBAL;
-  MAX_PLANNING_SPACE_LOCAL = config.MAX_PLANNING_SPACE_LOCAL;
-  MAX_PLANNING_SPACE_GLOBAL = config.MAX_PLANNING_SPACE_GLOBAL;
-  IMPROVEMENT_SCALE_FACTOR_IT = config.IMPROVEMENT_SCALE_FACTOR_IT;
-  IMPROVEMENT_SCALE_FACTOR_RANGE = config.IMPROVEMENT_SCALE_FACTOR_RANGE;
-  ODOMETRY_IN = config.ODOMETRY_IN;
-  ODOM_FRAME_ID = config.ODOM_FRAME_ID;
-  REF_TOPIC = config.REF_TOPIC;
-  PATH_TOPIC = config.PATH_TOPIC;
-  INITIALIZE = config.INITIALIZE;
-  FIRST_REF_X = config.FIRST_REF_X;
-  FIRST_REF_Y = config.FIRST_REF_Y;
-  FIRST_REF_Z = config.FIRST_REF_Z;
+// 	RESOLUTION = config.Resolution;
+//   RADIOUS = config.RADIOUS;
+//   NEXT_PUB_DISTANCE = config.next_pub_distance;
+//   LOCAL_RANGE = config.local_range;
+//   RAW_GRAPH_COLISSION_MARGIN = config.RAW_GRAPH_COLISSION_MARGIN;
+//   PLANNING_GRAPH_COLISSION_MARGIN = config.PLANNING_GRAPH_COLISSION_MARGIN;
+//   RAW_FRONTIERS_COLISSION_MARGIN = config.RAW_FRONTIERS_COLISSION_MARGIN;
+//   PLANNING_CHECK_DEPTH = config.PLANNING_CHECK_DEPTH;
+//   MIN_ITERATION_LOCAL = config.MIN_ITERATION_LOCAL;
+//   MIN_ITERATION_GLOBAL = config.MIN_ITERATION_GLOBAL;
+//   MIN_PLANNING_SPACE_LOCAL = config.MIN_PLANNING_SPACE_LOCAL;
+//   MIN_PLANNING_SPACE_GLOBAL = config.MIN_PLANNING_SPACE_GLOBAL;
+//   MAX_ITERATION_LOCAL = config.MAX_ITERATION_LOCAL;
+//   MAX_ITERATION_GLOBAL = config.MAX_ITERATION_GLOBAL;
+//   MAX_PLANNING_SPACE_LOCAL = config.MAX_PLANNING_SPACE_LOCAL;
+//   MAX_PLANNING_SPACE_GLOBAL = config.MAX_PLANNING_SPACE_GLOBAL;
+//   IMPROVEMENT_SCALE_FACTOR_IT = config.IMPROVEMENT_SCALE_FACTOR_IT;
+//   IMPROVEMENT_SCALE_FACTOR_RANGE = config.IMPROVEMENT_SCALE_FACTOR_RANGE;
+//   ODOMETRY_IN = config.ODOMETRY_IN;
+//   ODOM_FRAME_ID = config.ODOM_FRAME_ID;
+//   REF_TOPIC = config.REF_TOPIC;
+//   PATH_TOPIC = config.PATH_TOPIC;
+//   INITIALIZE = config.INITIALIZE;
+//   FIRST_REF_X = config.FIRST_REF_X;
+//   FIRST_REF_Y = config.FIRST_REF_Y;
+//   FIRST_REF_Z = config.FIRST_REF_Z;
 
-}
+// }
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL PLANNING SPACE CONFIGURED HERE.
 
@@ -1877,16 +1877,44 @@ int main(int argc, char *argv[])
 { 
   ros::init(argc, argv, "ACL_EXPLORATION");
   ros::NodeHandle nh;
-  dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
-  dynamic_reconfigure::Server<acl_exploration::ServerConfig>::CallbackType f;
-  f = boost::bind(&config_callback, _1, _2);
-  server.setCallback(f);
+
+  ros::param::get("/ODOM_FRAME_ID_", ODOM_FRAME_ID);
+  ros::param::get("/INITIALIZE_", INITIALIZE);
+	ros::param::get("/RESOLUTION_", RESOLUTION);
+  ros::param::get("/RADIOUS_", RADIOUS);
+  ros::param::get("/NEXT_PUB_DISTANCE_", NEXT_PUB_DISTANCE);
+  ros::param::get("/LOCAL_RANGE_", LOCAL_RANGE);
+  ros::param::get("/RAW_GRAPH_COLISSION_MARGIN_", RAW_GRAPH_COLISSION_MARGIN);
+  ros::param::get("/PLANNING_GRAPH_COLISSION_MARGIN_", PLANNING_GRAPH_COLISSION_MARGIN);
+  ros::param::get("/RAW_FRONTIERS_COLISSION_MARGIN_", RAW_FRONTIERS_COLISSION_MARGIN);
+  ros::param::get("/PLANNING_CHECK_DEPTH_", PLANNING_CHECK_DEPTH);
+  ros::param::get("/MIN_ITERATION_LOCAL_", MIN_ITERATION_LOCAL);
+  ros::param::get("/MIN_ITERATION_GLOBAL_", MIN_ITERATION_GLOBAL);
+  ros::param::get("/MIN_PLANNING_SPACE_LOCAL_", MIN_PLANNING_SPACE_LOCAL);
+  ros::param::get("/MIN_PLANNING_SPACE_GLOBAL_", MIN_PLANNING_SPACE_GLOBAL);
+  ros::param::get("/MAX_ITERATION_LOCAL_", MAX_ITERATION_LOCAL);
+  ros::param::get("/MAX_ITERATION_GLOBAL_", MAX_ITERATION_GLOBAL);
+  ros::param::get("/MAX_PLANNING_SPACE_LOCAL_", MAX_PLANNING_SPACE_LOCAL);
+  ros::param::get("/MAX_PLANNING_SPACE_GLOBAL_", MAX_PLANNING_SPACE_GLOBAL);
+  ros::param::get("/IMPROVEMENT_SCALE_FACTOR_IT_", IMPROVEMENT_SCALE_FACTOR_IT);
+  ros::param::get("/IMPROVEMENT_SCALE_FACTOR_RANGE_", IMPROVEMENT_SCALE_FACTOR_RANGE);
+  ros::param::get("/ODOMETRY_IN_", ODOMETRY_IN);
+  ros::param::get("/REF_TOPIC_", REF_TOPIC);
+  ros::param::get("/PATH_TOPIC_", PATH_TOPIC);
+  ros::param::get("/FIRST_REF_X_", FIRST_REF_X);
+  ros::param::get("/FIRST_REF_Y_", FIRST_REF_Y);
+  ros::param::get("/FIRST_REF_Z_", FIRST_REF_Z);
+
+  // dynamic_reconfigure::Server<acl_exploration::ServerConfig> server;
+  // dynamic_reconfigure::Server<acl_exploration::ServerConfig>::CallbackType f;
+  // f = boost::bind(&config_callback, _1, _2);
+  // server.setCallback(f);
   pub.points_pub = nh.advertise<visualization_msgs::Marker>("planning_graph", 1);
   pub.chosen_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("improved_path", 1);
   pub.alc_points_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_POINTS", 1);
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("ALC_PATH", 1);
-  pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>(REF_TOPIC, 1);
-  pub.path_to_goal_pub = nh.advertise<acl_exploration::path>(PATH_TOPIC, 1);
+  pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("REF_TOPIC_", 1);
+  pub.path_to_goal_pub = nh.advertise<acl_exploration::path>("PATH_TOPIC_", 1);
   pub.local_path_pub = nh.advertise<nav_msgs::Path>("/local_path", 1);
   pub.global_path_pub = nh.advertise<nav_msgs::Path>("/global_path", 1);
   pub.homing_path_pub = nh.advertise<nav_msgs::Path>("/homing_path", 1);
@@ -1899,12 +1927,17 @@ int main(int argc, char *argv[])
   pub.global_execution_pub = nh.advertise<std_msgs::Int64>("global_execution_time", 1);
   // pub.map_pub = nh.advertise<ufomap_msgs::UFOMapStamped>("acl_full_map", 11);
   ros::Subscriber map_sub = nh.subscribe("ufomap_mapping_server_node/map", 1, mapCallback);
-  ros::Subscriber sub = nh.subscribe(ODOMETRY_IN, 1, odomCallback);
+  ros::Subscriber sub = nh.subscribe("ODOMETRY_IN_", 1, odomCallback);
   ros::Subscriber front_sub = nh.subscribe("/frontiers_nodes", 1, frontiersCallback);
   ros::Subscriber homing_sub = nh.subscribe("return_home", 1, homingCallback);
   ros::Subscriber explore_sub = nh.subscribe("explore", 1, exploreCallback);
   ros::Subscriber assist_sub = nh.subscribe("go_global", 1, switchCallback);
-  ros::Rate rate(20);
+  ros::Rate rate(10);
+
+
+
+
+
 
   position_received = true;
   published.reference.header.stamp = ros::Time::now();
