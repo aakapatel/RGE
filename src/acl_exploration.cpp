@@ -1504,6 +1504,8 @@ void graph_navigation (bool local_nav) {
     double reiterate = 1;
     double scale_range = 1;
 
+    assist:
+
     buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
     findPath();
 
@@ -1516,11 +1518,11 @@ void graph_navigation (bool local_nav) {
       buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
       findPath();
       goto label;
-
     }
 
     if (planned.traj.size() >= 3) {
 
+      planning.improve = false;
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
       // cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
@@ -1558,13 +1560,13 @@ void graph_navigation (bool local_nav) {
 
     } else {
 
-      goto label;
+      planning.improve = true;
+      goto assist;
 
     }
 
-
   planned.traj.clear();
-
+  
 }
 
 void return_to_base_planning() {
@@ -1954,7 +1956,6 @@ int main(int argc, char *argv[])
       published.reference = first_ref;
 
     }
-
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate) {
       

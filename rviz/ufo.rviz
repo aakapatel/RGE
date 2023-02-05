@@ -27,7 +27,7 @@ Panels:
         - /Path4
         - /Pose1
       Splitter Ratio: 0.5
-    Tree Height: 2267
+    Tree Height: 363
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -56,10 +56,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 54 601
-        "# Leaf Nodes": 184 536
+        "# Inner Nodes": 91 865
+        "# Leaf Nodes": 309 472
         Resolution: 40 cm
-        Size: 2,66 MiB
+        Size: 4,46 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -386,7 +386,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 1.5354604721069336
+      Yaw: 3.1404638290405273
     Saved: ~
 Window Geometry:
   Displays:
