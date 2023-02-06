@@ -980,17 +980,17 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
                                       m_prevPose.pose.pose.position.y, 
                                             m_prevPose.pose.pose.position.z);
     if (calculateDistance(newPoint, oldPoint) > 1) {
-      m_prevPose = *msg;
-      if (oldPoint.x() != 0 and oldPoint.y() != 0 and oldPoint.z() != 0) {
-        positionslist.push_back(oldPoint);
-      }
-      
+      m_prevPose = *msg;  
+      positionslist.push_back(oldPoint);
     }
     if (calculateDistance(newPoint, oldPoint) > 1.6) {
       move_flag = true;
     } else {
       move_flag = false;
     }
+    //for(auto p : positionslist){
+    //  cout<<"potential list: "<<p.x()<<" "<<p.y()<<" "<<p.z()<<endl;
+    //}
     old_poses.list = positionslist;
   }
   current.position = ufo::math::Vector3(position_x, position_y, position_z);
@@ -1014,18 +1014,23 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 nav_msgs::Path backTrack() {
 
 nav_msgs::Path retrace;
-retrace.poses.push_back(current.pose);
+// retrace.poses.push_back(current.pose);
   // if (start_backtrack) {
 
       // cout << "old poses list : " << old_poses.list.size() << endl;
       // std::list<ufo::math::Vector3>::iterator backtrack_it;
-      for (auto backtrack_it = old_poses.list.rend(); backtrack_it != std::next(old_poses.list.rend(), 4); backtrack_it++) {
-
+      for (auto backtrack_it = old_poses.list.rbegin(); backtrack_it != std::next(old_poses.list.rend(), 5); backtrack_it++) {
+      //for (int i = old_poses.list.size() - 1; i > old_poses.list.size() - 5; i--){
         geometry_msgs::PoseStamped global_nodes2;
+        //global_nodes2.pose.position.x = old_poses.list[i].x();
+        //global_nodes2.pose.position.y = old_poses.list[i].y();
+        //global_nodes2.pose.position.z = old_poses.list[i].z();
         global_nodes2.pose.position.x = backtrack_it->x();
         global_nodes2.pose.position.y = backtrack_it->y();
         global_nodes2.pose.position.z = backtrack_it->z();
-        cout << "X : " << backtrack_it->x() << endl;
+        std::cout<<"backtrace adding"<<std::endl;
+        std::cout<<backtrack_it->x()<<" "<<backtrack_it->y()<<" "<<backtrack_it->z()<<std::endl;
+        
         global_nodes2.header.stamp = ros::Time::now();
         global_nodes2.header.frame_id = ODOM_FRAME_ID;
         retrace.poses.push_back(global_nodes2);
@@ -1579,7 +1584,7 @@ void graph_navigation (bool local_nav) {
 
       planning.improve = true;
       label: 
-      if (planned.traj.size() < 3 and reiterate < 5) {
+      if (planned.traj.size() < 3 and reiterate < 1) {
         cout << "it .. : " << reiterate << endl;
         std::cout << "\nCould not find a good path... requesting improvement.... \n";
         reiterate = reiterate + 1;
@@ -1592,21 +1597,39 @@ void graph_navigation (bool local_nav) {
       } else if (planned.traj.size() < 3) {
 
         nav_msgs::Path retrace_path = backTrack();
+        
+        for (auto it_rt = (retrace_path.poses.begin()); it_rt != retrace_path.poses.end(); it_rt++) {
+          
+          cout << "X : " << it_rt->pose.position.x << "\n ";
+          cout << "Y : " << it_rt->pose.position.y << "\n ";
+          cout << "Z : " << it_rt->pose.position.z << "\n ";
+          cout << "--------" << "\n ";
+          geometry_msgs::PoseStamped global_nodes;
+          global_nodes.pose.position.x = it_rt->pose.position.x;
+          global_nodes.pose.position.y = it_rt->pose.position.y;
+          global_nodes.pose.position.z = it_rt->pose.position.z;
+          global_nodes.header.stamp = ros::Time::now();
+          global_nodes.header.frame_id = ODOM_FRAME_ID;
 
-        current.path.path = retrace_path;
-        current.path.type.data = "global";  
+          current.temppath.poses.push_back(global_nodes);
+          current.path.path = current.temppath;
+          if (local_nav) {
+            current.path.type.data = "local";
+          } else {
+            current.path.type.data = "global";
+          }
+        } 
         
         pub.path_to_goal_pub.publish(current.path);
-        pub.global_path_pub.publish(retrace_path);
+        pub.global_path_pub.publish(current.temppath);
 
-
-        std::vector<geometry_msgs::PoseStamped>::const_iterator it_rt = retrace_path.poses.end();
+        std::vector<geometry_msgs::PoseStamped>::const_iterator it_rt = current.temppath.poses.end();
         ufo::math::Vector3 lastpub( it_rt->pose.position.x, it_rt->pose.position.y, it_rt->pose.position.z);
         published.reference = publish_goal(lastpub);   
 
         current.path.path.poses.clear();
         current.path.type.data.clear();
-        retrace_path.poses.clear();
+        current.temppath.poses.clear();
     }
 
 
