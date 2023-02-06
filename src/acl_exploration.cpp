@@ -981,7 +981,10 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
                                             m_prevPose.pose.pose.position.z);
     if (calculateDistance(newPoint, oldPoint) > 1) {
       m_prevPose = *msg;
-      positionslist.push_back(oldPoint);
+      if (oldPoint.x() != 0 and oldPoint.y() != 0 and oldPoint.z() != 0) {
+        positionslist.push_back(oldPoint);
+      }
+      
     }
     if (calculateDistance(newPoint, oldPoint) > 1.6) {
       move_flag = true;
@@ -1006,6 +1009,31 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   tf::Matrix3x3 m(q);
   m.getRPY(roll, pitch, yaw);
   current.heading = yaw * (180/3.14159);
+}
+
+nav_msgs::Path backTrack() {
+
+nav_msgs::Path retrace;
+retrace.poses.push_back(current.pose);
+  // if (start_backtrack) {
+
+      // cout << "old poses list : " << old_poses.list.size() << endl;
+      // std::list<ufo::math::Vector3>::iterator backtrack_it;
+      for (auto backtrack_it = old_poses.list.rend(); backtrack_it != std::next(old_poses.list.rend(), 4); backtrack_it++) {
+
+        geometry_msgs::PoseStamped global_nodes2;
+        global_nodes2.pose.position.x = backtrack_it->x();
+        global_nodes2.pose.position.y = backtrack_it->y();
+        global_nodes2.pose.position.z = backtrack_it->z();
+        cout << "X : " << backtrack_it->x() << endl;
+        global_nodes2.header.stamp = ros::Time::now();
+        global_nodes2.header.frame_id = ODOM_FRAME_ID;
+        retrace.poses.push_back(global_nodes2);
+    }
+
+  // }
+
+  return retrace;
 }
 
 void homingCallback(const std_msgs::String::ConstPtr& home_coming) {
@@ -1299,7 +1327,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
           ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
           ufo::math::Vector3 direction = d1 - d2;
-          ufo::math::Vector3 center = d1 + (direction / 2.0);
+          ufo::math::Vector3 center = d2 + (direction / 2.0);
           double distance = direction.norm();
           direction /= distance;
           double yaw = -atan2(direction[1], direction[0]);
@@ -1313,11 +1341,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
             if (isLocal(d2, current.position, current.heading) and isLocal(d1, current.position, current.heading) and rang < 2) {
 
-                if (isInCollision(ufoMAP, obb, false, true, false, 2) ) {
+                if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) {
 
                   (*graph_it).AddConnection(*graph_it2);
                   (*graph_it2).AddConnection(*graph_it);
-                  planning.node_container.push_back(*graph_it);
+                  // planning.node_container.push_back(*graph_it);
                   planning.node_container.push_back(*graph_it2);
                   
                 }
@@ -1327,11 +1355,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
             if (rang > 2 and rang < 4) {
 
-              if (!isInCollision(ufoMAP, obb, true, false, true, 0) and isInCollision(ufoMAP, obb, false, true, false, 0)) {
+              if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) {
 
                 (*graph_it).AddConnection(*graph_it2);
                 (*graph_it2).AddConnection(*graph_it);
-                planning.node_container.push_back(*graph_it);
+                // planning.node_container.push_back(*graph_it);
                 planning.node_container.push_back(*graph_it2);
                 
               }
@@ -1357,7 +1385,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
       ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
       ufo::math::Vector3 direction = d1 - d2;
-      ufo::math::Vector3 center = d1 + (direction / 2.0);
+      ufo::math::Vector3 center = d2 + (direction / 2.0);
       double distance = direction.norm();
       direction /= distance;
       double yaw = -atan2(direction[1], direction[0]);
@@ -1369,7 +1397,7 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
 
           if (rang > 1 and rang < 8) {
 
-            if (!isInCollision(ufoMAP, obb, true, false, true, 0) and isInCollision(ufoMAP, obb, false, true, false, 0) ) {
+            if (!isInCollision(ufoMAP, obb, true, false, true, 0) ) {
 
               (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
@@ -1509,17 +1537,6 @@ void graph_navigation (bool local_nav) {
     buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
     findPath();
 
-    label: 
-    if (planned.traj.size() < 3) {
-      std::cout << "\nCould not find a good path... requesting improvement.... \n";
-      reiterate = reiterate + 1;
-      scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
-      planning.improve = true;
-      buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
-      findPath();
-      goto label;
-    }
-
     if (planned.traj.size() >= 3) {
 
       planning.improve = false;
@@ -1561,7 +1578,37 @@ void graph_navigation (bool local_nav) {
     } else {
 
       planning.improve = true;
-      goto assist;
+      label: 
+      if (planned.traj.size() < 3 and reiterate < 5) {
+        cout << "it .. : " << reiterate << endl;
+        std::cout << "\nCould not find a good path... requesting improvement.... \n";
+        reiterate = reiterate + 1;
+        scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
+        planning.improve = true;
+        buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
+        findPath();
+        goto label;
+
+      } else if (planned.traj.size() < 3) {
+
+        nav_msgs::Path retrace_path = backTrack();
+
+        current.path.path = retrace_path;
+        current.path.type.data = "global";  
+        
+        pub.path_to_goal_pub.publish(current.path);
+        pub.global_path_pub.publish(retrace_path);
+
+
+        std::vector<geometry_msgs::PoseStamped>::const_iterator it_rt = retrace_path.poses.end();
+        ufo::math::Vector3 lastpub( it_rt->pose.position.x, it_rt->pose.position.y, it_rt->pose.position.z);
+        published.reference = publish_goal(lastpub);   
+
+        current.path.path.poses.clear();
+        current.path.type.data.clear();
+        retrace_path.poses.clear();
+    }
+
 
     }
 
@@ -1645,28 +1692,7 @@ void return_to_base_planning() {
 
 }
 
-nav_msgs::Path backTrack() {
 
-nav_msgs::Path retrace;
-retrace.poses.push_back(current.pose);
-  if (start_backtrack) {
-
-      std::list<ufo::math::Vector3>::iterator backtrack_it;
-      for (backtrack_it = old_poses.list.end(); backtrack_it != old_poses.list.begin(); backtrack_it--) {
-
-      geometry_msgs::PoseStamped global_nodes2;
-      global_nodes2.pose.position.x = backtrack_it->x();
-      global_nodes2.pose.position.y = backtrack_it->y();
-      global_nodes2.pose.position.z = backtrack_it->z();
-      global_nodes2.header.stamp = ros::Time::now();
-      global_nodes2.header.frame_id = ODOM_FRAME_ID;
-      retrace.poses.push_back(global_nodes2);
-    }
-
-  }
-
-  return retrace;
-}
 
 void visualize(){
   visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, CHOSEN_PATH_points, CHOSEN_PATH_line_list, 
@@ -1992,6 +2018,10 @@ int main(int argc, char *argv[])
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate) {
       
+      nav_msgs::Path check = backTrack();
+
+      cout << "size check.. : " << check.poses.size() << endl;
+
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate) {
 
         high_resolution_clock::time_point start_total = high_resolution_clock::now();
