@@ -357,7 +357,6 @@ std::vector<Point> Astar(Point & start_pos, Point & end_pos, std::vector<Node> a
 
 
 
-bool start_backtrack = false;
 bool position_received;
 bool map_received = false;
 int itterations;
@@ -463,6 +462,9 @@ Frontier_main explore;
 Frontier_main switch_global;
 Frontier_main temp_local;
 Frontier_main finish;
+Frontier_main start_backtrack;
+Frontier_main resume;
+Frontier_main init;
 
 // home.navigate = false;
 
@@ -988,9 +990,6 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
     } else {
       move_flag = false;
     }
-    //for(auto p : positionslist){
-    //  cout<<"potential list: "<<p.x()<<" "<<p.y()<<" "<<p.z()<<endl;
-    //}
     old_poses.list = positionslist;
   }
   current.position = ufo::math::Vector3(position_x, position_y, position_z);
@@ -1011,32 +1010,28 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
   current.heading = yaw * (180/3.14159);
 }
 
-nav_msgs::Path backTrack() {
+nav_msgs::Path backTrack(bool backtrack) {
 
 nav_msgs::Path retrace;
-// retrace.poses.push_back(current.pose);
-  // if (start_backtrack) {
+retrace.poses.push_back(current.pose);
+  if (backtrack) {
 
-      // cout << "old poses list : " << old_poses.list.size() << endl;
-      // std::list<ufo::math::Vector3>::iterator backtrack_it;
       for (auto backtrack_it = old_poses.list.rbegin(); backtrack_it != std::next(old_poses.list.rend(), 5); backtrack_it++) {
-      //for (int i = old_poses.list.size() - 1; i > old_poses.list.size() - 5; i--){
         geometry_msgs::PoseStamped global_nodes2;
-        //global_nodes2.pose.position.x = old_poses.list[i].x();
-        //global_nodes2.pose.position.y = old_poses.list[i].y();
-        //global_nodes2.pose.position.z = old_poses.list[i].z();
         global_nodes2.pose.position.x = backtrack_it->x();
         global_nodes2.pose.position.y = backtrack_it->y();
         global_nodes2.pose.position.z = backtrack_it->z();
-        std::cout<<"backtrace adding"<<std::endl;
-        std::cout<<backtrack_it->x()<<" "<<backtrack_it->y()<<" "<<backtrack_it->z()<<std::endl;
+        // std::cout<<"backtrace adding"<<std::endl;
+        // std::cout<<backtrack_it->x()<<" "<<backtrack_it->y()<<" "<<backtrack_it->z()<<std::endl;
         
         global_nodes2.header.stamp = ros::Time::now();
         global_nodes2.header.frame_id = ODOM_FRAME_ID;
         retrace.poses.push_back(global_nodes2);
     }
 
-  // }
+  }
+
+  start_backtrack.navigate = false;
 
   return retrace;
 }
@@ -1584,7 +1579,7 @@ void graph_navigation (bool local_nav) {
 
       planning.improve = true;
       label: 
-      if (planned.traj.size() < 3 and reiterate < 1) {
+      if (planned.traj.size() < 3 and reiterate < 3) {
         cout << "it .. : " << reiterate << endl;
         std::cout << "\nCould not find a good path... requesting improvement.... \n";
         reiterate = reiterate + 1;
@@ -1594,9 +1589,11 @@ void graph_navigation (bool local_nav) {
         findPath();
         goto label;
 
-      } else if (planned.traj.size() < 3) {
+      } else if (planned.traj.size() < 3 and old_poses.list.size() > 6) {
 
-        nav_msgs::Path retrace_path = backTrack();
+        start_backtrack.navigate = true;
+
+        nav_msgs::Path retrace_path = backTrack(start_backtrack.navigate);
         
         for (auto it_rt = (retrace_path.poses.begin()); it_rt != retrace_path.poses.end(); it_rt++) {
           
@@ -1623,15 +1620,14 @@ void graph_navigation (bool local_nav) {
         pub.path_to_goal_pub.publish(current.path);
         pub.global_path_pub.publish(current.temppath);
 
-        std::vector<geometry_msgs::PoseStamped>::const_iterator it_rt = current.temppath.poses.end();
-        ufo::math::Vector3 lastpub( it_rt->pose.position.x, it_rt->pose.position.y, it_rt->pose.position.z);
+        std::vector<geometry_msgs::PoseStamped>::const_iterator it_r = std::prev(current.temppath.poses.end(),1);
+        ufo::math::Vector3 lastpub( it_r->pose.position.x, it_r->pose.position.y, it_r->pose.position.z);
         published.reference = publish_goal(lastpub);   
 
         current.path.path.poses.clear();
         current.path.type.data.clear();
         current.temppath.poses.clear();
-    }
-
+      } 
 
     }
 
@@ -2040,10 +2036,6 @@ int main(int argc, char *argv[])
     }
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate) {
-      
-      nav_msgs::Path check = backTrack();
-
-      cout << "size check.. : " << check.poses.size() << endl;
 
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate) {
 
