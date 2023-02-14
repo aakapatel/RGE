@@ -1546,7 +1546,7 @@ void graph_navigation (bool local_nav) {
       
         // cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
 
-        for (auto vert_it = std::next(planned.traj.begin(),1); vert_it != planned.traj.end(); vert_it++) {
+        for (auto vert_it = std::next(planned.traj.begin(),0); vert_it != planned.traj.end(); vert_it++) {
           // cout << "X : " << ((*vert_it)).x << "\n ";
           // cout << "Y : " << ((*vert_it)).y << "\n ";
           // cout << "Z : " << ((*vert_it)).z << "\n ";
