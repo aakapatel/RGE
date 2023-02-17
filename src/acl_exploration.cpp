@@ -201,80 +201,83 @@ struct node{
 
 };
 
-struct Point {
-    Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
-    bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
-    double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-    double DistDistToHeuristicTo(Point & other) const { return( 0.1*(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
-    // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
-    double x, y, z;
+// struct Point {
+//     Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
+//     bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
+//     double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+//     double Dist_HeuristicTo(Point & other) const { return( 0.1*(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
+//     // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
+//     double x, y, z;
 
-    void Print(std::string name) const
-    {
-        std::cout << name << " x: " << x << " y: " << y << " z: " << z << std::endl;
-    }
+// };
+
+// struct planning_node
+// {
+//     planning_node(Point myposition = Point(), planning_node * parent = nullptr) : myposition(myposition), parent(parent) {};
+//     // planning_node(Point myposition = {}, std::shared_ptr<Node> parent = {} ): myposition(myposition), parent(parent) {};
+//     Point myposition;
+
+//     double dist_to_start = 0;
+//     double total_dist = INT_MAX;
+
+//     std::shared_ptr<planning_node> parent;
+//     std::shared_ptr< std::vector<planning_node> > connections{ new std::vector<planning_node> };
+//     // std::vector< std::shared_ptr<planning_node> > connections{ new std::vector<planning_node> };
+//     bool operator ==(const planning_node& o) const { return (o.myposition.x == myposition.x) && (o.myposition.y == myposition.y) && (o.myposition.z == myposition.z);}
+//     bool operator <(const planning_node& o) const { return (total_dist < o.total_dist); }
+
+//     void AddConnection(planning_node subnode)
+//     {
+//         connections->push_back(subnode);
+//     }
+// };
+
+class Graph {
+
+  struct Point {
+        Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {};
+        bool operator ==(const Point& o) const { return o.x == x && o.y == y && o.z == z; }
+        double DistTo(Point & other) const { return(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+        double Dist_HeuristicTo(Point & other) const { return( 0.1*(std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
+        double x, y, z;
+    };
+
+  struct planning_node {
+        planning_node(Point myposition = Point(), planning_node * parent = nullptr) : myposition(myposition), parent(parent) {};
+        Point myposition;
+
+        double dist_to_start = 0;
+        double total_dist = INT_MAX;
+
+        std::shared_ptr<planning_node> parent;
+        std::shared_ptr< std::vector<planning_node> > connections{ new std::vector<planning_node> };
+        // std::vector< std::shared_ptr<planning_node> > connections{ new std::vector<planning_node> };
+        bool operator ==(const planning_node& o) const { return (o.myposition.x == myposition.x) && (o.myposition.y == myposition.y) && (o.myposition.z == myposition.z);}
+        bool operator <(const planning_node& o) const { return (total_dist < o.total_dist); }
+
+        void AddConnection(planning_node subnode)
+        {
+            connections->push_back(subnode);
+        }
+    };
+
+
+  std::vector<planning_node> nodes;
+
+  public:
+      planning_node &AddNode(Point myposition) {
+          nodes.emplace_back(myposition);
+          return nodes.back();
+      }
+
+      void AddConnection(planning_node &a, planning_node &b) {
+          a.AddConnection(b);
+      }
+
+      std::vector<Point> fetchPath(planning_node & start_pos, planning_node & end_pos, std::vector<planning_node> all_nodes);
 };
 
-struct planning_node
-{
-    planning_node(Point myposition = Point(), planning_node * parent = nullptr) : myposition(myposition), parent(parent) {};
-
-    Point myposition;
-
-    double dist_to_start = 0;
-    double total_dist = INT_MAX;
-
-    std::shared_ptr<planning_node> parent;
-    std::shared_ptr< std::vector<planning_node> > connections{ new std::vector<planning_node> };
-
-    bool operator ==(const planning_node& o) const { return (o.myposition.x == myposition.x) && (o.myposition.y == myposition.y) && (o.myposition.z == myposition.z);}
-    bool operator <(const planning_node& o) const { return (total_dist < o.total_dist); }
-
-    void AddConnection(planning_node subnode)
-    {
-        connections->push_back(subnode);
-    }
-};
-
-struct Frontier_main {
-  acl_exploration::path path;
-  bool navigate;
-  bool improve;
-  std::list<ufo::math::Vector3> list;
-  ufo::math::Vector3 position;
-  geometry_msgs::PoseStamped pose;
-  double heading;
-  double x_ref;
-  double y_ref;
-  double z_ref;
-  std::vector<planning_node> node_container; 
-  node* graph_pointer;
-  std::vector<Point> traj;
-  ros::Publisher points_pub;
-  ros::Publisher chosen_path_visualization_pub;
-  ros::Publisher alc_points_visualization_pub;
-  ros::Publisher alc_path_visualization_pub;
-  ros::Publisher map_pub; 
-  ros::Publisher hits_pub;
-  ros::Publisher local_nodes_pub; 
-  ros::Publisher global_nodes_pub;
-  ros::Publisher explored_path;
-  ros::Publisher path_to_goal_pub;
-  ros::Publisher local_path_pub;
-  ros::Publisher global_path_pub;
-  ros::Publisher homing_path_pub;
-  ros::Publisher best_frontier_pub;
-  geometry_msgs::PoseStamped reference;
-  ros::Publisher total_execution_pub;
-  ros::Publisher local_execution_pub;
-  ros::Publisher global_execution_pub;
-  nav_msgs::Path temppath_homing;
-  nav_msgs::Path temppath_local;
-  nav_msgs::Path temppath;
-
-};
-
-std::vector<Point> fetchPath(Point & start_pos, Point & end_pos, std::vector<planning_node> all_nodes)
+std::vector<Point> Graph::fetchPath(planning_node & start_pos, planning_node & end_pos, std::vector<planning_node> all_nodes)
 {
 
     planning_node start_node;
@@ -293,7 +296,6 @@ std::vector<Point> fetchPath(Point & start_pos, Point & end_pos, std::vector<pla
     std::vector<Point> closed_list;
 
     open_list.emplace(start_node);
-
 
     while (!open_list.empty())
     {
@@ -338,6 +340,45 @@ std::vector<Point> fetchPath(Point & start_pos, Point & end_pos, std::vector<pla
 
     return(found_path);
 }      
+
+struct Frontier_main {
+  acl_exploration::path path;
+  bool navigate;
+  bool improve;
+  std::list<ufo::math::Vector3> list;
+  ufo::math::Vector3 position;
+  geometry_msgs::PoseStamped pose;
+  double heading;
+  double x_ref;
+  double y_ref;
+  double z_ref;
+  std::vector<planning_node> node_container; 
+  node* graph_pointer;
+  std::vector<Point> traj;
+  ros::Publisher points_pub;
+  ros::Publisher chosen_path_visualization_pub;
+  ros::Publisher alc_points_visualization_pub;
+  ros::Publisher alc_path_visualization_pub;
+  ros::Publisher map_pub; 
+  ros::Publisher hits_pub;
+  ros::Publisher local_nodes_pub; 
+  ros::Publisher global_nodes_pub;
+  ros::Publisher explored_path;
+  ros::Publisher path_to_goal_pub;
+  ros::Publisher local_path_pub;
+  ros::Publisher global_path_pub;
+  ros::Publisher homing_path_pub;
+  ros::Publisher best_frontier_pub;
+  geometry_msgs::PoseStamped reference;
+  ros::Publisher total_execution_pub;
+  ros::Publisher local_execution_pub;
+  ros::Publisher global_execution_pub;
+  nav_msgs::Path temppath_homing;
+  nav_msgs::Path temppath_local;
+  nav_msgs::Path temppath;
+
+};
+
 
 bool position_received;
 bool map_received = false;
@@ -1272,10 +1313,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
                 // if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) {
                   if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH) ) {
 
+                  planning.node_container.push_back(*graph_it2);
                   (*graph_it).AddConnection(*graph_it2);
                   // (*graph_it2).AddConnection(*graph_it);
                   // planning.node_container.push_back(*graph_it);
-                  planning.node_container.push_back(*graph_it2);
+                  // planning.node_container.push_back(*graph_it2);
                   
                 }
             }
@@ -1287,10 +1329,11 @@ void buildPlanningGraph (bool go_home, bool local_exploration, bool improvement,
               // if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) {
                 if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH)) {
 
+                planning.node_container.push_back(*graph_it2);
                 (*graph_it).AddConnection(*graph_it2);
                 // (*graph_it2).AddConnection(*graph_it);
                 // planning.node_container.push_back(*graph_it);
-                planning.node_container.push_back(*graph_it2);
+                // planning.node_container.push_back(*graph_it2);
                 
               }
             
