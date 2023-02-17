@@ -339,7 +339,6 @@ std::vector<Point> fetchPath(Point & start_pos, Point & end_pos, std::vector<pla
     return(found_path);
 }      
 
-ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 bool position_received;
 bool map_received = false;
 int itterations;
@@ -444,6 +443,7 @@ Frontier_main start_backtrack;
 Frontier_main resume;
 Frontier_main init;
 
+ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 // home.navigate = false;
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
