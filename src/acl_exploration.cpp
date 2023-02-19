@@ -144,7 +144,7 @@ public:
     else
     {
       ufo::geometry::LineSegment myLine(*(targetNode->point), *point);
-      if (!isInCollision(map, myLine, true, false, true, 3))
+      if (!isInCollision(map, myLine, true, false, true, 0))
       {
         ufo::math::Vector3 newVector(targetNode->point->x() - point->x(), targetNode->point->y() - point->y(), targetNode->point->z() - point->z());
         float distance = newVector.norm();
@@ -164,7 +164,7 @@ public:
           }
           ufo::math::Vector3 newVector = ufo::math::Vector3(point->x() + i * xStep, point->y() + i * yStep, point->z() + i * zStep);
           ufo::geometry::Sphere new_sphere(newVector, givenRadious);
-          if (isInCollision(map, new_sphere, true, false, true, 3))
+          if (isInCollision(map, new_sphere, true, false, true, 0))
           {
             return false;
           }
@@ -180,7 +180,7 @@ public:
     if (!improvementFound)
     {
       ufo::geometry::LineSegment myLine(*(targetNode->point), *point);
-      if (!isInCollision(map, myLine, true, false, true, 3))
+      if (!isInCollision(map, myLine, true, false, true, 0))
       {
         ufo::math::Vector3 newVector(targetNode->point->x() - point->x(), targetNode->point->y() - point->y(), targetNode->point->z() - point->z());
         float distance = newVector.norm();
@@ -199,7 +199,7 @@ public:
           }
           ufo::math::Vector3 newVector = ufo::math::Vector3(point->x() + i * xStep, point->y() + i * yStep, point->z() + i * zStep);
           ufo::geometry::Sphere new_sphere(newVector, givenRadious);
-          if (isInCollision(map, new_sphere, true, false, true, 3))
+          if (isInCollision(map, new_sphere, true, false, true, 0))
           {
             return false;
           }
@@ -243,105 +243,45 @@ public:
   }
 };
 
-class Graph {
-
-  public:
-    struct Point {
-      Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z){};
-      bool operator == (const Point &o) const { return o.x == x && o.y == y && o.z == z; }
-      double DistTo(Point &other) const { return (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
-      double Dist_HeuristicTo(Point &other) const { return (0.1 * (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
-      // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
-      double x, y, z;
-  };
-    struct planning_node {
-    
-      planning_node(Point myposition = Point(), planning_node *parent = nullptr) : myposition(myposition), parent(parent){};
-      // planning_node(Point myposition = {}, std::shared_ptr<planning_node> parent = {} ): myposition(myposition), parent(parent) {};
-      Point myposition;
-
-      double dist_to_start = 0;
-      double total_dist = INT_MAX;
-
-      std::shared_ptr<planning_node> parent;
-      std::shared_ptr<std::vector<planning_node>> connections{new std::vector<planning_node>};
-      // std::vector< std::shared_ptr<planning_node> > connections{ new std::vector<planning_node> };
-      bool operator==(const planning_node &o) const { return (o.myposition.x == myposition.x) && (o.myposition.y == myposition.y) && (o.myposition.z == myposition.z); }
-      bool operator<(const planning_node &o) const { return (total_dist < o.total_dist); }
-
-      void AddConnection(planning_node subnode)
-      {
-        connections->push_back(subnode);
-      }
-    };
-
-  
-    std::vector<Point> fetchPath(Point &start_pos, Point &end_pos, std::vector<planning_node> all_nodes);
-
-};
-
-std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std::vector<planning_node> all_nodes)
+class Graph
 {
 
-  planning_node start_node;
-  planning_node end_node;
-
-  for (planning_node &node : all_nodes)
+public:
+  struct Point
   {
-    if (node.myposition == end_pos)
-      start_node = node;
-    if (node.myposition == start_pos)
-      end_node = node;
-  }
-
-  std::vector<Point> found_path; // Output path
-  std::set<planning_node> open_list;
-  std::vector<Point> closed_list;
-
-  open_list.emplace(start_node);
-
-  while (!open_list.empty())
+    Point(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z){};
+    bool operator==(const Point &o) const { return o.x == x && o.y == y && o.z == z; }
+    double DistTo(Point &other) const { return (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2))); };
+    double Dist_HeuristicTo(Point &other) const { return (0.1 * (std::sqrt(std::pow(other.x - x, 2) + std::pow(other.y - y, 2) + std::pow(other.z - z, 2)))); };
+    // double DistToHeuristic(Point & other) const { return(abs(other.x - x) + abs(other.y - y) + abs(other.z - z)); };
+    double x, y, z;
+  };
+  struct planning_node
   {
-    planning_node current_node = *open_list.begin();
 
-    open_list.erase(open_list.begin());
-    closed_list.push_back(current_node.myposition);
+    planning_node(Point myposition = Point(), planning_node *parent = nullptr) : myposition(myposition), parent(parent){};
+    // planning_node(Point myposition = {}, std::shared_ptr<planning_node> parent = {} ): myposition(myposition), parent(parent) {};
+    Point myposition;
 
-    if (current_node.myposition == end_node.myposition)
+    double dist_to_start = 0;
+    double total_dist = INT_MAX;
+
+    std::shared_ptr<planning_node> parent;
+    std::shared_ptr<std::vector<planning_node>> connections{new std::vector<planning_node>};
+    // std::vector< std::shared_ptr<planning_node> > connections{ new std::vector<planning_node> };
+    bool operator==(const planning_node &o) const { return (o.myposition.x == myposition.x) && (o.myposition.y == myposition.y) && (o.myposition.z == myposition.z); }
+    bool operator<(const planning_node &o) const { return (total_dist < o.total_dist); }
+
+    void AddConnection(planning_node subnode)
     {
-      planning_node *parent = &current_node;
-
-      while (parent != nullptr)
-      {
-        found_path.push_back(parent->myposition);
-        parent = parent->parent.get();
-      }
-      return (found_path);
+      connections->push_back(subnode);
     }
+  };
 
-    for (planning_node &node : *current_node.connections)
-    {
-      planning_node child(node);
-      child.parent.reset(new planning_node(current_node));
+  std::vector<Point> fetchPath(Point &start_pos, Point &end_pos, std::vector<planning_node> all_nodes, ufo::map::OccupancyMapColor const &map);
+};
 
-      if (std::find_if(closed_list.begin(), closed_list.end(), [&child](Point &pt)
-                       { return (pt == child.myposition); }) != closed_list.end())
-        continue;
 
-      child.dist_to_start = current_node.dist_to_start + child.myposition.DistTo(current_node.myposition);
-
-      child.total_dist = child.dist_to_start + 0.05 * (child.myposition.DistTo(end_node.myposition));
-
-      if (std::find_if(open_list.begin(), open_list.end(), [&child](const planning_node &node)
-                       { return ((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
-        continue;
-
-      open_list.emplace(child);
-    }
-  }
-
-  return (found_path);
-}
 
 struct Frontier_main
 {
@@ -621,6 +561,98 @@ bool isInCollision(ufo::map::OccupancyMapColor const &map,
     return true;
   }
   return false;
+}
+
+std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std::vector<planning_node> all_nodes, ufo::map::OccupancyMapColor const &map)
+{
+
+  planning_node start_node;
+  planning_node end_node;
+
+  for (planning_node &node : all_nodes)
+  {
+    if (node.myposition == end_pos)
+      start_node = node;
+    if (node.myposition == start_pos)
+      end_node = node;
+  }
+
+  std::vector<Point> found_path; // Output path
+  std::set<planning_node> open_list;
+  std::vector<Point> closed_list;
+
+  open_list.emplace(start_node);
+
+  while (!open_list.empty())
+  {
+    planning_node current_node = *open_list.begin();
+
+    open_list.erase(open_list.begin());
+    closed_list.push_back(current_node.myposition);
+
+    if (current_node.myposition == end_node.myposition)
+    {
+      planning_node *parent = &current_node;
+
+      while (parent != nullptr)
+      {
+        found_path.push_back(parent->myposition);
+        parent = parent->parent.get();
+      }
+
+      if (found_path.size() > 2) {
+        for (auto improvement_it = found_path.begin(); improvement_it != --found_path.end(); improvement_it++)
+        {
+          bool jump_to_main = false;
+          ufo::math::Vector3 p1(improvement_it->x, improvement_it->y,
+                                improvement_it->z);
+
+          for (auto improvement_it2 = std::next(found_path.begin(), 1); improvement_it2 != found_path.end() && !jump_to_main; improvement_it2++)
+          {
+            ufo::math::Vector3 p2(improvement_it2->x, improvement_it2->y,
+                                  improvement_it2->z);
+
+            ufo::geometry::LineSegment myLine(p1, p2);
+            if (!isInCollision(map, myLine, true, false, true, 0))
+            {
+              found_path.erase(improvement_it2);
+              jump_to_main = true;
+            }
+          }
+        }
+        
+      }
+      return (found_path);
+    }
+
+    // cout << "found path size before .. " << found_path.size() << endl;
+
+    for (planning_node &node : *current_node.connections)
+    {
+      planning_node child(node);
+      child.parent.reset(new planning_node(current_node));
+
+      if (std::find_if(closed_list.begin(), closed_list.end(), [&child](Point &pt)
+                       { return (pt == child.myposition); }) != closed_list.end())
+        continue;
+
+      child.dist_to_start = current_node.dist_to_start + child.myposition.DistTo(current_node.myposition);
+
+      child.total_dist = child.dist_to_start + 0.05 * (child.myposition.DistTo(end_node.myposition));
+
+      if (std::find_if(open_list.begin(), open_list.end(), [&child](const planning_node &node)
+                       { return ((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
+        continue;
+
+      open_list.emplace(child);
+    }
+  }
+
+  cout << "found path size after .. " << found_path.size() << endl;
+
+
+
+  return (found_path);
 }
 
 void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 final_point, int max_iterations)
@@ -1409,8 +1441,17 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
       for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++)
       {
+        
+        // if ((*insert_helper)->myParent != nullptr) {
+        // cout << "\nparent X is " << ((((*insert_helper))->myParent)->point)->x() << endl;
+        // }
+        // cout << "\nchild X is " << ((*insert_helper)->point)->x() << endl;
 
         my_nodes.push_back({Graph::Point{(((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z())}});
+        // if ((*insert_helper)->myParent != nullptr) {
+          // my_nodes.push_back({Graph::Point{((((*insert_helper))->myParent)->point)->x(), ((((*insert_helper))->myParent)->point)->y(),
+                                        //  ((((*insert_helper))->myParent)->point)->z()}});
+        // }
       }
     }
 
@@ -1584,7 +1625,7 @@ void findPath()
 
     // cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
     Graph mygraph;
-    planned.traj = mygraph.fetchPath(start_pos, end_pos, planning.node_container);
+    planned.traj = mygraph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
 
     // cout << "\nI am looking for path " << endl;
 
@@ -1606,7 +1647,7 @@ void findPath()
     Graph::Point home_state{((planning.node_container.front()).myposition.x), ((planning.node_container.front()).myposition.y), ((planning.node_container.front()).myposition.z)};
 
     Graph homing_graph;
-    planned.traj = homing_graph.fetchPath(current_state, home_state, planning.node_container);
+    planned.traj = homing_graph.fetchPath(current_state, home_state, planning.node_container, ufoMAP);
 
     if (planned.traj.size() > 1)
     {
@@ -1744,17 +1785,6 @@ assist:
 void return_to_base_planning()
 {
 
-  // double homing_cost;
-  // double myhoming_cost = 10000000000000;
-  // for (auto rit_h = Global_Graph.begin(); rit_h != Global_Graph.end(); rit_h++) {
-  //   double home_dis = calculateDistance(*((*rit_h)->point), home.position);
-  //   homing_cost = home_dis;
-  //   if (homing_cost < myhoming_cost) {
-  //     myhoming_cost = homing_cost;
-  //     home.graph_pointer = *rit_h;
-  //   }
-  // }
-
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
   double reiterate = 1;
@@ -1828,6 +1858,7 @@ void visualize()
   {
     GRAPH_nodes.header.frame_id = GRAPH_line_list.header.frame_id = ODOM_FRAME_ID;
     GRAPH_nodes.ns = "points";
+    GRAPH_line_list.ns = "lines";
     GRAPH_nodes.action = visualization_msgs::Marker::ADD;
     GRAPH_nodes.pose.orientation.w = 1.0;
     GRAPH_nodes.id = 0;
