@@ -430,31 +430,6 @@ ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL PLANNING SPACE CONFIGURED HERE.
 
-void linSpace(node *givenNode, float givenDistance)
-{
-  ufo::math::Vector3 newVector(givenNode->myParent->point->x() - givenNode->point->x(), givenNode->myParent->point->y() - givenNode->point->y(), givenNode->myParent->point->z() - givenNode->point->z());
-  float distance = newVector.norm();
-  float itterations = (distance / givenDistance);
-  float part = givenDistance / distance;
-  float xStep = (givenNode->myParent->point->x() - givenNode->point->x()) * part;
-  float yStep = (givenNode->myParent->point->y() - givenNode->point->y()) * part;
-  float zStep = (givenNode->myParent->point->z() - givenNode->point->z()) * part;
-  node *parent = givenNode->myParent;
-  node *nextNode = givenNode->myParent;
-  for (int i = 1; i < itterations; i++)
-  {
-    node *newPoint = new node(givenNode->myParent->point->x() - i * xStep, givenNode->myParent->point->y() - i * yStep, givenNode->myParent->point->z() - i * zStep);
-    newPoint->addParent(parent);
-    parent = newPoint;
-    // RRT_TREE.push_back(newPoint);
-  }
-  givenNode->addParent(parent);
-  if (nextNode->myParent != nullptr)
-  {
-    linSpace(nextNode, givenDistance);
-  }
-}
-
 void planningSpace(bool local_graph, ufo::math::Vector3 end_pt, float range, ufo::map::OccupancyMapColor const &map, bool occupied_space, bool free_space, bool unknown_space, float given_x,
                    float given_y, float given_z, ufo::map::DepthType min_depth = 3)
 {
@@ -598,29 +573,6 @@ std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std
       {
         found_path.push_back(parent->myposition);
         parent = parent->parent.get();
-      }
-
-      if (found_path.size() > 2) {
-        for (auto improvement_it = found_path.begin(); improvement_it != --found_path.end(); improvement_it++)
-        {
-          bool jump_to_main = false;
-          ufo::math::Vector3 p1(improvement_it->x, improvement_it->y,
-                                improvement_it->z);
-
-          for (auto improvement_it2 = std::next(found_path.begin(), 1); improvement_it2 != found_path.end() && !jump_to_main; improvement_it2++)
-          {
-            ufo::math::Vector3 p2(improvement_it2->x, improvement_it2->y,
-                                  improvement_it2->z);
-
-            ufo::geometry::LineSegment myLine(p1, p2);
-            if (!isInCollision(map, myLine, true, false, true, 0))
-            {
-              found_path.erase(improvement_it2);
-              jump_to_main = true;
-            }
-          }
-        }
-        
       }
       return (found_path);
     }
@@ -1447,17 +1399,17 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         // }
         // cout << "\nchild X is " << ((*insert_helper)->point)->x() << endl;
 
-        my_nodes.push_back({Graph::Point{(((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z())}});
-        // if ((*insert_helper)->myParent != nullptr) {
-          // my_nodes.push_back({Graph::Point{((((*insert_helper))->myParent)->point)->x(), ((((*insert_helper))->myParent)->point)->y(),
-                                        //  ((((*insert_helper))->myParent)->point)->z()}});
-        // }
+        // my_nodes.push_back({Graph::Point{(((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z())}});
+        if ((*insert_helper)->myParent != nullptr) {
+          my_nodes.push_back({Graph::Point{((((*insert_helper))->myParent)->point)->x(), ((((*insert_helper))->myParent)->point)->y(),
+                                         ((((*insert_helper))->myParent)->point)->z()}});
+        }
       }
     }
 
     if (switch_global.navigate)
     {
-
+      
       planning.graph_pointer = switchedGlobalFrontier(all.list);
     }
     else if (!home.navigate and !go_home)
@@ -1494,7 +1446,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         if (local_exploration)
         {
-
           if (isLocal(d2, current.position, current.heading) and isLocal(d1, current.position, current.heading) and rang < 2)
           {
 

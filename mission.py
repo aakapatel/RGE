@@ -119,9 +119,9 @@ class Server:
             self.y_r = self.path.poses[self.wp_index].pose.position.y
             self.z_r = self.path.poses[self.wp_index].pose.position.z
 
-        header = std_msgs.msg.Header()
-        header.stamp = rospy.Time.now()
-        header.frame_id = 'world'
+        self.vel_msg.header = std_msgs.msg.Header()
+        self.vel_msg.header.stamp = rospy.Time.now()
+        self.vel_msg.header.frame_id = 'world'
         self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
         self.vel_msg.pose.position.x = self.x_r
         self.vel_msg.pose.position.y = self.y_r
