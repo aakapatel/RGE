@@ -35,7 +35,7 @@
 		
   </node>
 
-		<arg name="resolution" default="0.4" />
+		<arg name="resolution" default="0.6" />
 		<arg name="depth_levels" default="16" />
 		<arg name="num_workers" default="1" />
 		<arg name="color" default="true" />

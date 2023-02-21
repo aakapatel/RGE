@@ -10,6 +10,7 @@ Panels:
         - /UFOMap1/Voxel Rendering1
         - /UFOMap1/Voxel Rendering1/Occupied1
         - /UFOMap1/Voxel Rendering1/Occupied1/Coloring1
+        - /PointCloud21
         - /MarkerArray1
         - /Marker1
         - /Marker1/Namespaces1
@@ -19,6 +20,7 @@ Panels:
         - /Marker5
         - /Marker5/Namespaces1
         - /Marker6
+        - /Marker6/Namespaces1
         - /Marker7
         - /Marker8
         - /Path1
@@ -27,8 +29,8 @@ Panels:
         - /Path3
         - /Path4
         - /Pose1
-        - /Pose1/Status1
         - /PointCloud22
+        - /Marker9
       Splitter Ratio: 0.5
     Tree Height: 934
   - Class: rviz/Selection
@@ -59,10 +61,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 76 937
-        "# Leaf Nodes": 229 480
+        "# Inner Nodes": 25 049
+        "# Leaf Nodes": 71 736
         Resolution: 40 cm
-        Size: 3,51 MiB
+        Size: 1,12 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -93,7 +95,7 @@ Visualization Manager:
           Style: Flat Squares
           Value: false
         Occupied:
-          Alpha: 0.10000000149011612
+          Alpha: 0.019999999552965164
           Coloring:
             Color: 114; 159; 207
             Factor: 0.800000011920929
@@ -110,17 +112,17 @@ Visualization Manager:
           Scale: 1
           Style: Flat Squares
           Value: false
-    - Alpha: 0.30000001192092896
+    - Alpha: 0.019999999552965164
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 6.562829971313477
-        Min Value: -0.3634986877441406
+        Max Value: 23.852540969848633
+        Min Value: -0.4556748867034912
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 62; 176; 236
-      Color Transformer: FlatColor
+      Color Transformer: AxisColor
       Decay Time: 1e+09
       Enabled: true
       Invert Rainbow: false
@@ -130,9 +132,9 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 3
+      Size (Pixels): 1
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic: /hummingbird/velodyne_points
       Unreliable: false
       Use Fixed Frame: true
@@ -188,20 +190,19 @@ Visualization Manager:
       Queue Size: 100
       Value: false
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /planning_graph
       Name: Marker
       Namespaces:
-        lines: true
-        points: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /improved_path
+      Marker Topic: /ROBOT_BOX
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -247,14 +248,14 @@ Visualization Manager:
     - Alpha: 0.15000000596046448
       Class: rviz/PointStamped
       Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       History Length: 1
       Name: PointStamped
       Queue Size: 10
       Radius: 10
       Topic: /hummingbird/ground_truth/position
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -264,7 +265,7 @@ Visualization Manager:
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.10000000149011612
+      Line Width: 0.30000001192092896
       Name: Path
       Offset:
         X: 0
@@ -346,8 +347,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 141.460205078125
-        Min Value: 129.55172729492188
+        Max Value: 19.50552749633789
+        Min Value: 11.195884704589844
         Value: true
       Axis: X
       Channel Name: intensity
@@ -355,7 +356,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -370,6 +371,14 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
+      Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /current_goal
+      Name: Marker
+      Namespaces:
+        goal: true
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
@@ -399,7 +408,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 41.86526870727539
+      Distance: 64.5134048461914
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -407,9 +416,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.5914117097854614
-        Y: 2.536362648010254
-        Z: -3.7930963039398193
+        X: -1.3495945930480957
+        Y: 0.8701999187469482
+        Z: -3.8070261478424072
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -417,7 +426,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 2.9754624366760254
+      Yaw: 3.155471086502075
     Saved: ~
 Window Geometry:
   Displays:
