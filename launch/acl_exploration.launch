@@ -8,7 +8,7 @@
 		<param name="zFiltering" value="true" />
 		<param name="publish_the_map" value="false" />
 
-		<param name="resolution" value="0.3" />
+		<param name="resolution" value="0.25" />
 		<!-- <param name="cloud_in" value="/camera/depth/color/points" /> -->
 
 		<param name="cloud_in" value="/hummingbird/velodyne_points" />
