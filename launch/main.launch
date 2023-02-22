@@ -15,7 +15,7 @@
       
       <param name="/RADIOUS_" type="double" value="1" />
       
-      <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
+      <param name="/NEXT_PUB_DISTANCE_" type="double" value="1.2" />
       
       <param name="/LOCAL_RANGE_" type="double" value="18" />
       

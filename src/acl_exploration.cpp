@@ -51,7 +51,7 @@ public:
   double distanceToParent = -1;
   std::list<struct node *> myChilds{};
   std::list<struct node *> myPath{};
-  std::list<ufo::math::Vector3> myHits{};
+  
   double distanceToGoal;
   node(float x, float y, float z)
   {
@@ -300,7 +300,7 @@ struct Frontier_main
   std::vector<Graph::Point> traj;
   ros::Publisher points_pub;
   ros::Publisher robot_box_vis_pub;
-  ros::Publisher current_goal_vis_pub;
+  ros::Publisher current_goal_vis_pub, current_unknowns_visualization_pub;
   ros::Publisher alc_points_visualization_pub;
   ros::Publisher alc_path_visualization_pub;
   ros::Publisher map_pub;
@@ -321,6 +321,7 @@ struct Frontier_main
   nav_msgs::Path temppath_local;
   nav_msgs::Path temppath_global;
   ufo::math::Vector3 end_pt;
+  std::list<ufo::math::Vector3> unknowns;
 };
 
 bool position_received;
@@ -1054,6 +1055,27 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
   tf::Matrix3x3 m(q);
   m.getRPY(roll, pitch, yaw);
   current.heading = yaw * (180 / 3.14159);
+
+  visualization_msgs::Marker ROBOT_BOX;
+  ROBOT_BOX.header.frame_id = ODOM_FRAME_ID;
+  ROBOT_BOX.ns = "points";
+  ROBOT_BOX.action = visualization_msgs::Marker::ADD;
+  ROBOT_BOX.pose.position.x = current.position.x();
+  ROBOT_BOX.pose.position.y = current.position.y();
+  ROBOT_BOX.pose.position.z = current.position.z();
+  ROBOT_BOX.pose.orientation.x = 0;
+  ROBOT_BOX.pose.orientation.y = 0;
+  ROBOT_BOX.pose.orientation.z = 0;
+  ROBOT_BOX.pose.orientation.w = 1;
+  ROBOT_BOX.id = 0;
+  ROBOT_BOX.type = visualization_msgs::Marker::CUBE;
+  ROBOT_BOX.scale.x = 4;
+  ROBOT_BOX.scale.y = 4;
+  ROBOT_BOX.scale.z = 4;
+  ROBOT_BOX.color.r = 1.0;
+  ROBOT_BOX.color.a = 0.2;
+  pub.robot_box_vis_pub.publish(ROBOT_BOX);
+
 }
 
 nav_msgs::Path backTrack(bool backtrack)
@@ -1243,6 +1265,92 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   }
 }
 
+
+int findInformationGain(ufo::math::Vector3 point, 
+                                ufo::map::OccupancyMapColor const& map){
+  
+  current.unknowns.clear();
+
+  // if(current.unknowns.empty()){
+    // Setting up targets, X / Y targets in either positive (P) or negative (N) direction
+    ufo::math::Vector3 targetXP(point.x() + 1, point.y(), point.z());
+    ufo::math::Vector3 targetXN(point.x() - 1, point.y(), point.z());
+    ufo::math::Vector3 targetYP(point.x(), point.y() + 1, point.z());
+    ufo::math::Vector3 targetYN(point.x(), point.y() - 1, point.z());
+    ufo::math::Vector3 upwards(point.x(), point.y(), point.z() + 1);
+  
+    //Angles
+    double vertical_angle = 0.275;
+    double horizontal_angle = 0.78;
+  
+    //Distances
+    double near_distance = 0.5;
+    double far_distance = 16;
+  
+    //Frustums
+    ufo::geometry::Frustum frustXP(point, targetXP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+    ufo::geometry::Frustum frustXN(point, targetXN, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+    ufo::geometry::Frustum frustYP(point, targetYP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+    ufo::geometry::Frustum frustYN(point, targetYN, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+    int checks = 0;
+    for (auto it = map.beginLeaves(frustXP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+      ufo::geometry::LineSegment myLine(point, end_point);
+      checks++;
+      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
+
+        current.unknowns.push_back(end_point);
+      }
+    }
+    for (auto it = map.beginLeaves(frustXN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+      ufo::geometry::LineSegment myLine(point, end_point);
+      checks++;
+      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
+
+        current.unknowns.push_back(end_point);
+      }
+    }
+    for (auto it = map.beginLeaves(frustYP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+      ufo::geometry::LineSegment myLine(point, end_point);
+      checks++;
+      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
+
+        current.unknowns.push_back(end_point);
+      }
+    }
+    for (auto it = map.beginLeaves(frustYN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+      ufo::geometry::LineSegment myLine(point, end_point);
+      checks++;
+      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
+
+        current.unknowns.push_back(end_point);
+      }
+    }
+  // }
+  // else{
+  //   std::list<ufo::math::Vector3>::iterator it_hits;	
+  //   for(it_hits = current.unknowns.begin(); it_hits != current.unknowns.end();){
+  //     ufo::geometry::LineSegment myLine2(point, *it_hits);
+  //     if(isInCollision(map, myLine2, true, false, false, 0)){
+  //       it_hits = current.unknowns.erase(it_hits);
+  //     }else{
+  //       if(isInCollision(map, *it_hits, false, true, false, 0)){
+  //         it_hits = current.unknowns.erase(it_hits);
+  //       }else{
+  //         it_hits++;
+  //       };
+  //     };
+  //   };
+  // }
+
+  int hits = current.unknowns.size();
+  return hits;
+}
+
+
 void exploreLocally()
 {
 
@@ -1423,6 +1531,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       planning.graph_pointer = temp_selectGlobalFrontier(all.list);
     }
 
+
     // ALC_POINTS = LoopClosurePath(all.list);
 
     for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++)
@@ -1460,7 +1569,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
               planning.node_container.push_back(*graph_it2);
               (*graph_it).AddConnection(*graph_it2);
-              // (*graph_it2).AddConnection(*graph_it);
+              (*graph_it2).AddConnection(*graph_it);
               // planning.node_container.push_back(*graph_it);
               // planning.node_container.push_back(*graph_it2);
             }
@@ -1478,7 +1587,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
               planning.node_container.push_back(*graph_it2);
               (*graph_it).AddConnection(*graph_it2);
-              // (*graph_it2).AddConnection(*graph_it);
+              (*graph_it2).AddConnection(*graph_it);
               // planning.node_container.push_back(*graph_it);
               // planning.node_container.push_back(*graph_it2);
             }
@@ -1486,6 +1595,9 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         }
       }
     }
+
+
+
   }
 
   if (home.navigate)
@@ -1674,7 +1786,8 @@ assist:
     current.path.type.data.clear();
     current.temppath_global.poses.clear();
     current.temppath_local.poses.clear();
-    ufo::math::Vector3 lastpub(std::prev(planned.traj.end(), 1)->x, std::prev(planned.traj.end(), 1)->y, std::prev(planned.traj.end(), 1)->z);
+    ufo::math::Vector3 lastpub(std::prev(planned.traj.end(), 1)->x, std::prev(planned.traj.end(), 1)->y, 
+                                          std::prev(planned.traj.end(), 1)->z);
     published.reference = publish_goal(lastpub);
   }
   else
@@ -1730,7 +1843,6 @@ assist:
 
       pub.path_to_goal_pub.publish(current.path);
       
-
       std::vector<geometry_msgs::PoseStamped>::const_iterator it_r = std::prev(current.temppath_global.poses.end(), 1);
       ufo::math::Vector3 lastpub(it_r->pose.position.x, it_r->pose.position.y, it_r->pose.position.z);
       published.reference = publish_goal(lastpub);
@@ -1812,28 +1924,35 @@ label:
 
 void visualize()
 {
-  visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, ROBOT_BOX, CURRENT_GOAL, CHOSEN_PATH_line_list,
-      ALC_points, ALC_line_list, POSITION_point, TRAVERSABLE_points,
+  visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, CURRENT_GOAL, CHOSEN_PATH_line_list,
+      ALC_points, current_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
       local_frontier_nodes, global_frontier_nodes;
 
-  ROBOT_BOX.header.frame_id = ODOM_FRAME_ID;
-  ROBOT_BOX.ns = "points";
-  ROBOT_BOX.action = visualization_msgs::Marker::ADD;
-  ROBOT_BOX.pose.position.x = current.position.x();
-  ROBOT_BOX.pose.position.y = current.position.y();
-  ROBOT_BOX.pose.position.z = current.position.z();
-  ROBOT_BOX.pose.orientation.x = 0;
-  ROBOT_BOX.pose.orientation.y = 0;
-  ROBOT_BOX.pose.orientation.z = 0;
-  ROBOT_BOX.pose.orientation.w = 1;
-  ROBOT_BOX.id = 0;
-  ROBOT_BOX.type = visualization_msgs::Marker::CUBE;
-  ROBOT_BOX.scale.x = 4;
-  ROBOT_BOX.scale.y = 4;
-  ROBOT_BOX.scale.z = 4;
-  ROBOT_BOX.color.r = 1.0;
-  ROBOT_BOX.color.a = 0.2;
-  pub.robot_box_vis_pub.publish(ROBOT_BOX);
+  if (!current.unknowns.empty())
+  {
+    current_unknowns.header.frame_id = ALC_line_list.header.frame_id = ODOM_FRAME_ID;
+    current_unknowns.ns = "points";
+    current_unknowns.action = visualization_msgs::Marker::ADD;
+    current_unknowns.pose.orientation.w = 1.0;
+    current_unknowns.id = 0;
+    current_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
+    current_unknowns.scale.x = 0.4;
+    current_unknowns.scale.y = 0.4;
+    current_unknowns.scale.z = 0.4;
+    current_unknowns.color.g = 1;
+    current_unknowns.color.a = 0.8;
+    
+    for (auto it_c = current.unknowns.begin(); it_c != current.unknowns.end(); it_c++)
+    {
+      geometry_msgs::Point unknown;
+      unknown.x = (*it_c).x();
+      unknown.y = (*it_c).y();
+      unknown.z = (*it_c).z();
+      current_unknowns.points.push_back(unknown);
+
+    }
+    pub.current_unknowns_visualization_pub.publish(current_unknowns);
+  }
 
 
   CURRENT_GOAL.header.frame_id = ODOM_FRAME_ID;
@@ -1848,14 +1967,14 @@ void visualize()
   CURRENT_GOAL.pose.orientation.w = 1;
   CURRENT_GOAL.id = 0;
   CURRENT_GOAL.type = visualization_msgs::Marker::SPHERE;
-  CURRENT_GOAL.scale.x = 1;
-  CURRENT_GOAL.scale.y = 1;
-  CURRENT_GOAL.scale.z = 1;
-  CURRENT_GOAL.color.g = 1.0;
+  CURRENT_GOAL.scale.x = 2.5;
+  CURRENT_GOAL.scale.y = 2.5;
+  CURRENT_GOAL.scale.z = 2.5;
+  CURRENT_GOAL.color.r = 0.58;
+  CURRENT_GOAL.color.g = 0.77;
+  CURRENT_GOAL.color.b = 0.45;
   CURRENT_GOAL.color.a = 0.6;
   pub.current_goal_vis_pub.publish(CURRENT_GOAL);
-
-
 
   if (!Global_Graph.empty())
   {
@@ -1931,11 +2050,11 @@ void visualize()
       // point2.x = (*(std::next(it_vis9, 1)))->point->x();
       // point2.y = (*(std::next(it_vis9, 1)))->point->y();
       // point2.z = (*(std::next(it_vis9, 1)))->point->z();
-      ALC_line_list.points.push_back(point1);
+      // ALC_line_list.points.push_back(point1);
       // ALC_line_list.points.push_back(point2);
     }
     pub.alc_points_visualization_pub.publish(ALC_points);
-    pub.alc_path_visualization_pub.publish(ALC_line_list);
+    // pub.alc_path_visualization_pub.publish(ALC_line_list);
   }
 
   if (!traversable.list.empty())
@@ -2077,6 +2196,7 @@ int main(int argc, char *argv[])
   pub.points_pub = nh.advertise<visualization_msgs::Marker>("/planning_graph", 1);
   pub.robot_box_vis_pub = nh.advertise<visualization_msgs::Marker>("/ROBOT_BOX", 1);
   pub.current_goal_vis_pub = nh.advertise<visualization_msgs::Marker>("/current_goal", 1);
+  pub.current_unknowns_visualization_pub = nh.advertise<visualization_msgs::Marker>("/current_unknowns", 1);
   pub.alc_points_visualization_pub = nh.advertise<visualization_msgs::Marker>("/ALC_POINTS", 1);
   pub.alc_path_visualization_pub = nh.advertise<visualization_msgs::Marker>("/ALC_PATH", 1);
   pub.best_frontier_pub = nh.advertise<geometry_msgs::PoseStamped>("REF_TOPIC_", 1);
@@ -2154,6 +2274,12 @@ int main(int argc, char *argv[])
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
 
+      int check_info = findInformationGain(current.position, ufoMAP);
+
+      cout << "info check : " << check_info << endl;
+
+      cout << "current unknowns size is : " << current.unknowns.size() << endl;
+
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate)
       {
 
@@ -2201,6 +2327,8 @@ int main(int argc, char *argv[])
         return_to_base_planning();
         finish.navigate = true;
       }
+
+      
 
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
