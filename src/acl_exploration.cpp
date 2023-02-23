@@ -1132,18 +1132,9 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
 
   frontiers_received = true;
   ufo::math::Vector3 frontier_point;
-  std::list<ufo::math::Vector3> seg1;
-  std::list<ufo::math::Vector3> seg2;
-  std::list<ufo::math::Vector3> seg3;
-  std::list<ufo::math::Vector3> seg4;
-  std::list<ufo::math::Vector3> seg5;
-  std::list<ufo::math::Vector3> seg6;
-  std::list<ufo::math::Vector3> seg7;
-  std::list<ufo::math::Vector3> seg8;
-  std::list<ufo::math::Vector3> myseg;
-  std::list<ufo::math::Vector3> mylist;
-  std::list<ufo::math::Vector3> mylist1;
-  std::list<ufo::math::Vector3> mylist2;
+  std::list<ufo::math::Vector3> seg1, seg2, seg3, seg4, seg5, seg6, 
+                                      seg7, seg8, myseg, mylist, mylist1, mylist2;
+
   for (geometry_msgs::Point frontier : msg->points)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
@@ -1265,89 +1256,158 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   }
 }
 
+ufo::geometry::OBB makeOBB (ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius) {
 
-int findInformationGain(ufo::math::Vector3 point, 
+  ufo::math::Vector3 direction = goal - source;
+  ufo::math::Vector3 center = goal + (direction / 2.0);
+  double distance = direction.norm();
+  direction /= distance;
+  double yaw = -atan2(direction[1], direction[0]);
+  double pitch = -asin(direction[2]);
+  double roll = 0; // TODO: Fix
+  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, radius, radius),
+                          ufo::math::Quaternion(roll, pitch, yaw));
+  
+  return obb;
+
+}
+
+
+void fetchUnknownNodes(ufo::math::Vector3 point, 
                                 ufo::map::OccupancyMapColor const& map){
   
-  current.unknowns.clear();
-
-  // if(current.unknowns.empty()){
-    // Setting up targets, X / Y targets in either positive (P) or negative (N) direction
-    ufo::math::Vector3 targetXP(point.x() + 1, point.y(), point.z());
-    ufo::math::Vector3 targetXN(point.x() - 1, point.y(), point.z());
-    ufo::math::Vector3 targetYP(point.x(), point.y() + 1, point.z());
-    ufo::math::Vector3 targetYN(point.x(), point.y() - 1, point.z());
-    ufo::math::Vector3 upwards(point.x(), point.y(), point.z() + 1);
-  
-    //Angles
-    double vertical_angle = 0.275;
-    double horizontal_angle = 0.78;
-  
-    //Distances
-    double near_distance = 0.5;
-    double far_distance = 16;
-  
-    //Frustums
-    ufo::geometry::Frustum frustXP(point, targetXP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
-    ufo::geometry::Frustum frustXN(point, targetXN, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
-    ufo::geometry::Frustum frustYP(point, targetYP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
-    ufo::geometry::Frustum frustYN(point, targetYN, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
-    int checks = 0;
-    for (auto it = map.beginLeaves(frustXP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
-      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-      ufo::geometry::LineSegment myLine(point, end_point);
-      checks++;
-      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
-
-        current.unknowns.push_back(end_point);
+  // current.unknowns.clear();
+      std::list<ufo::math::Vector3>::iterator it_unkwn;	
+      for(it_unkwn = current.unknowns.begin(); it_unkwn != current.unknowns.end(); it_unkwn++){
+        // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
+        ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
+        if(isInCollision(map, obb, true, false, false, 0)){
+          it_unkwn = current.unknowns.erase(it_unkwn);
+        }
+        else{
+          ufo::geometry::Sphere sphere(*it_unkwn, 2);
+          if(isInCollision(map, sphere, false, true, false, 0)){
+            it_unkwn = current.unknowns.erase(it_unkwn);
+          }
+        }
       }
-    }
-    for (auto it = map.beginLeaves(frustXN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
-      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-      ufo::geometry::LineSegment myLine(point, end_point);
-      checks++;
-      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
 
-        current.unknowns.push_back(end_point);
+      for(it_unkwn = local.unknowns.begin(); it_unkwn != local.unknowns.end(); it_unkwn++){
+        // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
+        ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
+        if(isInCollision(map, obb, true, false, false, 0)){
+          it_unkwn = local.unknowns.erase(it_unkwn);
+        }
+        else{
+          ufo::geometry::Sphere sphere(*it_unkwn, 2);
+          if(isInCollision(map, sphere, false, true, false, 0)){
+            it_unkwn = local.unknowns.erase(it_unkwn);
+          }
+        }
       }
-    }
-    for (auto it = map.beginLeaves(frustYP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
-      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-      ufo::geometry::LineSegment myLine(point, end_point);
-      checks++;
-      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
+      for(it_unkwn = global.unknowns.begin(); it_unkwn != global.unknowns.end(); it_unkwn++){
+        // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
+        ufo::geometry::Sphere sphere(*it_unkwn, 2);
+        ufo::geometry::Sphere sphere2(*it_unkwn, 0.5);
 
-        current.unknowns.push_back(end_point);
+        ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
+          if(isInCollision(map, sphere, true, false, false, 0)){
+            it_unkwn = global.unknowns.erase(it_unkwn);
+          } 
+          // else {
+          // if(isInCollision(map, sphere2, false, true, false, 0)){
+          //   it_unkwn = global.unknowns.erase(it_unkwn);
+          // }
+          // }
+        
       }
-    }
-    for (auto it = map.beginLeaves(frustYN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
-      ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
-      ufo::geometry::LineSegment myLine(point, end_point);
-      checks++;
-      if(!isInCollision(map, myLine, true, false, false, 0) and isInCollision(map, myLine, false, true, false, 0)){
 
-        current.unknowns.push_back(end_point);
+      // Setting up targets, X / Y targets in either positive (P) or negative (N) direction
+      ufo::math::Vector3 targetXP(point.x() + 1, point.y(), point.z());
+      ufo::math::Vector3 targetXN(point.x() - 1, point.y(), point.z());
+      ufo::math::Vector3 targetYP(point.x(), point.y() + 1, point.z());
+      ufo::math::Vector3 targetYN(point.x(), point.y() - 1, point.z());
+      ufo::math::Vector3 upwards(point.x(), point.y(), point.z() + 1);
+    
+      //Angles
+      double vertical_angle = 0.275;
+      double horizontal_angle = 3.14;
+    
+      //Distances
+      double near_distance = 0.5;
+      double far_distance = 16;
+    
+      //Frustums
+      ufo::geometry::Frustum frustXP(point, targetXP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+      ufo::geometry::Frustum frustXN(point, targetXN, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+      ufo::geometry::Frustum frustYP(point, targetYP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+      ufo::geometry::Frustum frustYN(point, targetYN, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
+      int checks = 0;
+      for (auto it = map.beginLeaves(frustXP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+        ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
+        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+
+          ufo::geometry::LineSegment myLine(point, end_point);
+          checks++;
+          if(!isInCollision(map, obb, true, false, false, 0) and isInCollision(map, obb, false, true, false, 0)){
+
+            current.unknowns.push_back(end_point);
+          }
+        }
       }
-    }
-  // }
-  // else{
-  //   std::list<ufo::math::Vector3>::iterator it_hits;	
-  //   for(it_hits = current.unknowns.begin(); it_hits != current.unknowns.end();){
-  //     ufo::geometry::LineSegment myLine2(point, *it_hits);
-  //     if(isInCollision(map, myLine2, true, false, false, 0)){
-  //       it_hits = current.unknowns.erase(it_hits);
-  //     }else{
-  //       if(isInCollision(map, *it_hits, false, true, false, 0)){
-  //         it_hits = current.unknowns.erase(it_hits);
-  //       }else{
-  //         it_hits++;
-  //       };
-  //     };
-  //   };
-  // }
+      for (auto it = map.beginLeaves(frustXN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+        ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
+        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
 
-  int hits = current.unknowns.size();
-  return hits;
+          ufo::geometry::LineSegment myLine(point, end_point);
+          checks++;
+          if(!isInCollision(map, obb, true, false, false, 0) and isInCollision(map, obb, false, true, false, 0)){
+
+            current.unknowns.push_back(end_point);
+          }
+        }
+      }
+      for (auto it = map.beginLeaves(frustYP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+        ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
+        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+
+          ufo::geometry::LineSegment myLine(point, end_point);
+          checks++;
+          if(!isInCollision(map, obb, true, false, false, 0) and isInCollision(map, obb, false, true, false, 0)){
+
+            current.unknowns.push_back(end_point);
+          }
+        }
+      }
+      for (auto it = map.beginLeaves(frustYN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
+        ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
+        ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
+        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+
+          ufo::geometry::LineSegment myLine(point, end_point);
+          checks++;
+          if(!isInCollision(map, obb, true, false, false, 0) and isInCollision(map, obb, false, true, false, 0)){
+
+            current.unknowns.push_back(end_point);
+          }
+        }
+      } 
+
+
+    for (ufo::math::Vector3 unknown_node : current.unknowns) {
+
+      if (isLocal(unknown_node, current.position, current.heading)) {
+
+        local.unknowns.push_back(unknown_node);
+      } else {
+          global.unknowns.push_back(unknown_node);
+      }
+
+    }
+
 }
 
 
@@ -1925,13 +1985,13 @@ label:
 void visualize()
 {
   visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, CURRENT_GOAL, CHOSEN_PATH_line_list,
-      ALC_points, current_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
+      ALC_points, current_unknowns, local_unknowns, global_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
       local_frontier_nodes, global_frontier_nodes;
 
   if (!current.unknowns.empty())
   {
-    current_unknowns.header.frame_id = ALC_line_list.header.frame_id = ODOM_FRAME_ID;
-    current_unknowns.ns = "points";
+    current_unknowns.header.frame_id = ODOM_FRAME_ID;
+    current_unknowns.ns = "all";
     current_unknowns.action = visualization_msgs::Marker::ADD;
     current_unknowns.pose.orientation.w = 1.0;
     current_unknowns.id = 0;
@@ -1939,7 +1999,7 @@ void visualize()
     current_unknowns.scale.x = 0.4;
     current_unknowns.scale.y = 0.4;
     current_unknowns.scale.z = 0.4;
-    current_unknowns.color.g = 1;
+    current_unknowns.color.b = 1;
     current_unknowns.color.a = 0.8;
     
     for (auto it_c = current.unknowns.begin(); it_c != current.unknowns.end(); it_c++)
@@ -1954,6 +2014,61 @@ void visualize()
     pub.current_unknowns_visualization_pub.publish(current_unknowns);
   }
 
+  if (!local.unknowns.empty())
+  {
+    local_unknowns.header.frame_id = ODOM_FRAME_ID;
+    local_unknowns.ns = "local";
+    local_unknowns.action = visualization_msgs::Marker::ADD;
+    local_unknowns.pose.orientation.w = 1.0;
+    local_unknowns.id = 1;
+    local_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
+    local_unknowns.scale.x = 0.44;
+    local_unknowns.scale.y = 0.44;
+    local_unknowns.scale.z = 0.44;
+    local_unknowns.color.r = 0.0;
+    local_unknowns.color.g = 1;
+    local_unknowns.color.b = 0.0;
+    local_unknowns.color.a = 1;
+    
+    for (auto it_c = local.unknowns.begin(); it_c != local.unknowns.end(); it_c++)
+    {
+      geometry_msgs::Point unknown;
+      unknown.x = (*it_c).x();
+      unknown.y = (*it_c).y();
+      unknown.z = (*it_c).z();
+      local_unknowns.points.push_back(unknown);
+
+    }
+    pub.current_unknowns_visualization_pub.publish(local_unknowns);
+  }
+
+    if (!global.unknowns.empty())
+  {
+    global_unknowns.header.frame_id = ODOM_FRAME_ID;
+    global_unknowns.ns = "global";
+    global_unknowns.action = visualization_msgs::Marker::ADD;
+    global_unknowns.pose.orientation.w = 1.0;
+    global_unknowns.id = 2;
+    global_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
+    global_unknowns.scale.x = 0.44;
+    global_unknowns.scale.y = 0.44;
+    global_unknowns.scale.z = 0.44;
+    global_unknowns.color.r = 0.6;
+    global_unknowns.color.g = 0;
+    global_unknowns.color.b = 0;
+    global_unknowns.color.a = 1;
+    
+    for (auto it_c = global.unknowns.begin(); it_c != global.unknowns.end(); it_c++)
+    {
+      geometry_msgs::Point unknown;
+      unknown.x = (*it_c).x();
+      unknown.y = (*it_c).y();
+      unknown.z = (*it_c).z();
+      global_unknowns.points.push_back(unknown);
+
+    }
+    pub.current_unknowns_visualization_pub.publish(global_unknowns);
+  }
 
   CURRENT_GOAL.header.frame_id = ODOM_FRAME_ID;
   CURRENT_GOAL.ns = "goal";
@@ -2273,12 +2388,10 @@ int main(int argc, char *argv[])
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
-
-      int check_info = findInformationGain(current.position, ufoMAP);
-
-      cout << "info check : " << check_info << endl;
-
-      cout << "current unknowns size is : " << current.unknowns.size() << endl;
+      // fetchUnknownNodes(current.position, ufoMAP);
+      // cout << "current unknowns size is : " << current.unknowns.size() << endl;
+      // cout << "Local unknowns size is : " << local.unknowns.size() << endl;
+      // cout << "Global unknowns size is : " << global.unknowns.size() << endl;
 
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate)
       {
@@ -2343,6 +2456,7 @@ int main(int argc, char *argv[])
       // exec.push_back(duration_total.count());
     }
 
+    fetchUnknownNodes(current.position, ufoMAP);
     
     visualize();
     ros::spinOnce();
