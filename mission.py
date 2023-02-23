@@ -122,13 +122,13 @@ class Server:
         self.vel_msg.header = std_msgs.msg.Header()
         self.vel_msg.header.stamp = rospy.Time.now()
         self.vel_msg.header.frame_id = 'world'
-        self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
+        # self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
         self.vel_msg.pose.position.x = self.x_r
         self.vel_msg.pose.position.y = self.y_r
         self.vel_msg.pose.position.z = self.z_r
         self.vel_msg.pose.orientation.x = 0
         self.vel_msg.pose.orientation.y = 0
-        self.vel_msg.pose.orientation.z = self.heading_ref
+        self.vel_msg.pose.orientation.z = self.path.poses[self.wp_index].pose.orientation.z
         self.vel_msg.pose.orientation.w = 0
         self.vel_publisher.publish(self.vel_msg)
 

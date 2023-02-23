@@ -1821,6 +1821,18 @@ assist:
       global_nodes.pose.position.x = ((*vert_it)).x;
       global_nodes.pose.position.y = ((*vert_it)).y;
       global_nodes.pose.position.z = ((*vert_it)).z;
+      global_nodes.pose.orientation.x = 0;
+      global_nodes.pose.orientation.y = 0;
+      double head_ref;
+      if (vert_it != std::prev(planned.traj.end(),1)) {
+        head_ref = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
+                              ((*std::next(vert_it,1))).x - ((*vert_it)).x );
+      } else {
+        head_ref = atan2( (*std::prev(vert_it,1)).y - (*std::prev(vert_it,2)).y , 
+                              (*std::prev(vert_it,1)).x - (*std::prev(vert_it,2)).x );
+      }
+      global_nodes.pose.orientation.z = head_ref;
+      global_nodes.pose.orientation.w = 1;
       global_nodes.header.stamp = ros::Time::now();
       global_nodes.header.frame_id = ODOM_FRAME_ID;
 
@@ -1849,6 +1861,7 @@ assist:
     ufo::math::Vector3 lastpub(std::prev(planned.traj.end(), 1)->x, std::prev(planned.traj.end(), 1)->y, 
                                           std::prev(planned.traj.end(), 1)->z);
     published.reference = publish_goal(lastpub);
+
   }
   else
   {
@@ -1885,6 +1898,10 @@ assist:
         global_nodes.pose.position.x = it_rt->pose.position.x;
         global_nodes.pose.position.y = it_rt->pose.position.y;
         global_nodes.pose.position.z = it_rt->pose.position.z;
+        global_nodes.pose.orientation.x = 0;
+        global_nodes.pose.orientation.y = 0;
+        global_nodes.pose.orientation.z = 0;
+        global_nodes.pose.orientation.w = 1;
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
 
@@ -1958,7 +1975,11 @@ label:
         global_nodes.pose.position.z = ((*vert_it)).z;
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
-
+        global_nodes.pose.orientation.x = 0;
+        global_nodes.pose.orientation.y = 0;
+        global_nodes.pose.orientation.z = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
+                                                        ((*std::next(vert_it,1))).x - ((*vert_it)).x );
+        global_nodes.pose.orientation.w = 1;
         current.temppath_homing.poses.push_back(global_nodes);
         current.path.path = current.temppath_homing;
         current.path.type.data = "homing";
