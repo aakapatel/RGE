@@ -392,6 +392,7 @@ std::list<ufo::math::Vector3> accessible;
 std::list<ufo::math::Vector3> positionslist;
 
 std::list<struct node *> Global_Graph{};
+std::list<struct node *> skeleton{};
 std::list<struct node *> CHOSEN_PATH{};
 std::list<double> CHOSEN_PATH_VREF{};
 std::list<double>::iterator vref_itterator;
@@ -1276,51 +1277,8 @@ ufo::geometry::OBB makeOBB (ufo::math::Vector3 source, ufo::math::Vector3 goal, 
 void fetchUnknownNodes(ufo::math::Vector3 point, 
                                 ufo::map::OccupancyMapColor const& map){
   
-  // current.unknowns.clear();
-      std::list<ufo::math::Vector3>::iterator it_unkwn;	
-      for(it_unkwn = current.unknowns.begin(); it_unkwn != current.unknowns.end(); it_unkwn++){
-        // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
-        ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
-        if(isInCollision(map, obb, true, false, false, 0)){
-          it_unkwn = current.unknowns.erase(it_unkwn);
-        }
-        else{
-          ufo::geometry::Sphere sphere(*it_unkwn, 2);
-          if(isInCollision(map, sphere, false, true, false, 0)){
-            it_unkwn = current.unknowns.erase(it_unkwn);
-          }
-        }
-      }
-
-      for(it_unkwn = local.unknowns.begin(); it_unkwn != local.unknowns.end(); it_unkwn++){
-        // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
-        ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
-        if(isInCollision(map, obb, true, false, false, 0)){
-          it_unkwn = local.unknowns.erase(it_unkwn);
-        }
-        else{
-          ufo::geometry::Sphere sphere(*it_unkwn, 2);
-          if(isInCollision(map, sphere, false, true, false, 0)){
-            it_unkwn = local.unknowns.erase(it_unkwn);
-          }
-        }
-      }
-      for(it_unkwn = global.unknowns.begin(); it_unkwn != global.unknowns.end(); it_unkwn++){
-        // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
-        ufo::geometry::Sphere sphere(*it_unkwn, 2);
-        ufo::geometry::Sphere sphere2(*it_unkwn, 0.5);
-
-        ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
-          if(isInCollision(map, sphere, true, false, false, 0)){
-            it_unkwn = global.unknowns.erase(it_unkwn);
-          } 
-          // else {
-          // if(isInCollision(map, sphere2, false, true, false, 0)){
-          //   it_unkwn = global.unknowns.erase(it_unkwn);
-          // }
-          // }
-        
-      }
+  current.unknowns.clear();
+  // skeleton.clear();
 
       // Setting up targets, X / Y targets in either positive (P) or negative (N) direction
       ufo::math::Vector3 targetXP(point.x() + 1, point.y(), point.z());
@@ -1346,7 +1304,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
       for (auto it = map.beginLeaves(frustXP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
         ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
         ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
-        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+        if (abs(it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
 
           ufo::geometry::LineSegment myLine(point, end_point);
           checks++;
@@ -1359,7 +1317,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
       for (auto it = map.beginLeaves(frustXN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
         ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
         ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
-        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+        if (abs(it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
 
           ufo::geometry::LineSegment myLine(point, end_point);
           checks++;
@@ -1372,7 +1330,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
       for (auto it = map.beginLeaves(frustYP, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
         ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
         ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
-        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+        if (abs(it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
 
           ufo::geometry::LineSegment myLine(point, end_point);
           checks++;
@@ -1385,7 +1343,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
       for (auto it = map.beginLeaves(frustYN, false, false, true, false, 0), it_end = map.endLeaves(); it != it_end; ++it){
         ufo::math::Vector3 end_point(it.getX(), it.getY(), it.getZ());
         ufo::geometry::OBB obb = makeOBB(point, end_point, 0.4);
-        if ((it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
+        if ( abs(it.getZ() - point.z()) < 1.5 and it.isUnknown()) {
 
           ufo::geometry::LineSegment myLine(point, end_point);
           checks++;
@@ -1394,19 +1352,84 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
             current.unknowns.push_back(end_point);
           }
         }
-      } 
-
-
-    for (ufo::math::Vector3 unknown_node : current.unknowns) {
-
-      if (isLocal(unknown_node, current.position, current.heading)) {
-
-        local.unknowns.push_back(unknown_node);
-      } else {
-          global.unknowns.push_back(unknown_node);
       }
 
-    }
+      node *pos_parent = new node(point.x(),point.y(),point.z());
+
+      for (auto it = current.unknowns.begin(); it != current.unknowns.end(); it++) {
+
+        node *robot_pose = new node(it->x(), it->y(), it->z());
+        robot_pose->addParent(pos_parent);
+        pos_parent->addChild(robot_pose);
+        skeleton.push_back(robot_pose); 
+
+      }
+
+      for (auto clear_it = skeleton.begin(); clear_it != skeleton.end(); clear_it++) {
+
+        // ufo::geometry::OBB obb = makeOBB(*((*clear_it)->myParent->point),*((*clear_it)->point) , 0.4);
+        ufo::geometry::Sphere sphere(*((*clear_it)->point), 2);
+        if(isInCollision(map, sphere, false, true, false, 0) or isInCollision(map, sphere, true, false, false, 0)){
+          clear_it = skeleton.erase(clear_it);
+        }
+      }
+
+      // std::list<ufo::math::Vector3>::iterator it_unkwn;	
+      // for(it_unkwn = current.unknowns.begin(); it_unkwn != current.unknowns.end(); it_unkwn++){
+      //   // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
+      //   ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
+      //   if(isInCollision(map, obb, true, false, false, 0)){
+      //     it_unkwn = current.unknowns.erase(it_unkwn);
+      //   }
+      //   else{
+      //     ufo::geometry::Sphere sphere(*it_unkwn, 2);
+      //     if(isInCollision(map, sphere, false, true, false, 0)){
+      //       it_unkwn = current.unknowns.erase(it_unkwn);
+      //     }
+      //   }
+      // }
+
+      // for(it_unkwn = local.unknowns.begin(); it_unkwn != local.unknowns.end(); it_unkwn++){
+      //   // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
+      //   ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
+      //   if(isInCollision(map, obb, true, false, false, 0)){
+      //     it_unkwn = local.unknowns.erase(it_unkwn);
+      //   }
+      //   else{
+      //     ufo::geometry::Sphere sphere(*it_unkwn, 2);
+      //     if(isInCollision(map, sphere, false, true, false, 0)){
+      //       it_unkwn = local.unknowns.erase(it_unkwn);
+      //     }
+      //   }
+      // }
+      // for(it_unkwn = global.unknowns.begin(); it_unkwn != global.unknowns.end(); it_unkwn++){
+      //   // ufo::geometry::LineSegment myLine2(point, *it_unkwn);
+      //   ufo::geometry::Sphere sphere(*it_unkwn, 2);
+      //   ufo::geometry::Sphere sphere2(*it_unkwn, 0.5);
+
+      //   ufo::geometry::OBB obb = makeOBB(point, *it_unkwn, 0.4);
+      //     if(isInCollision(map, sphere, true, false, false, 0)){
+      //       it_unkwn = global.unknowns.erase(it_unkwn);
+      //     } 
+      //     // else {
+      //     // if(isInCollision(map, sphere2, false, true, false, 0)){
+      //     //   it_unkwn = global.unknowns.erase(it_unkwn);
+      //     // }
+      //     // }
+      // }
+
+
+
+    // for (ufo::math::Vector3 unknown_node : current.unknowns) {
+
+    //   if (isLocal(unknown_node, current.position, current.heading)) {
+
+    //     local.unknowns.push_back(unknown_node);
+    //   } else {
+    //       global.unknowns.push_back(unknown_node);
+    //   }
+
+    // }
 
 }
 
@@ -2006,12 +2029,12 @@ label:
 void visualize()
 {
   visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, CURRENT_GOAL, CHOSEN_PATH_line_list,
-      ALC_points, current_unknowns, local_unknowns, global_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
+      ALC_points, current_unknowns, current_unknown_line_list, local_unknowns, global_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
       local_frontier_nodes, global_frontier_nodes;
 
   if (!current.unknowns.empty())
   {
-    current_unknowns.header.frame_id = ODOM_FRAME_ID;
+    current_unknowns.header.frame_id = current_unknown_line_list.header.frame_id = ODOM_FRAME_ID;
     current_unknowns.ns = "all";
     current_unknowns.action = visualization_msgs::Marker::ADD;
     current_unknowns.pose.orientation.w = 1.0;
@@ -2022,17 +2045,45 @@ void visualize()
     current_unknowns.scale.z = 0.4;
     current_unknowns.color.b = 1;
     current_unknowns.color.a = 0.8;
-    
-    for (auto it_c = current.unknowns.begin(); it_c != current.unknowns.end(); it_c++)
-    {
-      geometry_msgs::Point unknown;
-      unknown.x = (*it_c).x();
-      unknown.y = (*it_c).y();
-      unknown.z = (*it_c).z();
-      current_unknowns.points.push_back(unknown);
+    current_unknown_line_list.ns = "lines";
+    current_unknown_line_list.id = 1;
+    current_unknown_line_list.type = visualization_msgs::Marker::LINE_LIST;
+    current_unknown_line_list.scale.x = 0.1;
+    // GRAPH_line_list.color.r = 0.8;
+    current_unknown_line_list.color.g = 0.8;
+    current_unknown_line_list.color.b = 0.2;
+    current_unknown_line_list.color.a = 0.8;
 
+    // for (auto it_c = current.unknowns.begin(); it_c != current.unknowns.end(); it_c++)
+    // {
+    //   geometry_msgs::Point unknown;
+    //   unknown.x = (*it_c).x();
+    //   unknown.y = (*it_c).y();
+    //   unknown.z = (*it_c).z();
+    //   current_unknowns.points.push_back(unknown);
+
+    // }
+
+    std::list<node *>::iterator it_vis;
+    for (it_vis = skeleton.begin(); it_vis != skeleton.end(); it_vis++)
+    {
+      geometry_msgs::Point p;
+      p.x = (*it_vis)->point->x();
+      p.y = (*it_vis)->point->y();
+      p.z = (*it_vis)->point->z();
+      current_unknowns.points.push_back(p);
+      if ((*it_vis)->myParent != nullptr)
+      {
+        current_unknown_line_list.points.push_back(p);
+        p.x = (*it_vis)->myParent->point->x();
+        p.y = (*it_vis)->myParent->point->y();
+        p.z = (*it_vis)->myParent->point->z();
+        current_unknown_line_list.points.push_back(p);
+      }
     }
+
     pub.current_unknowns_visualization_pub.publish(current_unknowns);
+    pub.current_unknowns_visualization_pub.publish(current_unknown_line_list);
   }
 
   if (!local.unknowns.empty())
