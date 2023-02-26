@@ -62,6 +62,7 @@
       
       <!-- <remap from="/PATH_TOPIC_" to="shafter3d/exploration_path" /> -->
 
+      <remap from="/UFOMAP_" to="/ufomap_mapping_server_node/map"/>
 
   </node> 
 
