@@ -427,6 +427,7 @@ Frontier_main finish;
 Frontier_main start_backtrack;
 Frontier_main resume;
 Frontier_main init;
+Frontier_main lookAt;
 
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 // home.navigate = false;
@@ -685,11 +686,10 @@ double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2)
   return dist;
 }
 
-void fetchTraversable(bool occupied_space = true, bool free_space = false,
-                      bool unknown_space = false, ufo::map::DepthType min_depth = PLANNING_CHECK_DEPTH)
+void fetchTraversable(std::list<ufo::math::Vector3> frontier_list)
 {
   std::list<ufo::math::Vector3> extracted;
-  for (ufo::math::Vector3 goal : max_information.list)
+  for (ufo::math::Vector3 goal : frontier_list)
   {
     ufo::math::Vector3 direction = goal - current.position;
     ufo::math::Vector3 center = current.position + (direction / 2.0);
@@ -965,6 +965,8 @@ bool next_pub()
   pos.y() = published.reference.pose.position.y;
   pos.z() = published.reference.pose.position.z;
   double pub_dis = calculateDistance(pos, current.position);
+  double angle = calculateAngle(pos, current.position, current.heading);
+
   if (pub_dis < NEXT_PUB_DISTANCE)
   {
     return true;
@@ -1232,7 +1234,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
     max_information.list = myseg;
   }
 
-  fetchTraversable(true, false, false, PLANNING_CHECK_DEPTH);
+  fetchTraversable(max_information.list);
 
   if (!traversable.list.empty())
   {
@@ -1261,7 +1263,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
 ufo::geometry::OBB makeOBB (ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius) {
 
   ufo::math::Vector3 direction = goal - source;
-  ufo::math::Vector3 center = goal + (direction / 2.0);
+  ufo::math::Vector3 center = source + (direction / 2.0);
   double distance = direction.norm();
   direction /= distance;
   double yaw = -atan2(direction[1], direction[0]);
@@ -1366,14 +1368,14 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
 
       }
 
-      for (auto clear_it = skeleton.begin(); clear_it != skeleton.end(); clear_it++) {
+      // for (auto clear_it = skeleton.begin(); clear_it != skeleton.end(); clear_it++) {
 
-        // ufo::geometry::OBB obb = makeOBB(*((*clear_it)->myParent->point),*((*clear_it)->point) , 0.4);
-        ufo::geometry::Sphere sphere(*((*clear_it)->point), 2);
-        if(isInCollision(map, sphere, false, true, false, PLANNING_CHECK_DEPTH) or isInCollision(map, sphere, true, false, false, PLANNING_CHECK_DEPTH)){
-          clear_it = skeleton.erase(clear_it);
-        }
-      }
+      //   // ufo::geometry::OBB obb = makeOBB(*((*clear_it)->myParent->point),*((*clear_it)->point) , 0.4);
+      //   ufo::geometry::Sphere sphere(*((*clear_it)->point), 2);
+      //   if(isInCollision(map, sphere, false, true, false, PLANNING_CHECK_DEPTH) or isInCollision(map, sphere, true, false, false, PLANNING_CHECK_DEPTH)){
+      //     clear_it = skeleton.erase(clear_it);
+      //   }
+      // }
 
       // std::list<ufo::math::Vector3>::iterator it_unkwn;	
       // for(it_unkwn = current.unknowns.begin(); it_unkwn != current.unknowns.end(); it_unkwn++){
@@ -1922,7 +1924,8 @@ void graph_navigation(bool local_nav)
         global_nodes.pose.position.z = it_rt->pose.position.z;
         global_nodes.pose.orientation.x = 0;
         global_nodes.pose.orientation.y = 0;
-        global_nodes.pose.orientation.z = 0;
+        global_nodes.pose.orientation.z = atan2( ((std::next(it_rt,1)))->pose.position.y - ((it_rt))->pose.position.y , 
+                                                        ((std::next(it_rt,1)))->pose.position.x - ((it_rt))->pose.position.x );
         global_nodes.pose.orientation.w = 1;
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
@@ -2023,6 +2026,57 @@ label:
   }
 
   planned.traj.clear();
+}
+
+void lookAround () {
+  cout << "looking at .." << endl;
+  lookAt.list.clear();
+  if (!all.list.empty()) {
+    for (ufo::math::Vector3 frontier : all.list) {
+
+      double dist = calculateDistance(frontier, current.position);
+      if (dist < LOCAL_RANGE) {
+        ufo::geometry::LineSegment line_seg (current.position, frontier);
+        ufo::geometry::OBB obb = makeOBB(current.position, frontier, 0.6);
+        if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
+          lookAt.list.push_back(frontier);
+        }
+      }
+    }
+  }
+  cout << "\nALL " << all.list.size() << endl;
+  cout << "\nLOOK AT -----  " << lookAt.list.size() << endl;
+
+  ufo::math::Vector3 look_towards_frontier;
+  if (!lookAt.list.empty()) {
+    
+    double radius = 0.4;
+    for (ufo::math::Vector3 f_point : lookAt.list)
+    {
+      ufo::geometry::Sphere sphere(f_point, radius);
+      if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) && 
+                                          !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
+      {
+        radius = radius + 0.1;
+        look_towards_frontier = f_point;
+      }
+    }
+  }
+  
+  if (look_towards_frontier.x() != 0 and look_towards_frontier.y() != 0) {
+    cout << "found a frontier to look at " << endl;
+    geometry_msgs::PoseStamped look_ref;
+    look_ref.pose.position.x = current.position.x();
+    look_ref.pose.position.y = current.position.y();
+    look_ref.pose.position.z = current.position.z();
+    look_ref.pose.orientation.w = 1;
+    look_ref.pose.orientation.x = 0;
+    look_ref.pose.orientation.y = 0;
+    look_ref.pose.orientation.z = atan2(look_towards_frontier.y() - current.position.y(), look_towards_frontier.x() - current.position.x());
+    lookAt.reference = look_ref;
+    pub.best_frontier_pub.publish(look_ref);
+    published.reference = look_ref;
+  } 
 }
 
 void visualize()
@@ -2458,12 +2512,14 @@ int main(int argc, char *argv[])
       published.reference = first_ref;
     }
 
+    
+          
+      
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
-      // fetchUnknownNodes(current.position, ufoMAP);
-      // cout << "current unknowns size is : " << current.unknowns.size() << endl;
-      // cout << "Local unknowns size is : " << local.unknowns.size() << endl;
-      // cout << "Global unknowns size is : " << global.unknowns.size() << endl;
+      fetchUnknownNodes(current.position, ufoMAP);
+
+      // lookAround();
 
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate)
       {
@@ -2527,8 +2583,6 @@ int main(int argc, char *argv[])
 
       // exec.push_back(duration_total.count());
     }
-
-    fetchUnknownNodes(current.position, ufoMAP);
     
     visualize();
     ros::spinOnce();
