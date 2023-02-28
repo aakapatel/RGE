@@ -324,13 +324,13 @@ void FrontierExploration::publishFrontiers(const tf::Point& sensorOriginTf, cons
                     double z_diff = abs(m_currentPose.pose.pose.position.z - pt.z());
 
 
-                    // if ((pt.x() > 0) && (z_diff < 0.5)) {
-                    if ((z_diff < 4)) {     
+                    if ((pt.x() > 0) && pt.z() > 0.5 && pt.z() < 2.2) {
+                    // if ((z_diff < 4)) {     
                         
                         if (FrontierExploration::isFrontier(x, y, z, sensorOrigin) && !(m_octree->isNodeOccupied(me))) {
                             frontierPointList.push_back(pt);
                         }
-                }
+                // }
                     
                 }
             }

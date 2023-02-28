@@ -47,7 +47,7 @@ class Server:
 
         #############################################################################################
 
-        mission_duration = 80000
+        mission_duration = 80
 
         #############################################################################################
         
@@ -55,15 +55,15 @@ class Server:
         self.current_time = current_time if current_time is not None else time.time()
         self.last_time = self.current_time
 
-        self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
+        # self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
         
-        # self.vel_publisher = rospy.Publisher('/shafter3d/reference', PoseStamped, queue_size = 1)
+        self.vel_publisher = rospy.Publisher('/shafter2/reference', PoseStamped, queue_size = 1)
         
         self.vel_msg = PoseStamped()
 
-        self.safety_publisher = rospy.Publisher('/hummingbird/safety_land', String, queue_size= 10)
+        # self.safety_publisher = rospy.Publisher('/hummingbird/safety_land', String, queue_size= 10)
         
-        # self.safety_publisher = rospy.Publisher('/shafter3d/safety_land', String, queue_size= 10)
+        self.safety_publisher = rospy.Publisher('/shafter2/safety_land', String, queue_size= 10)
         
         self.safety_msg = String()
 
@@ -73,14 +73,14 @@ class Server:
         self.explore_publisher = rospy.Publisher('/explore', String, queue_size= 10)
         self.explore_command = String()
         
-        rospy.Subscriber("/hummingbird/ground_truth/odometry", Odometry, self.read_callback)
-        # rospy.Subscriber("/odometry/imu", Odometry, self.read_callback)
+        # rospy.Subscriber("/hummingbird/ground_truth/odometry", Odometry, self.read_callback)
+        rospy.Subscriber("/shafter2/odometry/imu", Odometry, self.read_callback)
 
         rospy.Subscriber('/return_home',  String, self.return_to_base)
 
-        self.waypoint_subscriber = rospy.Subscriber('/hummingbird/exploration_path', path, self.waypoint_callback)
+        # self.waypoint_subscriber = rospy.Subscriber('/hummingbird/exploration_path', path, self.waypoint_callback)
         
-        # self.waypoint_subscriber = rospy.Subscriber('/shafter3d/exploration_path', path, self.waypoint_callback)
+        self.waypoint_subscriber = rospy.Subscriber('/shafter2/exploration_path', path, self.waypoint_callback)
 
         self.f_x = 0
         self.f_y = 0
@@ -121,7 +121,7 @@ class Server:
 
         self.vel_msg.header = std_msgs.msg.Header()
         self.vel_msg.header.stamp = rospy.Time.now()
-        self.vel_msg.header.frame_id = 'world'
+        self.vel_msg.header.frame_id = 'shafter2/world'
         # self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
         self.vel_msg.pose.position.x = self.x_r
         self.vel_msg.pose.position.y = self.y_r

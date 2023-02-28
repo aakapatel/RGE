@@ -3,7 +3,7 @@
 
   <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen"> -->
 
-      <param name="/ODOM_FRAME_ID_" type="str" value="world"/>
+      <param name="/ODOM_FRAME_ID_" type="str" value="shafter2/world"/>
       
       <param name="/INITIALIZE_" type="bool" value="True" />
 
@@ -50,17 +50,17 @@
 
       <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
 
-      <remap from="/ODOMETRY_IN_" to="/hummingbird/ground_truth/odometry"/>
+      <!-- <remap from="/ODOMETRY_IN_" to="/hummingbird/ground_truth/odometry"/> -->
       
-      <!-- <remap from="/ODOMETRY_IN_" to="/odometry/imu" /> -->
+      <remap from="/ODOMETRY_IN_" to="/shafter2/odometry/imu" />
 
-      <remap from="/REF_TOPIC_" to="/hummingbird/reference" />
+      <!-- <remap from="/REF_TOPIC_" to="/hummingbird/reference" /> -->
       
-      <!-- <remap from="/REF_TOPIC_" to="/shafter3d/reference" /> -->
+      <remap from="/REF_TOPIC_" to="/shafter2/reference" />
 
-      <remap from="/PATH_TOPIC_" to="/hummingbird/exploration_path" />
+      <!-- <remap from="/PATH_TOPIC_" to="/hummingbird/exploration_path" /> -->
       
-      <!-- <remap from="/PATH_TOPIC_" to="shafter3d/exploration_path" /> -->
+      <remap from="/PATH_TOPIC_" to="shafter2/exploration_path" />
 
       <remap from="/UFOMAP_" to="/ufomap_mapping_server_node/map"/>
 
