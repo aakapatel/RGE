@@ -434,6 +434,37 @@ ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
+bool isInCollision(ufo::map::OccupancyMapColor const &map,
+                   ufo::geometry::BoundingVar const &bounding_volume,
+                   bool occupied_space = true, bool free_space = false,
+                   bool unknown_space = false, ufo::map::DepthType min_depth = PLANNING_CHECK_DEPTH)
+{
+  for (auto it = map.beginLeaves(bounding_volume, occupied_space,
+                                 free_space, unknown_space, false, min_depth),
+            it_end = map.endLeaves();
+       it != it_end; ++it)
+  {
+    return true;
+  }
+  return false;
+}
+
+ufo::geometry::OBB makeOBB (ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius) {
+
+  ufo::math::Vector3 direction = goal - source;
+  ufo::math::Vector3 center = source + (direction / 2.0);
+  double distance = direction.norm();
+  direction /= distance;
+  double yaw = -atan2(direction[1], direction[0]);
+  double pitch = -asin(direction[2]);
+  double roll = 0; // TODO: Fix
+  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, radius, radius),
+                          ufo::math::Quaternion(roll, pitch, yaw));
+  
+  return obb;
+
+}
+
 // TUNE GRAPH GENERATION. LOCAL AND GLOBAL PLANNING SPACE CONFIGURED HERE.
 
 void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, ufo::map::OccupancyMapColor const &map, bool occupied_space, bool free_space, bool unknown_space, float given_x,
@@ -527,21 +558,6 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
   SCALER_X = highest_x - lowest_x;
   SCALER_Y = highest_y - lowest_y;
   SCALER_Z = highest_z - lowest_z;
-}
-
-bool isInCollision(ufo::map::OccupancyMapColor const &map,
-                   ufo::geometry::BoundingVar const &bounding_volume,
-                   bool occupied_space = true, bool free_space = false,
-                   bool unknown_space = false, ufo::map::DepthType min_depth = PLANNING_CHECK_DEPTH)
-{
-  for (auto it = map.beginLeaves(bounding_volume, occupied_space,
-                                 free_space, unknown_space, false, min_depth),
-            it_end = map.endLeaves();
-       it != it_end; ++it)
-  {
-    return true;
-  }
-  return false;
 }
 
 std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std::vector<planning_node> all_nodes, ufo::map::OccupancyMapColor const &map)
@@ -658,15 +674,16 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
       };
       ufo::math::Vector3 start_point(parent->point->x(), parent->point->y(), parent->point->z());
       ufo::math::Vector3 direction = random_point - start_point;
+      ufo::geometry::LineSegment myline(random_point, start_point);
       ufo::math::Vector3 center = start_point + (direction / 2.0);
       double dis = direction.norm();
       direction /= dis;
       double yaw = -atan2(direction[1], direction[0]);
       double pitch = -asin(direction[2]);
       double roll = 0; // TODO: Fix
-      ufo::geometry::OBB obb(center, ufo::math::Vector3(dis / 2.0, RAW_GRAPH_COLISSION_MARGIN, RAW_GRAPH_COLISSION_MARGIN),
-                             ufo::math::Quaternion(roll, pitch, yaw));
-      if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+      // ufo::geometry::OBB obb(center, ufo::math::Vector3(dis / 2.0, RAW_GRAPH_COLISSION_MARGIN, RAW_GRAPH_COLISSION_MARGIN),
+      //                        ufo::math::Quaternion(roll, pitch, yaw));
+      if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH))
       {
         node *new_node = new node(x, y, z);
         new_node->addParent(parent);
@@ -1090,9 +1107,11 @@ nav_msgs::Path backTrack(bool backtrack)
   if (backtrack)
   {
 
-    for (auto backtrack_it = old_poses.list.rbegin(); backtrack_it != std::next(old_poses.list.rend(), 5); backtrack_it++)
+    for (auto backtrack_it = old_poses.list.rbegin(); backtrack_it != (old_poses.list.rend()); backtrack_it++)
     {
+      
       geometry_msgs::PoseStamped global_nodes2;
+
       global_nodes2.pose.position.x = backtrack_it->x();
       global_nodes2.pose.position.y = backtrack_it->y();
       global_nodes2.pose.position.z = backtrack_it->z();
@@ -1102,6 +1121,15 @@ nav_msgs::Path backTrack(bool backtrack)
       global_nodes2.header.stamp = ros::Time::now();
       global_nodes2.header.frame_id = ODOM_FRAME_ID;
       retrace.poses.push_back(global_nodes2);
+      ufo::geometry::OBB obb = makeOBB(*backtrack_it, current.end_pt, 0.5);
+      if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
+        global_nodes2.pose.position.x = current.end_pt.x();
+        global_nodes2.pose.position.y = current.end_pt.y();
+        global_nodes2.pose.position.z = current.end_pt.z();
+        retrace.poses.push_back(global_nodes2);
+        published.reference = publish_goal(current.end_pt);
+        break;
+      }
     }
   }
 
@@ -1259,23 +1287,6 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
     home.navigate = true;
   }
 }
-
-ufo::geometry::OBB makeOBB (ufo::math::Vector3 source, ufo::math::Vector3 goal, float radius) {
-
-  ufo::math::Vector3 direction = goal - source;
-  ufo::math::Vector3 center = source + (direction / 2.0);
-  double distance = direction.norm();
-  direction /= distance;
-  double yaw = -atan2(direction[1], direction[0]);
-  double pitch = -asin(direction[2]);
-  double roll = 0; // TODO: Fix
-  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, radius, radius),
-                          ufo::math::Quaternion(roll, pitch, yaw));
-  
-  return obb;
-
-}
-
 
 void fetchUnknownNodes(ufo::math::Vector3 point, 
                                 ufo::map::OccupancyMapColor const& map){
@@ -1833,14 +1844,9 @@ void graph_navigation(bool local_nav)
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     // cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 
-    // cout<< "\033[;32mPlanned path is composed of these nodes: \033[0m\n ";
-
-    for (auto vert_it = std::next(planned.traj.begin(), PLANNING_CHECK_DEPTH); vert_it != planned.traj.end(); vert_it++)
+    for (auto vert_it = std::next(planned.traj.begin(), 0); vert_it != planned.traj.end(); vert_it++)
     {
-      // cout << "X : " << ((*vert_it)).x << "\n ";
-      // cout << "Y : " << ((*vert_it)).y << "\n ";
-      // cout << "Z : " << ((*vert_it)).z << "\n ";
-      // cout << "--------" << "\n ";
+
       geometry_msgs::PoseStamped global_nodes;
       global_nodes.pose.position.x = ((*vert_it)).x;
       global_nodes.pose.position.y = ((*vert_it)).y;
@@ -1892,7 +1898,8 @@ void graph_navigation(bool local_nav)
 
     planning.improve = true;
   label:
-    if (planned.traj.size() < 3 and reiterate < 3)
+    if (planned.traj.size() < 3 and reiterate < 5)
+    // if (planned.traj.size() < 3)
     {
       cout << "it .. : " << reiterate << endl;
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
@@ -1968,18 +1975,6 @@ void return_to_base_planning()
   buildPlanningGraph(true, false, planning.improve, reiterate, scale_range);
   findPath();
 
-label:
-  if (planned.traj.empty())
-  {
-    reiterate = reiterate + 1;
-    scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
-    std::cout << "\nCould not find a valid homing path... requesting improvement.... \n";
-    planning.improve = true;
-    buildPlanningGraph(true, false, planning.improve, reiterate, scale_range);
-    findPath();
-    goto label;
-  }
-
   if (!planned.traj.empty())
   {
 
@@ -1988,10 +1983,7 @@ label:
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     cout << "\n\033[;34mReturn to base planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 
-    if (planned.traj.size() > 1)
-    {
-
-      for (auto vert_it = std::next(planned.traj.begin(), PLANNING_CHECK_DEPTH); vert_it != std::prev(planned.traj.end(), PLANNING_CHECK_DEPTH); vert_it++)
+      for (auto vert_it = std::next(planned.traj.begin(), 0); vert_it != std::prev(planned.traj.end(), 0); vert_it++)
       {
 
         geometry_msgs::PoseStamped global_nodes;
@@ -2009,12 +2001,6 @@ label:
         current.path.path = current.temppath_homing;
         current.path.type.data = "homing";
       }
-    }
-    else
-    {
-
-      goto label;
-    }
 
     pub.path_to_goal_pub.publish(current.path);
     pub.homing_path_pub.publish(current.temppath_homing);
