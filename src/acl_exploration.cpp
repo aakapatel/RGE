@@ -678,6 +678,324 @@ std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std
   return (found_path);
 }
 
+
+void visualize()
+{
+  visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, CURRENT_GOAL, CHOSEN_PATH_line_list,
+      ALC_points, current_unknowns, current_unknown_line_list, local_unknowns, global_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
+      local_frontier_nodes, global_frontier_nodes;
+
+  if (!current.unknowns.empty())
+  {
+    current_unknowns.header.frame_id = current_unknown_line_list.header.frame_id = ODOM_FRAME_ID;
+    current_unknowns.ns = "all";
+    current_unknowns.action = visualization_msgs::Marker::ADD;
+    current_unknowns.pose.orientation.w = 1.0;
+    current_unknowns.id = 0;
+    current_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
+    current_unknowns.scale.x = 0.4;
+    current_unknowns.scale.y = 0.4;
+    current_unknowns.scale.z = 0.4;
+    current_unknowns.color.b = 1;
+    current_unknowns.color.a = 0.8;
+    current_unknown_line_list.ns = "lines";
+    current_unknown_line_list.id = 1;
+    current_unknown_line_list.type = visualization_msgs::Marker::LINE_LIST;
+    current_unknown_line_list.scale.x = 0.1;
+    // GRAPH_line_list.color.r = 0.8;
+    current_unknown_line_list.color.g = 0.8;
+    current_unknown_line_list.color.b = 0.2;
+    current_unknown_line_list.color.a = 0.8;
+
+    // for (auto it_c = current.unknowns.begin(); it_c != current.unknowns.end(); it_c++)
+    // {
+    //   geometry_msgs::Point unknown;
+    //   unknown.x = (*it_c).x();
+    //   unknown.y = (*it_c).y();
+    //   unknown.z = (*it_c).z();
+    //   current_unknowns.points.push_back(unknown);
+
+    // }
+
+    std::list<node *>::iterator it_vis;
+    for (it_vis = skeleton.begin(); it_vis != skeleton.end(); it_vis++)
+    {
+      geometry_msgs::Point p;
+      p.x = (*it_vis)->point->x();
+      p.y = (*it_vis)->point->y();
+      p.z = (*it_vis)->point->z();
+      current_unknowns.points.push_back(p);
+      if ((*it_vis)->myParent != nullptr)
+      {
+        current_unknown_line_list.points.push_back(p);
+        p.x = (*it_vis)->myParent->point->x();
+        p.y = (*it_vis)->myParent->point->y();
+        p.z = (*it_vis)->myParent->point->z();
+        current_unknown_line_list.points.push_back(p);
+      }
+    }
+
+    pub.current_unknowns_visualization_pub.publish(current_unknowns);
+    pub.current_unknowns_visualization_pub.publish(current_unknown_line_list);
+  }
+
+  if (!local.unknowns.empty())
+  {
+    local_unknowns.header.frame_id = ODOM_FRAME_ID;
+    local_unknowns.ns = "local";
+    local_unknowns.action = visualization_msgs::Marker::ADD;
+    local_unknowns.pose.orientation.w = 1.0;
+    local_unknowns.id = 1;
+    local_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
+    local_unknowns.scale.x = 0.44;
+    local_unknowns.scale.y = 0.44;
+    local_unknowns.scale.z = 0.44;
+    local_unknowns.color.r = 0.0;
+    local_unknowns.color.g = 1;
+    local_unknowns.color.b = 0.0;
+    local_unknowns.color.a = 1;
+    
+    for (auto it_c = local.unknowns.begin(); it_c != local.unknowns.end(); it_c++)
+    {
+      geometry_msgs::Point unknown;
+      unknown.x = (*it_c).x();
+      unknown.y = (*it_c).y();
+      unknown.z = (*it_c).z();
+      local_unknowns.points.push_back(unknown);
+
+    }
+    pub.current_unknowns_visualization_pub.publish(local_unknowns);
+  }
+
+    if (!global.unknowns.empty())
+  {
+    global_unknowns.header.frame_id = ODOM_FRAME_ID;
+    global_unknowns.ns = "global";
+    global_unknowns.action = visualization_msgs::Marker::ADD;
+    global_unknowns.pose.orientation.w = 1.0;
+    global_unknowns.id = 2;
+    global_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
+    global_unknowns.scale.x = 0.44;
+    global_unknowns.scale.y = 0.44;
+    global_unknowns.scale.z = 0.44;
+    global_unknowns.color.r = 0.6;
+    global_unknowns.color.g = 0;
+    global_unknowns.color.b = 0;
+    global_unknowns.color.a = 1;
+    
+    for (auto it_c = global.unknowns.begin(); it_c != global.unknowns.end(); it_c++)
+    {
+      geometry_msgs::Point unknown;
+      unknown.x = (*it_c).x();
+      unknown.y = (*it_c).y();
+      unknown.z = (*it_c).z();
+      global_unknowns.points.push_back(unknown);
+
+    }
+    pub.current_unknowns_visualization_pub.publish(global_unknowns);
+  }
+
+  CURRENT_GOAL.header.frame_id = ODOM_FRAME_ID;
+  CURRENT_GOAL.ns = "goal";
+  CURRENT_GOAL.action = visualization_msgs::Marker::ADD;
+  CURRENT_GOAL.pose.position.x = current.end_pt.x();
+  CURRENT_GOAL.pose.position.y = current.end_pt.y();
+  CURRENT_GOAL.pose.position.z = current.end_pt.z();
+  CURRENT_GOAL.pose.orientation.x = 0;
+  CURRENT_GOAL.pose.orientation.y = 0;
+  CURRENT_GOAL.pose.orientation.z = 0;
+  CURRENT_GOAL.pose.orientation.w = 1;
+  CURRENT_GOAL.id = 0;
+  CURRENT_GOAL.type = visualization_msgs::Marker::SPHERE;
+  CURRENT_GOAL.scale.x = 2.5;
+  CURRENT_GOAL.scale.y = 2.5;
+  CURRENT_GOAL.scale.z = 2.5;
+  CURRENT_GOAL.color.r = 0.58;
+  CURRENT_GOAL.color.g = 0.77;
+  CURRENT_GOAL.color.b = 0.45;
+  CURRENT_GOAL.color.a = 0.6;
+  pub.current_goal_vis_pub.publish(CURRENT_GOAL);
+
+  if (!Global_Graph.empty())
+  {
+    GRAPH_nodes.header.frame_id = GRAPH_line_list.header.frame_id = ODOM_FRAME_ID;
+    GRAPH_nodes.ns = "points";
+    GRAPH_line_list.ns = "lines";
+    GRAPH_nodes.action = visualization_msgs::Marker::ADD;
+    GRAPH_nodes.pose.orientation.w = 1.0;
+    GRAPH_nodes.id = 0;
+    GRAPH_line_list.id = 1;
+    GRAPH_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
+    GRAPH_line_list.type = visualization_msgs::Marker::LINE_LIST;
+    GRAPH_nodes.scale.x = 0.4;
+    GRAPH_nodes.scale.y = 0.4;
+    GRAPH_nodes.scale.z = 0.4;
+    GRAPH_line_list.scale.x = 0.1;
+    GRAPH_nodes.color.r = 0.8f;
+    GRAPH_nodes.color.g = 0.8f;
+    GRAPH_nodes.color.b = 0.8;
+    GRAPH_nodes.color.a = 0.8;
+    // GRAPH_line_list.color.r = 0.8;
+    GRAPH_line_list.color.g = 0.8;
+    GRAPH_line_list.color.b = 0.2;
+    GRAPH_line_list.color.a = 0.8;
+    std::list<node *>::iterator it_vis;
+    for (it_vis = Global_Graph.begin(); it_vis != Global_Graph.end(); it_vis++)
+    {
+      geometry_msgs::Point p;
+      p.x = (*it_vis)->point->x();
+      p.y = (*it_vis)->point->y();
+      p.z = (*it_vis)->point->z();
+      GRAPH_nodes.points.push_back(p);
+      if ((*it_vis)->myParent != nullptr)
+      {
+        GRAPH_line_list.points.push_back(p);
+        p.x = (*it_vis)->myParent->point->x();
+        p.y = (*it_vis)->myParent->point->y();
+        p.z = (*it_vis)->myParent->point->z();
+        GRAPH_line_list.points.push_back(p);
+      }
+    }
+    pub.points_pub.publish(GRAPH_nodes);
+    pub.points_pub.publish(GRAPH_line_list);
+  }
+
+  if (!ALC_POINTS.empty())
+  {
+    ALC_points.header.frame_id = ALC_line_list.header.frame_id = ODOM_FRAME_ID;
+    ALC_points.ns = "points";
+    ALC_points.action = visualization_msgs::Marker::ADD;
+    ALC_points.pose.orientation.w = 1.0;
+    ALC_points.id = 0;
+    ALC_line_list.id = 1;
+    ALC_points.type = visualization_msgs::Marker::POINTS;
+    ALC_line_list.type = visualization_msgs::Marker::LINE_LIST;
+    ALC_points.scale.x = 0.2;
+    ALC_points.scale.y = 0.2;
+    ALC_line_list.scale.x = 0.1;
+    ALC_points.color.r = 0.8f;
+    ALC_points.color.b = 0.8f;
+    ALC_points.color.a = 1.0;
+    ALC_line_list.color.b = 1.0;
+    ALC_line_list.color.a = 1.0;
+    std::list<node *>::iterator it_vis9;
+    for (it_vis9 = ALC_POINTS.begin(); it_vis9 != ALC_POINTS.end(); it_vis9++)
+    {
+      geometry_msgs::Point point1;
+      point1.x = (*it_vis9)->point->x();
+      point1.y = (*it_vis9)->point->y();
+      point1.z = (*it_vis9)->point->z();
+      ALC_points.points.push_back(point1);
+      // geometry_msgs::Point point2;
+      // point2.x = (*(std::next(it_vis9, 1)))->point->x();
+      // point2.y = (*(std::next(it_vis9, 1)))->point->y();
+      // point2.z = (*(std::next(it_vis9, 1)))->point->z();
+      // ALC_line_list.points.push_back(point1);
+      // ALC_line_list.points.push_back(point2);
+    }
+    pub.alc_points_visualization_pub.publish(ALC_points);
+    // pub.alc_path_visualization_pub.publish(ALC_line_list);
+  }
+
+  if (!traversable.list.empty())
+  {
+    TRAVERSABLE_points.header.frame_id = ODOM_FRAME_ID;
+    TRAVERSABLE_points.ns = "points";
+    TRAVERSABLE_points.action = visualization_msgs::Marker::ADD;
+    TRAVERSABLE_points.pose.orientation.w = 1.0;
+    TRAVERSABLE_points.id = 0;
+    TRAVERSABLE_points.type = visualization_msgs::Marker::SPHERE_LIST;
+    TRAVERSABLE_points.scale.x = 0.6;
+    TRAVERSABLE_points.color.r = 0.0f;
+    TRAVERSABLE_points.color.g = 1.0f;
+    TRAVERSABLE_points.color.b = 1.0f;
+    TRAVERSABLE_points.color.a = 1.0;
+    std::list<ufo::math::Vector3>::iterator it_vis2;
+    for (it_vis2 = traversable.list.begin(); it_vis2 != traversable.list.end(); it_vis2++)
+    {
+      geometry_msgs::Point p;
+      p.x = it_vis2->x();
+      p.y = it_vis2->y();
+      p.z = it_vis2->z();
+      TRAVERSABLE_points.points.push_back(p);
+    }
+    pub.hits_pub.publish(TRAVERSABLE_points);
+  }
+
+  if (!local.list.empty())
+  {
+    local_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
+    local_frontier_nodes.ns = "points";
+    local_frontier_nodes.action = visualization_msgs::Marker::ADD;
+    local_frontier_nodes.pose.orientation.w = 1.0;
+    local_frontier_nodes.id = 0;
+    local_frontier_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
+    local_frontier_nodes.scale.x = 0.5;
+    local_frontier_nodes.scale.y = 0.5;
+    local_frontier_nodes.scale.z = 0.5;
+    local_frontier_nodes.color.g = 0.7f;
+    local_frontier_nodes.color.a = 0.6;
+    std::list<ufo::math::Vector3>::iterator it_vis3;
+    for (it_vis3 = local.list.begin(); it_vis3 != local.list.end(); it_vis3++)
+    {
+      geometry_msgs::Point p;
+      p.x = it_vis3->x();
+      p.y = it_vis3->y();
+      p.z = it_vis3->z();
+      local_frontier_nodes.points.push_back(p);
+    }
+    pub.local_nodes_pub.publish(local_frontier_nodes);
+  }
+
+  if (!global.list.empty())
+  {
+    global_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
+    global_frontier_nodes.ns = "points";
+    global_frontier_nodes.action = visualization_msgs::Marker::ADD;
+    global_frontier_nodes.pose.orientation.w = 1.0;
+    global_frontier_nodes.id = 0;
+    global_frontier_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
+    global_frontier_nodes.scale.x = 0.4;
+    global_frontier_nodes.color.b = 0.8f;
+    global_frontier_nodes.color.r = 0.8f;
+    global_frontier_nodes.color.g = 0.8f;
+    global_frontier_nodes.color.a = 0.6;
+    std::list<ufo::math::Vector3>::iterator it_vis5;
+    for (it_vis5 = global.list.begin(); it_vis5 != global.list.end(); it_vis5++)
+    {
+      geometry_msgs::Point p0;
+      p0.x = it_vis5->x();
+      p0.y = it_vis5->y();
+      p0.z = it_vis5->z();
+      global_frontier_nodes.points.push_back(p0);
+    }
+    pub.global_nodes_pub.publish(global_frontier_nodes);
+  }
+
+  if (!old_poses.list.empty())
+  {
+    nav_msgs::Path exploration_path;
+    for (auto visited_it = old_poses.list.begin(); visited_it != old_poses.list.end(); visited_it++)
+    {
+      geometry_msgs::PoseStamped past_pose;
+      past_pose.header.stamp = ros::Time::now();
+      past_pose.header.frame_id = ODOM_FRAME_ID;
+      past_pose.pose.position.x = visited_it->x();
+      past_pose.pose.position.y = visited_it->y();
+      past_pose.pose.position.z = visited_it->z();
+      past_pose.pose.orientation.x = 0;
+      past_pose.pose.orientation.y = 0;
+      past_pose.pose.orientation.z = 0;
+      past_pose.pose.orientation.w = 0;
+      exploration_path.poses.push_back(past_pose);
+    }
+    exploration_path.header.stamp = ros::Time::now();
+    exploration_path.header.frame_id = ODOM_FRAME_ID;
+    pub.explored_path.publish(exploration_path);
+  }
+}
+
+
 double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2)
 {
   double dist = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) + pow(point1.z() - point2.z(), 2));
@@ -842,7 +1160,7 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
     pen = nearest_dis;
     if (pen < mypen)
     {
-    double radius = 2;
+    double radius = 1;
     ufo::geometry::Sphere sphere(*((*rit)->point), radius);
     if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
     {
@@ -898,8 +1216,14 @@ node *switchedGlobalFrontier(std::list<ufo::math::Vector3> global)
     pen = nearest_dis;
     if (pen < mypen)
     {
+    double radius = 1;
+    ufo::geometry::Sphere sphere(*((*rit)->point), radius);
+    if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
+    {
       mypen = pen;
       my_nod = *rit;
+    }
+
     }
   }
   return my_nod;
@@ -1499,7 +1823,7 @@ void exploreLocally()
     if (pen < mypen)
     {
 
-    double radius = 2;
+    double radius = 1;
     ufo::geometry::Sphere sphere(*((*rit)->point), radius);
     if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
     {
@@ -1666,11 +1990,11 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
     // ALC_POINTS = LoopClosurePath(all.list);
 
-    for (auto graph_it = child_nodes.begin(); graph_it != child_nodes.end(); graph_it++)
+    for (auto graph_it = parent_nodes.begin(); graph_it != parent_nodes.end(); graph_it++)
     {
       ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
 
-      for (auto graph_it2 =  parent_nodes.begin(); graph_it2 != parent_nodes.end(); graph_it2++) {
+      for (auto graph_it2 =  child_nodes.begin(); graph_it2 != child_nodes.end(); graph_it2++) {
       // for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++){
 
         // ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
@@ -1831,7 +2155,7 @@ void findPath()
 
 void graph_navigation(bool local_nav)
 {
-
+  jump_here:
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   double reiterate = 1;
   double scale_range = 1;
@@ -1839,7 +2163,7 @@ void graph_navigation(bool local_nav)
   buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
   findPath();
 
-  if (planned.traj.size() >= 3)
+  if (planned.traj.size() >= 2)
   {
 
     planning.improve = false;
@@ -1860,7 +2184,7 @@ void graph_navigation(bool local_nav)
       global_nodes.pose.orientation.x = 0;
       global_nodes.pose.orientation.y = 0;
       double head_ref;
-      if (vert_it != std::prev(planned.traj.end(),2)) {
+      if (vert_it != std::prev(planned.traj.end(),1)) {
         head_ref = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
                               ((*std::next(vert_it,1))).x - ((*vert_it)).x );
       } else {
@@ -1909,9 +2233,15 @@ void graph_navigation(bool local_nav)
   {
     planning.improve = true;
   label:
-    if (planned.traj.size() < 3 and reiterate < 5)
-    // if (planned.traj.size() < 3)
+    // if (planned.traj.size() < 3 and reiterate < 5)
+    if (planned.traj.size() < 2)
     {
+      if (switch_global.navigate or home.navigate) {
+        
+        switch_global.navigate = false;
+        goto jump_here;
+      }
+      visualize();
       cout << "it .. : " << reiterate << endl;
       std::cout << "\nCould not find a good path... requesting improvement.... \n";
       reiterate = reiterate + 1;
@@ -1921,9 +2251,8 @@ void graph_navigation(bool local_nav)
       findPath();
       goto label;
     }
-    else if (planned.traj.size() < 3)
+    else if (planned.traj.size() < 2)
     {
-
       start_backtrack.navigate = true;
 
       nav_msgs::Path retrace_path = backTrack(start_backtrack.navigate);
@@ -1971,8 +2300,8 @@ void graph_navigation(bool local_nav)
       current.path.type.data.clear();
       current.temppath_global.poses.clear();
     }
+    
   }
-
   planned.traj.clear();
 }
 
@@ -2021,322 +2350,6 @@ void return_to_base_planning()
   }
 
   planned.traj.clear();
-}
-
-void visualize()
-{
-  visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, CURRENT_GOAL, CHOSEN_PATH_line_list,
-      ALC_points, current_unknowns, current_unknown_line_list, local_unknowns, global_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
-      local_frontier_nodes, global_frontier_nodes;
-
-  if (!current.unknowns.empty())
-  {
-    current_unknowns.header.frame_id = current_unknown_line_list.header.frame_id = ODOM_FRAME_ID;
-    current_unknowns.ns = "all";
-    current_unknowns.action = visualization_msgs::Marker::ADD;
-    current_unknowns.pose.orientation.w = 1.0;
-    current_unknowns.id = 0;
-    current_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
-    current_unknowns.scale.x = 0.4;
-    current_unknowns.scale.y = 0.4;
-    current_unknowns.scale.z = 0.4;
-    current_unknowns.color.b = 1;
-    current_unknowns.color.a = 0.8;
-    current_unknown_line_list.ns = "lines";
-    current_unknown_line_list.id = 1;
-    current_unknown_line_list.type = visualization_msgs::Marker::LINE_LIST;
-    current_unknown_line_list.scale.x = 0.1;
-    // GRAPH_line_list.color.r = 0.8;
-    current_unknown_line_list.color.g = 0.8;
-    current_unknown_line_list.color.b = 0.2;
-    current_unknown_line_list.color.a = 0.8;
-
-    // for (auto it_c = current.unknowns.begin(); it_c != current.unknowns.end(); it_c++)
-    // {
-    //   geometry_msgs::Point unknown;
-    //   unknown.x = (*it_c).x();
-    //   unknown.y = (*it_c).y();
-    //   unknown.z = (*it_c).z();
-    //   current_unknowns.points.push_back(unknown);
-
-    // }
-
-    std::list<node *>::iterator it_vis;
-    for (it_vis = skeleton.begin(); it_vis != skeleton.end(); it_vis++)
-    {
-      geometry_msgs::Point p;
-      p.x = (*it_vis)->point->x();
-      p.y = (*it_vis)->point->y();
-      p.z = (*it_vis)->point->z();
-      current_unknowns.points.push_back(p);
-      if ((*it_vis)->myParent != nullptr)
-      {
-        current_unknown_line_list.points.push_back(p);
-        p.x = (*it_vis)->myParent->point->x();
-        p.y = (*it_vis)->myParent->point->y();
-        p.z = (*it_vis)->myParent->point->z();
-        current_unknown_line_list.points.push_back(p);
-      }
-    }
-
-    pub.current_unknowns_visualization_pub.publish(current_unknowns);
-    pub.current_unknowns_visualization_pub.publish(current_unknown_line_list);
-  }
-
-  if (!local.unknowns.empty())
-  {
-    local_unknowns.header.frame_id = ODOM_FRAME_ID;
-    local_unknowns.ns = "local";
-    local_unknowns.action = visualization_msgs::Marker::ADD;
-    local_unknowns.pose.orientation.w = 1.0;
-    local_unknowns.id = 1;
-    local_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
-    local_unknowns.scale.x = 0.44;
-    local_unknowns.scale.y = 0.44;
-    local_unknowns.scale.z = 0.44;
-    local_unknowns.color.r = 0.0;
-    local_unknowns.color.g = 1;
-    local_unknowns.color.b = 0.0;
-    local_unknowns.color.a = 1;
-    
-    for (auto it_c = local.unknowns.begin(); it_c != local.unknowns.end(); it_c++)
-    {
-      geometry_msgs::Point unknown;
-      unknown.x = (*it_c).x();
-      unknown.y = (*it_c).y();
-      unknown.z = (*it_c).z();
-      local_unknowns.points.push_back(unknown);
-
-    }
-    pub.current_unknowns_visualization_pub.publish(local_unknowns);
-  }
-
-    if (!global.unknowns.empty())
-  {
-    global_unknowns.header.frame_id = ODOM_FRAME_ID;
-    global_unknowns.ns = "global";
-    global_unknowns.action = visualization_msgs::Marker::ADD;
-    global_unknowns.pose.orientation.w = 1.0;
-    global_unknowns.id = 2;
-    global_unknowns.type = visualization_msgs::Marker::SPHERE_LIST;
-    global_unknowns.scale.x = 0.44;
-    global_unknowns.scale.y = 0.44;
-    global_unknowns.scale.z = 0.44;
-    global_unknowns.color.r = 0.6;
-    global_unknowns.color.g = 0;
-    global_unknowns.color.b = 0;
-    global_unknowns.color.a = 1;
-    
-    for (auto it_c = global.unknowns.begin(); it_c != global.unknowns.end(); it_c++)
-    {
-      geometry_msgs::Point unknown;
-      unknown.x = (*it_c).x();
-      unknown.y = (*it_c).y();
-      unknown.z = (*it_c).z();
-      global_unknowns.points.push_back(unknown);
-
-    }
-    pub.current_unknowns_visualization_pub.publish(global_unknowns);
-  }
-
-  CURRENT_GOAL.header.frame_id = ODOM_FRAME_ID;
-  CURRENT_GOAL.ns = "goal";
-  CURRENT_GOAL.action = visualization_msgs::Marker::ADD;
-  CURRENT_GOAL.pose.position.x = current.end_pt.x();
-  CURRENT_GOAL.pose.position.y = current.end_pt.y();
-  CURRENT_GOAL.pose.position.z = current.end_pt.z();
-  CURRENT_GOAL.pose.orientation.x = 0;
-  CURRENT_GOAL.pose.orientation.y = 0;
-  CURRENT_GOAL.pose.orientation.z = 0;
-  CURRENT_GOAL.pose.orientation.w = 1;
-  CURRENT_GOAL.id = 0;
-  CURRENT_GOAL.type = visualization_msgs::Marker::SPHERE;
-  CURRENT_GOAL.scale.x = 2.5;
-  CURRENT_GOAL.scale.y = 2.5;
-  CURRENT_GOAL.scale.z = 2.5;
-  CURRENT_GOAL.color.r = 0.58;
-  CURRENT_GOAL.color.g = 0.77;
-  CURRENT_GOAL.color.b = 0.45;
-  CURRENT_GOAL.color.a = 0.6;
-  pub.current_goal_vis_pub.publish(CURRENT_GOAL);
-
-  if (!Global_Graph.empty())
-  {
-    GRAPH_nodes.header.frame_id = GRAPH_line_list.header.frame_id = ODOM_FRAME_ID;
-    GRAPH_nodes.ns = "points";
-    GRAPH_line_list.ns = "lines";
-    GRAPH_nodes.action = visualization_msgs::Marker::ADD;
-    GRAPH_nodes.pose.orientation.w = 1.0;
-    GRAPH_nodes.id = 0;
-    GRAPH_line_list.id = 1;
-    GRAPH_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
-    GRAPH_line_list.type = visualization_msgs::Marker::LINE_LIST;
-    GRAPH_nodes.scale.x = 0.4;
-    GRAPH_nodes.scale.y = 0.4;
-    GRAPH_nodes.scale.z = 0.4;
-    GRAPH_line_list.scale.x = 0.1;
-    GRAPH_nodes.color.r = 0.8f;
-    GRAPH_nodes.color.g = 0.8f;
-    GRAPH_nodes.color.b = 0.8;
-    GRAPH_nodes.color.a = 0.8;
-    // GRAPH_line_list.color.r = 0.8;
-    GRAPH_line_list.color.g = 0.8;
-    GRAPH_line_list.color.b = 0.2;
-    GRAPH_line_list.color.a = 0.8;
-    std::list<node *>::iterator it_vis;
-    for (it_vis = Global_Graph.begin(); it_vis != Global_Graph.end(); it_vis++)
-    {
-      geometry_msgs::Point p;
-      p.x = (*it_vis)->point->x();
-      p.y = (*it_vis)->point->y();
-      p.z = (*it_vis)->point->z();
-      GRAPH_nodes.points.push_back(p);
-      if ((*it_vis)->myParent != nullptr)
-      {
-        GRAPH_line_list.points.push_back(p);
-        p.x = (*it_vis)->myParent->point->x();
-        p.y = (*it_vis)->myParent->point->y();
-        p.z = (*it_vis)->myParent->point->z();
-        GRAPH_line_list.points.push_back(p);
-      }
-    }
-    pub.points_pub.publish(GRAPH_nodes);
-    pub.points_pub.publish(GRAPH_line_list);
-  }
-
-  if (!ALC_POINTS.empty())
-  {
-    ALC_points.header.frame_id = ALC_line_list.header.frame_id = ODOM_FRAME_ID;
-    ALC_points.ns = "points";
-    ALC_points.action = visualization_msgs::Marker::ADD;
-    ALC_points.pose.orientation.w = 1.0;
-    ALC_points.id = 0;
-    ALC_line_list.id = 1;
-    ALC_points.type = visualization_msgs::Marker::POINTS;
-    ALC_line_list.type = visualization_msgs::Marker::LINE_LIST;
-    ALC_points.scale.x = 0.2;
-    ALC_points.scale.y = 0.2;
-    ALC_line_list.scale.x = 0.1;
-    ALC_points.color.r = 0.8f;
-    ALC_points.color.b = 0.8f;
-    ALC_points.color.a = 1.0;
-    ALC_line_list.color.b = 1.0;
-    ALC_line_list.color.a = 1.0;
-    std::list<node *>::iterator it_vis9;
-    for (it_vis9 = ALC_POINTS.begin(); it_vis9 != ALC_POINTS.end(); it_vis9++)
-    {
-      geometry_msgs::Point point1;
-      point1.x = (*it_vis9)->point->x();
-      point1.y = (*it_vis9)->point->y();
-      point1.z = (*it_vis9)->point->z();
-      ALC_points.points.push_back(point1);
-      // geometry_msgs::Point point2;
-      // point2.x = (*(std::next(it_vis9, 1)))->point->x();
-      // point2.y = (*(std::next(it_vis9, 1)))->point->y();
-      // point2.z = (*(std::next(it_vis9, 1)))->point->z();
-      // ALC_line_list.points.push_back(point1);
-      // ALC_line_list.points.push_back(point2);
-    }
-    pub.alc_points_visualization_pub.publish(ALC_points);
-    // pub.alc_path_visualization_pub.publish(ALC_line_list);
-  }
-
-  if (!traversable.list.empty())
-  {
-    TRAVERSABLE_points.header.frame_id = ODOM_FRAME_ID;
-    TRAVERSABLE_points.ns = "points";
-    TRAVERSABLE_points.action = visualization_msgs::Marker::ADD;
-    TRAVERSABLE_points.pose.orientation.w = 1.0;
-    TRAVERSABLE_points.id = 0;
-    TRAVERSABLE_points.type = visualization_msgs::Marker::SPHERE_LIST;
-    TRAVERSABLE_points.scale.x = 0.6;
-    TRAVERSABLE_points.color.r = 0.0f;
-    TRAVERSABLE_points.color.g = 1.0f;
-    TRAVERSABLE_points.color.b = 1.0f;
-    TRAVERSABLE_points.color.a = 1.0;
-    std::list<ufo::math::Vector3>::iterator it_vis2;
-    for (it_vis2 = traversable.list.begin(); it_vis2 != traversable.list.end(); it_vis2++)
-    {
-      geometry_msgs::Point p;
-      p.x = it_vis2->x();
-      p.y = it_vis2->y();
-      p.z = it_vis2->z();
-      TRAVERSABLE_points.points.push_back(p);
-    }
-    pub.hits_pub.publish(TRAVERSABLE_points);
-  }
-
-  if (!local.list.empty())
-  {
-    local_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
-    local_frontier_nodes.ns = "points";
-    local_frontier_nodes.action = visualization_msgs::Marker::ADD;
-    local_frontier_nodes.pose.orientation.w = 1.0;
-    local_frontier_nodes.id = 0;
-    local_frontier_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
-    local_frontier_nodes.scale.x = 0.5;
-    local_frontier_nodes.scale.y = 0.5;
-    local_frontier_nodes.scale.z = 0.5;
-    local_frontier_nodes.color.g = 0.7f;
-    local_frontier_nodes.color.a = 0.6;
-    std::list<ufo::math::Vector3>::iterator it_vis3;
-    for (it_vis3 = local.list.begin(); it_vis3 != local.list.end(); it_vis3++)
-    {
-      geometry_msgs::Point p;
-      p.x = it_vis3->x();
-      p.y = it_vis3->y();
-      p.z = it_vis3->z();
-      local_frontier_nodes.points.push_back(p);
-    }
-    pub.local_nodes_pub.publish(local_frontier_nodes);
-  }
-
-  if (!global.list.empty())
-  {
-    global_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
-    global_frontier_nodes.ns = "points";
-    global_frontier_nodes.action = visualization_msgs::Marker::ADD;
-    global_frontier_nodes.pose.orientation.w = 1.0;
-    global_frontier_nodes.id = 0;
-    global_frontier_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
-    global_frontier_nodes.scale.x = 0.4;
-    global_frontier_nodes.color.b = 0.8f;
-    global_frontier_nodes.color.r = 0.8f;
-    global_frontier_nodes.color.g = 0.8f;
-    global_frontier_nodes.color.a = 0.6;
-    std::list<ufo::math::Vector3>::iterator it_vis5;
-    for (it_vis5 = global.list.begin(); it_vis5 != global.list.end(); it_vis5++)
-    {
-      geometry_msgs::Point p0;
-      p0.x = it_vis5->x();
-      p0.y = it_vis5->y();
-      p0.z = it_vis5->z();
-      global_frontier_nodes.points.push_back(p0);
-    }
-    pub.global_nodes_pub.publish(global_frontier_nodes);
-  }
-
-  if (!old_poses.list.empty())
-  {
-    nav_msgs::Path exploration_path;
-    for (auto visited_it = old_poses.list.begin(); visited_it != old_poses.list.end(); visited_it++)
-    {
-      geometry_msgs::PoseStamped past_pose;
-      past_pose.header.stamp = ros::Time::now();
-      past_pose.header.frame_id = ODOM_FRAME_ID;
-      past_pose.pose.position.x = visited_it->x();
-      past_pose.pose.position.y = visited_it->y();
-      past_pose.pose.position.z = visited_it->z();
-      past_pose.pose.orientation.x = 0;
-      past_pose.pose.orientation.y = 0;
-      past_pose.pose.orientation.z = 0;
-      past_pose.pose.orientation.w = 0;
-      exploration_path.poses.push_back(past_pose);
-    }
-    exploration_path.header.stamp = ros::Time::now();
-    exploration_path.header.frame_id = ODOM_FRAME_ID;
-    pub.explored_path.publish(exploration_path);
-  }
 }
 
 //----------------------------------------- MAIN ---------------------------------------------------//
@@ -2437,7 +2450,6 @@ int main(int argc, char *argv[])
     /*
       main computations to be executed here on
     */
-    visualize();
 
     if (firstTime and explore.navigate and INITIALIZE)
     {
@@ -2456,12 +2468,9 @@ int main(int argc, char *argv[])
       published.reference = first_ref;
     }
 
-    
-          
-      
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
-      fetchUnknownNodes(current.position, ufoMAP);
+      // fetchUnknownNodes(current.position, ufoMAP);
 
       // lookAround();
 

@@ -50,7 +50,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -61,10 +61,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 1
-        "# Leaf Nodes": 0
+        "# Inner Nodes": 24 705
+        "# Leaf Nodes": 64 128
         Resolution: 40 cm
-        Size: 24 bytes
+        Size: 1,05 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -115,8 +115,8 @@ Visualization Manager:
     - Alpha: 0.019999999552965164
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 6.9829535484313965
-        Min Value: -0.012418031692504883
+        Max Value: 3.531986951828003
+        Min Value: -5.008556842803955
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -133,8 +133,8 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 1
-      Size (m): 0.009999999776482582
-      Style: Points
+      Size (m): 0.03999999910593033
+      Style: Squares
       Topic: /hummingbird/velodyne_points
       Unreliable: false
       Use Fixed Frame: true
@@ -178,7 +178,7 @@ Visualization Manager:
       Marker Topic: /Traversable_frontiers
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -194,7 +194,8 @@ Visualization Manager:
       Marker Topic: /planning_graph
       Name: Marker
       Namespaces:
-        {}
+        lines: true
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -202,7 +203,7 @@ Visualization Manager:
       Marker Topic: /ROBOT_BOX
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -385,9 +386,7 @@ Visualization Manager:
       Marker Topic: /current_unknowns
       Name: Marker
       Namespaces:
-        all: false
-        lines: false
-        local: true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -418,7 +417,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 51.78635025024414
+      Distance: 53.369895935058594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -426,9 +425,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.7054437398910522
-        Y: -0.8933948278427124
-        Z: -3.6930224895477295
+        X: -19.968605041503906
+        Y: -5.665124893188477
+        Z: -2.2206830978393555
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -436,7 +435,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 1.5654747486114502
+      Yaw: 1.4954763650894165
     Saved: ~
 Window Geometry:
   Displays:
@@ -455,4 +454,4 @@ Window Geometry:
     collapsed: true
   Width: 1864
   X: 3416
-  Y: 330
+  Y: 313

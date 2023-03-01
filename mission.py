@@ -15,7 +15,7 @@ import subprocess
 
 import math
 
-WP_SIZE = 1.2
+WP_SIZE = 0.6
 
 return_flag = 0
 m = 0
