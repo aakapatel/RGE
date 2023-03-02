@@ -2045,7 +2045,7 @@ void visualize()
     current_unknown_line_list.id = 1;
     current_unknown_line_list.type = visualization_msgs::Marker::LINE_LIST;
     current_unknown_line_list.scale.x = 0.1;
-    // GRAPH_line_list.color.r = 0.8;
+    GRAPH_line_list.color.r = 0.8;
     current_unknown_line_list.color.g = 0.8;
     current_unknown_line_list.color.b = 0.2;
     current_unknown_line_list.color.a = 0.8;
