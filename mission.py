@@ -73,8 +73,8 @@ class Server:
         self.explore_publisher = rospy.Publisher('/explore', String, queue_size= 10)
         self.explore_command = String()
         
-        rospy.Subscriber("/sim_p3at/odom", Odometry, self.read_callback)
-        # rospy.Subscriber("/odometry/imu", Odometry, self.read_callback)
+        # rospy.Subscriber("/sim_p3at/odom", Odometry, self.read_callback)
+        rospy.Subscriber("/odometry/imu", Odometry, self.read_callback)
 
         rospy.Subscriber('/return_home',  String, self.return_to_base)
 

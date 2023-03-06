@@ -22,8 +22,8 @@
 		<!-- maximum range to integrate (speedup!) -->
 		<param name="sensor_model/max_range" value="5" />
 
-		<!-- <param name="odometry" value="hummingbird/ground_truth/odometry" /> -->
-		<param name="odometry" value="/sim_p3at/odom" />
+		<param name="odometry" value="/odometry/imu" />
+		<!-- <param name="odometry" value="/sim_p3at/odom" /> -->
 
 		<!-- data source to integrate (PointCloud2) -->
 

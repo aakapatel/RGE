@@ -50,9 +50,9 @@
 
       <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
 
-      <remap from="/ODOMETRY_IN_" to="/sim_p3at/odom"/>
+      <!-- <remap from="/ODOMETRY_IN_" to="/sim_p3at/odom"/> -->
       
-      <!-- <remap from="/ODOMETRY_IN_" to="/odometry/imu" /> -->
+      <remap from="/ODOMETRY_IN_" to="/odometry/imu" />
 
       <remap from="/REF_TOPIC_" to="/pioneer/reference" />
       
