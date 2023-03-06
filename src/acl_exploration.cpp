@@ -478,42 +478,42 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
 
-  if (local_graph)
-  {
+  // if (local_graph)
+  // {
 
     ufo::math::Vector3 current_point(given_x, given_y, given_z);
-    ufo::geometry::OBB obb = makeOBB(current_point, end_point, 10);
+  //   ufo::geometry::OBB obb = makeOBB(current_point, end_point, 10);
 
-    for (auto it = map.beginLeaves(obb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it)
-    {
-      if (it.getX() > highest_x)
-      {
-        highest_x = it.getX();
-      }
-      if (it.getX() < lowest_x)
-      {
-        lowest_x = it.getX();
-      }
-      if (it.getY() > highest_y)
-      {
-        highest_y = it.getY();
-      }
-      if (it.getY() < lowest_y)
-      {
-        lowest_y = it.getY();
-      }
-      if (it.getZ() > highest_z)
-      {
-        highest_z = it.getZ();
-      }
-      if (it.getZ() < lowest_z)
-      {
-        lowest_z = it.getZ();
-      }
-    }
-  }
-  else
-  {
+  //   for (auto it = map.beginLeaves(obb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it)
+  //   {
+  //     if (it.getX() > highest_x)
+  //     {
+  //       highest_x = it.getX();
+  //     }
+  //     if (it.getX() < lowest_x)
+  //     {
+  //       lowest_x = it.getX();
+  //     }
+  //     if (it.getY() > highest_y)
+  //     {
+  //       highest_y = it.getY();
+  //     }
+  //     if (it.getY() < lowest_y)
+  //     {
+  //       lowest_y = it.getY();
+  //     }
+  //     if (it.getZ() > highest_z)
+  //     {
+  //       highest_z = it.getZ();
+  //     }
+  //     if (it.getZ() < lowest_z)
+  //     {
+  //       lowest_z = it.getZ();
+  //     }
+  //   }
+  // }
+  // else
+  // {
 
     ufo::math::Vector3 minPoint(given_x - 1 * range, given_y - 1 * range, given_z - 1 * range);
     ufo::math::Vector3 maxPoint(given_x + 1 * range, given_y + 1 * range, given_z + 1 * range);
@@ -545,7 +545,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
         lowest_z = it.getZ();
       }
     }
-  }
+  // }
 
   SCALER_X = highest_x - lowest_x;
   SCALER_Y = highest_y - lowest_y;
@@ -576,7 +576,8 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
     // Generate a random point
     float x = lowest_x + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_X;
     float y = lowest_y + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Y;
-    float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
+    // float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
+    float z = current.position.z() + abs(1024 * rand() / (RAND_MAX + 1.0)) * 1.1;
     // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
     ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
@@ -1282,7 +1283,7 @@ bool next_pub()
   ufo::math::Vector3 pos;
   pos.x() = published.reference.pose.position.x;
   pos.y() = published.reference.pose.position.y;
-  pos.z() = published.reference.pose.position.z;
+  pos.z() = 0;
   double pub_dis = calculateDistance(pos, current.position);
   double angle = calculateAngle(pos, current.position, current.heading);
 

@@ -3,19 +3,19 @@
 
   <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen"> -->
 
-      <param name="/ODOM_FRAME_ID_" type="str" value="world"/>
+      <param name="/ODOM_FRAME_ID_" type="str" value="odom"/>
       
       <param name="/INITIALIZE_" type="bool" value="True" />
 
-      <param name="/FIRST_REF_X_" type="double" value="0" />
+      <param name="/FIRST_REF_X_" type="double" value="8" />
       <param name="/FIRST_REF_Y_" type="double" value="0" />
-      <param name="/FIRST_REF_Z_" type="double" value="1.5" />
+      <param name="/FIRST_REF_Z_" type="double" value="0" />
       
       <param name="/RESOLUTION_" type="double" value="0.4" />
       
       <param name="/RADIOUS_" type="double" value="0.6" />
       
-      <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
+      <param name="/NEXT_PUB_DISTANCE_" type="double" value="1" />
       
       <param name="/LOCAL_RANGE_" type="double" value="14" />
       
@@ -50,15 +50,15 @@
 
       <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">
 
-      <remap from="/ODOMETRY_IN_" to="/hummingbird/ground_truth/odometry"/>
+      <remap from="/ODOMETRY_IN_" to="/sim_p3at/odom"/>
       
       <!-- <remap from="/ODOMETRY_IN_" to="/odometry/imu" /> -->
 
-      <remap from="/REF_TOPIC_" to="/hummingbird/reference" />
+      <remap from="/REF_TOPIC_" to="/pioneer/reference" />
       
       <!-- <remap from="/REF_TOPIC_" to="/shafter3d/reference" /> -->
 
-      <remap from="/PATH_TOPIC_" to="/hummingbird/exploration_path" />
+      <remap from="/PATH_TOPIC_" to="/pioneer/exploration_path" />
       
       <!-- <remap from="/PATH_TOPIC_" to="shafter3d/exploration_path" /> -->
 
