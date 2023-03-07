@@ -62,10 +62,17 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
+<<<<<<< HEAD
         "# Inner Nodes": 1
         "# Leaf Nodes": 0
         Resolution: 40 cm
         Size: 24 bytes
+=======
+        "# Inner Nodes": 10 721
+        "# Leaf Nodes": 27 408
+        Resolution: 40 cm
+        Size: 465,40 KiB
+>>>>>>> mytemp
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -116,8 +123,13 @@ Visualization Manager:
     - Alpha: 0.019999999552965164
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
+<<<<<<< HEAD
         Max Value: 5.353719234466553
         Min Value: -0.00836092233657837
+=======
+        Max Value: 3.785886526107788
+        Min Value: -0.09882831573486328
+>>>>>>> mytemp
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -417,7 +429,11 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
+<<<<<<< HEAD
       Distance: 61.747039794921875
+=======
+      Distance: 36.45960235595703
+>>>>>>> mytemp
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -425,17 +441,28 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
+<<<<<<< HEAD
         X: -0.6731206178665161
         Y: 2.4295928478240967
         Z: -2.228168487548828
+=======
+        X: -1.2437188625335693
+        Y: -2.479494094848633
+        Z: -2.978301763534546
+>>>>>>> mytemp
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
+<<<<<<< HEAD
       Target Frame: base_link
       Yaw: 1.550476312637329
+=======
+      Target Frame: hummingbird/base_link
+      Yaw: 1.585476279258728
+>>>>>>> mytemp
     Saved: ~
 Window Geometry:
   Displays:
