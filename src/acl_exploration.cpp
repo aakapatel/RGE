@@ -393,6 +393,7 @@ std::list<ufo::math::Vector3> accessible;
 std::list<ufo::math::Vector3> positionslist;
 
 std::list<struct node *> Global_Graph{};
+std::list<struct node *> Local_Planning_Graph{};
 std::list<struct node *> skeleton{};
 std::list<struct node *> CHOSEN_PATH{};
 std::list<double> CHOSEN_PATH_VREF{};
@@ -562,12 +563,12 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
 
   Global_Graph.clear();
   // std::cout << "\nBuilding graph... " << std::endl;
-  node *origin = new node(given_x, given_y, given_z);
-  node *goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
-  goal_pt->addParent(nullptr);
-  origin->addParent(nullptr);
-  Global_Graph.push_back(origin);
-  Global_Graph.push_back(goal_pt);
+  node *current_pos = new node(given_x, given_y, given_z);
+  // node *goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
+  // goal_pt->addParent(nullptr);
+  current_pos->addParent(nullptr);
+  Global_Graph.push_back(current_pos);
+  // Global_Graph.push_back(goal_pt);
 
   srand(time(0));
   itterations = 0;
@@ -816,7 +817,7 @@ void visualize()
   CURRENT_GOAL.color.a = 0.6;
   pub.current_goal_vis_pub.publish(CURRENT_GOAL);
 
-  if (!Global_Graph.empty())
+  if (!Local_Planning_Graph.empty())
   {
     GRAPH_nodes.header.frame_id = GRAPH_line_list.header.frame_id = ODOM_FRAME_ID;
     GRAPH_nodes.ns = "points";
@@ -827,12 +828,12 @@ void visualize()
     GRAPH_line_list.id = 1;
     GRAPH_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
     GRAPH_line_list.type = visualization_msgs::Marker::LINE_LIST;
-    GRAPH_nodes.scale.x = 0.4;
-    GRAPH_nodes.scale.y = 0.4;
-    GRAPH_nodes.scale.z = 0.4;
-    GRAPH_line_list.scale.x = 0.1;
-    GRAPH_nodes.color.r = 0.8f;
-    GRAPH_nodes.color.g = 0.8f;
+    GRAPH_nodes.scale.x = 0.2;
+    GRAPH_nodes.scale.y = 0.2;
+    GRAPH_nodes.scale.z = 0.2;
+    GRAPH_line_list.scale.x = 0.05;
+    GRAPH_nodes.color.r = 0.8;
+    GRAPH_nodes.color.g = 0.8;
     GRAPH_nodes.color.b = 0.8;
     GRAPH_nodes.color.a = 0.8;
     // GRAPH_line_list.color.r = 0.8;
@@ -840,7 +841,7 @@ void visualize()
     GRAPH_line_list.color.b = 0.2;
     GRAPH_line_list.color.a = 0.8;
     std::list<node *>::iterator it_vis;
-    for (it_vis = Global_Graph.begin(); it_vis != Global_Graph.end(); it_vis++)
+    for (it_vis = Local_Planning_Graph.begin(); it_vis != Local_Planning_Graph.end(); it_vis++)
     {
       geometry_msgs::Point p;
       p.x = (*it_vis)->point->x();
@@ -1063,11 +1064,10 @@ double calculateAngle(ufo::math::Vector3 fpoint, ufo::math::Vector3 position,
   return angle;
 }
 
-bool isLocal(ufo::math::Vector3 front, ufo::math::Vector3 position,
-             double heading)
+bool isLocal(ufo::math::Vector3 front)
 {
-  double angle = calculateAngle(front, position, heading);
-  double distance = calculateDistance(front, position);
+  double angle = calculateAngle(front, current.position, current.heading);
+  double distance = calculateDistance(front, current.position);
   if (((angle < 40) && (angle > -40)) && distance < LOCAL_RANGE)
   {
     return true;
@@ -1477,7 +1477,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
     {
       mylist.push_back(frontier_point);
       all.list = mylist;
-      if (isLocal(frontier_point, current.position, current.heading))
+      if (isLocal(frontier_point))
       {
         mylist1.push_back(frontier_point);
         local.list = mylist1;
@@ -1736,7 +1736,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
 
     for (ufo::math::Vector3 unknown_node : current.unknowns) {
 
-      if (isLocal(unknown_node, current.position, current.heading)) {
+      if (isLocal(unknown_node)) {
 
         local.unknowns.push_back(unknown_node);
       } else {
@@ -1877,6 +1877,12 @@ void fetchGlobalFrontier()
 void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, double reit, double range_up_scale)
 {
 
+  for (std::list<node *>::iterator it_clear_helper = Local_Planning_Graph.begin(); it_clear_helper != --Local_Planning_Graph.end(); it_clear_helper++)
+  {
+    (*it_clear_helper)->readyForDeletion();
+    delete (*it_clear_helper);
+  }
+
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   int max_it;
   float planning_range;
@@ -1889,7 +1895,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
   my_nodes.clear();
   parent_nodes.clear();
   child_nodes.clear();
-
+  Local_Planning_Graph.clear();
   if (go_home)
   {
 
@@ -1990,11 +1996,11 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
     // ALC_POINTS = LoopClosurePath(all.list);
 
-    for (auto graph_it = parent_nodes.begin(); graph_it != parent_nodes.end(); graph_it++)
+    for (auto graph_it = parent_nodes.begin(); graph_it != --parent_nodes.end(); graph_it++)
     {
       ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
 
-      for (auto graph_it2 =  child_nodes.begin(); graph_it2 != child_nodes.end(); graph_it2++) {
+      for (auto graph_it2 =  graph_it; graph_it2 != parent_nodes.end(); graph_it2++) {
       // for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++){
 
         // ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
@@ -2006,26 +2012,45 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         if (local_exploration)
         {
-          if (isLocal(d2, current.position, current.heading) and isLocal(d1, current.position, current.heading) and range < 2)
+          if (isLocal(d2) and isLocal(d1) and range < 2)
           {
-            // if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) 
-            if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
+            if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) 
+            // if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
             {
-              planning.node_container.push_back(*graph_it2);
+              planning.node_container.push_back(*graph_it);
               (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
+
+                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
+                                                        (*graph_it).myposition.z);
+                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
+                                                        (*graph_it2).myposition.z);
+                child_node->addParent(parent_node);
+                parent_node->addChild(child_node);
+                Local_Planning_Graph.push_back(child_node);
+
+  
             }
           }
         }
         else
         {
           if (range < 4) {
-            // if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) 
-            if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
+            if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) 
+            // if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
             {
-              planning.node_container.push_back(*graph_it2);
+              planning.node_container.push_back(*graph_it);
               (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
+
+                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
+                                                        (*graph_it).myposition.z);
+                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
+                                                        (*graph_it2).myposition.z);
+                child_node->addParent(parent_node);
+                parent_node->addChild(child_node);
+                Local_Planning_Graph.push_back(child_node);
+
             }
           }
         }
