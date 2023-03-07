@@ -15,7 +15,7 @@ import subprocess
 
 import math
 
-WP_SIZE = 1.2
+WP_SIZE = 0.6
 
 return_flag = 0
 m = 0
@@ -119,16 +119,16 @@ class Server:
             self.y_r = self.path.poses[self.wp_index].pose.position.y
             self.z_r = self.path.poses[self.wp_index].pose.position.z
 
-        header = std_msgs.msg.Header()
-        header.stamp = rospy.Time.now()
-        header.frame_id = 'world'
-        self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
+        self.vel_msg.header = std_msgs.msg.Header()
+        self.vel_msg.header.stamp = rospy.Time.now()
+        self.vel_msg.header.frame_id = 'world'
+        # self.heading_ref = math.atan2((self.y_r - self.y_c), (self.x_r - self.x_c))
         self.vel_msg.pose.position.x = self.x_r
         self.vel_msg.pose.position.y = self.y_r
         self.vel_msg.pose.position.z = self.z_r
         self.vel_msg.pose.orientation.x = 0
         self.vel_msg.pose.orientation.y = 0
-        self.vel_msg.pose.orientation.z = self.heading_ref
+        self.vel_msg.pose.orientation.z = self.path.poses[self.wp_index].pose.orientation.z
         self.vel_msg.pose.orientation.w = 0
         self.vel_publisher.publish(self.vel_msg)
 
@@ -168,7 +168,7 @@ class Server:
                 print("Homing path requested")
                 if (self.waypoint and self.path_type == "homing"):
                     self.navigate()
-                    print("Returning To Base ^_^ ^_^ ")
+                    print("Returning To Base ----    ^_^ ^_^ ")
                     
                 if (self.d < 1.5):
                     self.safety_publisher.publish(self.safety_msg)
@@ -184,7 +184,7 @@ class Server:
 
             if (self.waypoint and self.path_type == "homing"):
                 self.navigate()
-                print("Returning To Base ^_^ ^_^ ")
+                print("Returning To Base ----    ^_^ ^_^ ")
                 
                 if (self.d < 1.5):
                     self.safety_publisher.publish(self.safety_msg)

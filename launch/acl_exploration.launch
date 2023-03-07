@@ -8,19 +8,19 @@
 		<param name="zFiltering" value="true" />
 		<param name="publish_the_map" value="false" />
 
-		<param name="resolution" value="0.25" />
+		<param name="resolution" value="0.2" />
 		<!-- <param name="cloud_in" value="/camera/depth/color/points" /> -->
 
 		<param name="cloud_in" value="/hummingbird/velodyne_points" />
 		<!-- <param name="cloud_in" value="/velodyne_points" /> -->
 
-		<param name="distance" value="11" />
+		<param name="distance" value="4" />
 
 		<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
 		<param name="frame_id" type="string" value="world" />
 
 		<!-- maximum range to integrate (speedup!) -->
-		<param name="sensor_model/max_range" value="14" />
+		<param name="sensor_model/max_range" value="5" />
 
 		<param name="odometry" value="hummingbird/ground_truth/odometry" />
 		<!-- <param name="odometry" value="/odometry/imu" /> -->
@@ -55,17 +55,17 @@
 		<!-- <param name="robot_frame_id" value="base_link" /> -->
 
 		<param name="num_workers" value="$(arg num_workers)" />
-		<param name="max_range" value="40" />
+		<param name="max_range" value="16" />
 		<param name="min_range" value="0.5" />
 		<param name="robot_radius" value="0.5" />
 		<param name="robot_height" value="0.5" />
 		<param name="compress" value="True" />
 
-		<param name="clear_robot" value="True" />
+		<!-- <param name="clear_robot" value="False" /> -->
 
 		<!-- FOR SHAFTER/PIONEER/SPOT CLEAR ROBOT SHOULD BE SET TO TRUE -->
 
-		<!-- <param name="clear_robot" value="True" /> -->
+		<param name="clear_robot" value="True" />
 
 		<param name="clearing_depth" value="0" />
 		<param name="publish_depth" value="0" />
