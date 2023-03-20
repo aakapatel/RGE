@@ -1993,11 +1993,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
       for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++)
       {
-        // if ((*insert_helper)->myParent != nullptr) {
-        // cout << "\nparent X is " << ((((*insert_helper))->myParent)->point)->x() << endl;
-        // }
-        // cout << "\nchild X is " << ((*insert_helper)->point)->x() << endl;
-
         child_nodes.push_back({Graph::Point{(((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z())}});
         if ((*insert_helper)->myParent != nullptr) {
           parent_nodes.push_back({Graph::Point{((((*insert_helper))->myParent)->point)->x(), ((((*insert_helper))->myParent)->point)->y(),
@@ -2041,7 +2036,28 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
       ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
 
-      if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH))
+      if (local_exploration) {
+
+        if (calculateDistance(n1, current.position) < LOCAL_RANGE and calculateDistance(n2, current.position) < LOCAL_RANGE) {
+          if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) 
+                  && !isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+          {
+            planning.node_container.push_back(*(i)->first);
+            planning.node_container.push_back(*(i)->second);
+            (*(i)->first).AddConnection(*(i)->second);
+            (*(i)->second).AddConnection(*(i)->first);
+            node *parent_node = new node(((*i).first)->myposition.x, ((*i).first)->myposition.y,
+                                         ((*i).first)->myposition.z);
+            node *child_node = new node(((*i).second)->myposition.x, ((*i).second)->myposition.y,
+                                        ((*i).second)->myposition.z);
+            child_node->addParent(parent_node);
+            parent_node->addChild(child_node);
+            Local_Planning_Graph.push_back(child_node);
+          }
+        }
+      }
+      else if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) 
+                  && !isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
       {
         planning.node_container.push_back(*(i)->first);
         planning.node_container.push_back(*(i)->second);
@@ -2056,75 +2072,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         Local_Planning_Graph.push_back(child_node);
       }
     }
-
-    // for (auto graph_it = parent_nodes.begin(); graph_it != --parent_nodes.end(); graph_it++)
-    // {
-    //   ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
-
-    //   for (auto graph_it2 =  graph_it; graph_it2 != parent_nodes.end(); graph_it2++) {
-    //   // for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++){
-
-    //     // ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
-    //     ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
-
-    //     ufo::geometry::OBB obb = makeOBB (d1, d2, PLANNING_GRAPH_COLISSION_MARGIN);   
-    //     // ufo::geometry::LineSegment line_check(d1, d2);                       
-    //     double range = calculateDistance(d1, d2);
-
-    //     if (local_exploration)
-    //     {
-    //       if (calculateDistance(current.position,d1) < LOCAL_RANGE and calculateDistance(current.position,d2) < LOCAL_RANGE and range < 4 and range > 2)
-    //       {
-    //         if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) 
-    //         // if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
-    //         {
-    //           planning.node_container.push_back(*graph_it);
-    //           // (*graph_it).AddConnection(*graph_it2);
-    //           (*graph_it2).AddConnection(*graph_it);
-
-    //           // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
-
-    //                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
-    //                                                        (*graph_it).myposition.z);
-    //                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
-    //                                                        (*graph_it2).myposition.z);
-    //                child_node->addParent(parent_node);
-    //                parent_node->addChild(child_node);
-    //                Local_Planning_Graph.push_back(child_node);
-
-    //           // }
-    //         }
-    //       }
-    //     }
-    //     else
-    //     {
-    //       if (range > 2 and range < 4) {
-    //         if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) 
-    //         // if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
-    //         {
-    //           planning.node_container.push_back(*graph_it);
-    //           // (*graph_it).AddConnection(*graph_it2);
-    //           (*graph_it2).AddConnection(*graph_it);
-
-
-    //           // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
-
-    //                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
-    //                                                        (*graph_it).myposition.z);
-    //                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
-    //                                                        (*graph_it2).myposition.z);
-    //                child_node->addParent(parent_node);
-    //                parent_node->addChild(child_node);
-    //                Local_Planning_Graph.push_back(child_node);
-
-
-    //           // }
-
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
   }
 
   if (home.navigate)
