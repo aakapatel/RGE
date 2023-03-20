@@ -1997,7 +1997,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
 
         double dist = calculateDistance(p1,p2);
-        if (dist < 4) {
+        if (dist > 2 and dist < 4) {
           PAIRS.push_back(std::make_pair(it, it2));
         }
       }
