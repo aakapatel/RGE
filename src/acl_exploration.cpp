@@ -454,6 +454,12 @@ ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
 
+double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2)
+{
+  double dist = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) + pow(point1.z() - point2.z(), 2));
+  return dist;
+}
+
 bool isInCollision(ufo::map::OccupancyMapColor const &map,
                    ufo::geometry::BoundingVar const &bounding_volume,
                    bool occupied_space = true, bool free_space = false,
@@ -619,7 +625,8 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
       ufo::math::Vector3 direction = random_point - start_point;
       ufo::geometry::LineSegment myline(random_point, start_point);
       // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
-      if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH))
+      if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) 
+                and calculateDistance(random_point, start_point) > 1)
         // if (isCollisionFreeLine(ufoMAP, start_point, random_point, 0))
 
         {
@@ -849,17 +856,17 @@ void visualize()
     GRAPH_line_list.id = 1;
     GRAPH_nodes.type = visualization_msgs::Marker::SPHERE_LIST;
     GRAPH_line_list.type = visualization_msgs::Marker::LINE_LIST;
-    GRAPH_nodes.scale.x = 0.2;
-    GRAPH_nodes.scale.y = 0.2;
-    GRAPH_nodes.scale.z = 0.2;
+    GRAPH_nodes.scale.x = 0.4;
+    GRAPH_nodes.scale.y = 0.4;
+    GRAPH_nodes.scale.z = 0.4;
     GRAPH_line_list.scale.x = 0.01;
     GRAPH_nodes.color.r = 0.8;
-    GRAPH_nodes.color.g = 0.8;
-    GRAPH_nodes.color.b = 0.8;
+    // GRAPH_nodes.color.g = 0.8;
+    // GRAPH_nodes.color.b = 0.8;
     GRAPH_nodes.color.a = 1;
-    // GRAPH_line_list.color.r = 0.8;
-    GRAPH_line_list.color.g = 0.8;
-    //GRAPH_line_list.color.b = 0.2;
+    GRAPH_line_list.color.r = 0.5;
+    GRAPH_line_list.color.g = 0.5;
+    GRAPH_line_list.color.b = 0.5;
     GRAPH_line_list.color.a = 0.8;
     std::list<node *>::iterator it_vis;
     for (it_vis = Local_Planning_Graph.begin(); it_vis != Local_Planning_Graph.end(); it_vis++)
@@ -1015,13 +1022,6 @@ void visualize()
     exploration_path.header.frame_id = ODOM_FRAME_ID;
     pub.explored_path.publish(exploration_path);
   }
-}
-
-
-double calculateDistance(ufo::math::Vector3 point1, ufo::math::Vector3 point2)
-{
-  double dist = sqrt(pow(point1.x() - point2.x(), 2) + pow(point1.y() - point2.y(), 2) + pow(point1.z() - point2.z(), 2));
-  return dist;
 }
 
 void fetchTraversable(std::list<ufo::math::Vector3> frontier_list)
