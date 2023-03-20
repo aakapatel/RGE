@@ -1494,7 +1494,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
     ufo::geometry::Sphere sphere(frontier_point, RAW_FRONTIERS_COLISSION_MARGIN);
-    if (!isInCollision(ufoMAP, sphere, true, false, false, PLANNING_CHECK_DEPTH))
+    if (!isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
     {
       mylist.push_back(frontier_point);
       all.list = mylist;
@@ -2022,13 +2022,13 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
 
         double dist = calculateDistance(p1,p2);
-        if (dist > 2 and dist < 4) {
+        if (dist < 4) {
           PAIRS.push_back(std::make_pair(it, it2));
         }
       }
     }
 
-    cout << "pair check " << PAIRS.size() << endl;
+    // cout << "pair check " << PAIRS.size() << endl;
 
     for (auto i = PAIRS.begin(); i != PAIRS.end(); i++) {
 
@@ -2192,7 +2192,7 @@ void findPath()
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+  // cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 }
 
 void graph_navigation(bool local_nav)
@@ -2278,7 +2278,7 @@ void graph_navigation(bool local_nav)
     planning.improve = true;
   label:
     // if (planned.traj.size() < 3 and reiterate < 5)
-    if (planned.traj.size() < 2)
+    if (planned.traj.size() < 2 )
     {
       if (switch_global.navigate or home.navigate) {
         
@@ -2296,8 +2296,9 @@ void graph_navigation(bool local_nav)
       findPath();
       goto label;
     }
-    else if (planned.traj.size() < 2)
+    else if (planned.traj.size() < 2 and reiterate < 5)
     {
+      return;
       start_backtrack.navigate = true;
 
       nav_msgs::Path retrace_path = backTrack(start_backtrack.navigate);
