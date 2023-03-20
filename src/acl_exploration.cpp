@@ -380,7 +380,7 @@ bool INITIALIZE;
 double FIRST_REF_X;
 double FIRST_REF_Y;
 double FIRST_REF_Z;
-
+double MIN_DIST_NODE;
 double RAW_GRAPH_COLISSION_MARGIN;
 double PLANNING_GRAPH_COLISSION_MARGIN;
 double RAW_FRONTIERS_COLISSION_MARGIN;
@@ -626,7 +626,7 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
       ufo::geometry::LineSegment myline(random_point, start_point);
       // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
       if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) 
-                and calculateDistance(random_point, start_point) > 1)
+                and calculateDistance(random_point, start_point) > MIN_DIST_NODE)
         // if (isCollisionFreeLine(ufoMAP, start_point, random_point, 0))
 
         {
@@ -859,15 +859,15 @@ void visualize()
     GRAPH_nodes.scale.x = 0.4;
     GRAPH_nodes.scale.y = 0.4;
     GRAPH_nodes.scale.z = 0.4;
-    GRAPH_line_list.scale.x = 0.01;
-    GRAPH_nodes.color.r = 0.8;
+    GRAPH_line_list.scale.x = 0.02;
+    GRAPH_nodes.color.r = 1;
     // GRAPH_nodes.color.g = 0.8;
     // GRAPH_nodes.color.b = 0.8;
     GRAPH_nodes.color.a = 1;
-    GRAPH_line_list.color.r = 0.5;
-    GRAPH_line_list.color.g = 0.5;
-    GRAPH_line_list.color.b = 0.5;
-    GRAPH_line_list.color.a = 0.8;
+    GRAPH_line_list.color.r = 1;
+    GRAPH_line_list.color.g = 1;
+    GRAPH_line_list.color.b = 1;
+    GRAPH_line_list.color.a = 1;
     std::list<node *>::iterator it_vis;
     for (it_vis = Local_Planning_Graph.begin(); it_vis != Local_Planning_Graph.end(); it_vis++)
     {
@@ -2028,7 +2028,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       }
     }
 
-    // cout << "pair check " << PAIRS.size() << endl;
+    cout << "pair check " << PAIRS.size() << endl;
 
     for (auto i = PAIRS.begin(); i != PAIRS.end(); i++) {
 
@@ -2087,7 +2087,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
-        ufo::geometry::OBB obb = makeOBB (d2, d1, 0.3);                       
+        ufo::geometry::OBB obb = makeOBB (d2, d1, PLANNING_GRAPH_COLISSION_MARGIN);                       
         // ufo::geometry::LineSegment line_check(d1, d2);
         double rang = calculateDistance(d1, d2);
 
@@ -2097,11 +2097,11 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
           if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) &&
               isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH))
           {
-
-            (*graph_it).AddConnection(*graph_it2);
-            (*graph_it2).AddConnection(*graph_it);
             planning.node_container.push_back(*graph_it2);
             planning.node_container.push_back(*graph_it);
+            (*graph_it).AddConnection(*graph_it2);
+            (*graph_it2).AddConnection(*graph_it);
+
           }
         }
       }
@@ -2192,7 +2192,7 @@ void findPath()
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  // cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+  cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 }
 
 void graph_navigation(bool local_nav)
@@ -2411,6 +2411,7 @@ int main(int argc, char *argv[])
   ros::param::get("/NEXT_PUB_DISTANCE_", NEXT_PUB_DISTANCE);
   ros::param::get("/LOCAL_RANGE_", LOCAL_RANGE);
   ros::param::get("/RAW_GRAPH_COLISSION_MARGIN_", RAW_GRAPH_COLISSION_MARGIN);
+  ros::param::get("/MIN_DIST_NODE_", MIN_DIST_NODE);
   ros::param::get("/PLANNING_GRAPH_COLISSION_MARGIN_", PLANNING_GRAPH_COLISSION_MARGIN);
   ros::param::get("/RAW_FRONTIERS_COLISSION_MARGIN_", RAW_FRONTIERS_COLISSION_MARGIN);
   ros::param::get("/PLANNING_CHECK_DEPTH_", PLANNING_CHECK_DEPTH);
