@@ -12,8 +12,8 @@ find_package(SuiteSparse REQUIRED)
 
 find_package (PCL 1.10 REQUIRED)
 
-set(PCL_INCLUDE_DIRS /usr/include/pcl-1.10 /usr/include/eigen3/) 
-# set(CHOLMOD_LIBRARY /usr/lib/suitesparse) 
+set(PCL_INCLUDE_DIRS /usr/include/pcl-1.10 /usr/include/eigen3/)
+# set(CHOLMOD_LIBRARY /usr/lib/suitesparse)
 
 include_directories(${PCL_INCLUDE_DIRS})
 ##target_link_libraries( ... ${PCL_LIBRARIES})
@@ -32,7 +32,7 @@ endif()
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages	
+## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   ufomap_msgs
@@ -57,12 +57,15 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 find_package(ufomap REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Boost 1.71.0 REQUIRED)
+
 
 generate_dynamic_reconfigure_options(
   cfg/acl_exploration.cfg
 )
 
-include_directories(${catkin_INCLUDE_DIRS}) 
+include_directories( ${Eigen_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -113,15 +116,15 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   geometry_msgs
-  std_msgs 
+  std_msgs
   nav_msgs # Or other packages containing msgs
 )
 
 catkin_package(
-  INCLUDE_DIRS include 
+  INCLUDE_DIRS include
 #  LIBRARIES exploration
- CATKIN_DEPENDS 
- message_runtime 
+ CATKIN_DEPENDS
+ message_runtime
 #  DEPENDS system_lib
 )
 
@@ -130,6 +133,8 @@ include_directories(
     $(OCTOMAP_INCLUDE_DIRS)
     # ${NLOPT_LIBRARIES}
     include/
+    ${Eigen_INCLUDE_DIRS}
+	${Boost_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library

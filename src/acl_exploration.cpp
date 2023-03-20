@@ -1,8 +1,11 @@
 #include <ufo/map/occupancy_map.h>
 #include <ufo/map/occupancy_map_color.h>
-#include <ufomap_msgs/UFOMapStamped.h>
 #include <ufomap_msgs/conversions.h>
+#include <ufomap_msgs/UFOMapMetaData.h>
+#include <ufomap_msgs/UFOMapStamped.h>
 #include <ufomap_ros/conversions.h>
+#include <ufo/map/types.h>
+#include <ufo/math/vector3.h>
 #include <ros/ros.h>
 #include <list>
 #include <iostream>
@@ -39,6 +42,8 @@
 #include <climits>
 #include <memory>
 #include <fstream>
+#include <variant>
+#include <shared_mutex>
 using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
@@ -243,6 +248,9 @@ public:
   }
 };
 
+
+
+
 class Graph
 {
 
@@ -275,6 +283,13 @@ public:
     void AddConnection(planning_node subnode)
     {
       connections->push_back(subnode);
+    }
+    bool connection_exist(){
+        if (connections->size() < 5) {
+            return true;
+        } else {
+            return false;
+        }
     }
   };
 
@@ -430,7 +445,11 @@ Frontier_main resume;
 Frontier_main init;
 Frontier_main lookAt;
 
+
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
+
+// ufo::map::OccupancyMapSmall MAP(RESOLUTION);
+
 // home.navigate = false;
 
 //--------------------------------- FUNCTIONS ----------------------------------------------//
@@ -459,7 +478,7 @@ ufo::geometry::OBB makeOBB (ufo::math::Vector3 source, ufo::math::Vector3 goal, 
   double yaw = -atan2(direction[1], direction[0]);
   double pitch = -asin(direction[2]);
   double roll = 0; // TODO: Fix
-  ufo::geometry::OBB obb(center, ufo::math::Vector3(distance / 2.0, radius, radius),
+  ufo::geometry::OBB obb(center, ufo::map::Point3(distance / 2.0, radius, radius),
                           ufo::math::Quaternion(roll, pitch, yaw));
   
   return obb;
@@ -601,11 +620,13 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
       ufo::geometry::LineSegment myline(random_point, start_point);
       // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
       if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH))
-      {
-        node *new_node = new node(x, y, z);
-        new_node->addParent(parent);
-        parent->addChild(new_node);
-        Global_Graph.push_back(new_node);
+        // if (isCollisionFreeLine(ufoMAP, start_point, random_point, 0))
+
+        {
+          node *new_node = new node(x, y, z);
+          new_node->addParent(parent);
+          parent->addChild(new_node);
+          Global_Graph.push_back(new_node);
       }
     };
     itterations++;
@@ -831,14 +852,14 @@ void visualize()
     GRAPH_nodes.scale.x = 0.2;
     GRAPH_nodes.scale.y = 0.2;
     GRAPH_nodes.scale.z = 0.2;
-    GRAPH_line_list.scale.x = 0.05;
+    GRAPH_line_list.scale.x = 0.01;
     GRAPH_nodes.color.r = 0.8;
     GRAPH_nodes.color.g = 0.8;
     GRAPH_nodes.color.b = 0.8;
-    GRAPH_nodes.color.a = 0.8;
+    GRAPH_nodes.color.a = 1;
     // GRAPH_line_list.color.r = 0.8;
     GRAPH_line_list.color.g = 0.8;
-    GRAPH_line_list.color.b = 0.2;
+    //GRAPH_line_list.color.b = 0.2;
     GRAPH_line_list.color.a = 0.8;
     std::list<node *>::iterator it_vis;
     for (it_vis = Local_Planning_Graph.begin(); it_vis != Local_Planning_Graph.end(); it_vis++)
@@ -2012,44 +2033,52 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         if (local_exploration)
         {
-          if (isLocal(d2) and isLocal(d1) and range < 2)
+          if (calculateDistance(current.position,d1) < LOCAL_RANGE and calculateDistance(current.position,d2) < LOCAL_RANGE and range < 4 and range > 2)
           {
             if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) 
             // if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
             {
               planning.node_container.push_back(*graph_it);
-              (*graph_it).AddConnection(*graph_it2);
+              // (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
 
-                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
-                                                        (*graph_it).myposition.z);
-                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
-                                                        (*graph_it2).myposition.z);
-                child_node->addParent(parent_node);
-                parent_node->addChild(child_node);
-                Local_Planning_Graph.push_back(child_node);
+              // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
 
-  
+                   node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
+                                                           (*graph_it).myposition.z);
+                   node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
+                                                           (*graph_it2).myposition.z);
+                   child_node->addParent(parent_node);
+                   parent_node->addChild(child_node);
+                   Local_Planning_Graph.push_back(child_node);
+
+              // }
             }
           }
         }
         else
         {
-          if (range < 4) {
+          if (range > 2 and range < 4) {
             if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) 
             // if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
             {
               planning.node_container.push_back(*graph_it);
-              (*graph_it).AddConnection(*graph_it2);
+              // (*graph_it).AddConnection(*graph_it2);
               (*graph_it2).AddConnection(*graph_it);
 
-                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
-                                                        (*graph_it).myposition.z);
-                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
-                                                        (*graph_it2).myposition.z);
-                child_node->addParent(parent_node);
-                parent_node->addChild(child_node);
-                Local_Planning_Graph.push_back(child_node);
+
+              // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
+
+                   node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
+                                                           (*graph_it).myposition.z);
+                   node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
+                                                           (*graph_it2).myposition.z);
+                   child_node->addParent(parent_node);
+                   parent_node->addChild(child_node);
+                   Local_Planning_Graph.push_back(child_node);
+
+
+              // }
 
             }
           }
@@ -2071,15 +2100,16 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
-        // ufo::geometry::OBB obb = makeOBB (d2, d1, 0.5);                       
+        ufo::geometry::OBB obb = makeOBB (d2, d1, 0.3);                       
         ufo::geometry::LineSegment line_check(d1, d2);
         double rang = calculateDistance(d1, d2);
 
         if (rang > 1 and rang < 8)
         {
 
-          if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) && 
-                    isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH) ) {
+          if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) &&
+              isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH))
+          {
 
             (*graph_it).AddConnection(*graph_it2);
             (*graph_it2).AddConnection(*graph_it);

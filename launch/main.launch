@@ -7,8 +7,8 @@
       
       <param name="/INITIALIZE_" type="bool" value="True" />
 
-      <param name="/FIRST_REF_X_" type="double" value="0" />
-      <param name="/FIRST_REF_Y_" type="double" value="0" />
+      <param name="/FIRST_REF_X_" type="double" value="4" />
+      <param name="/FIRST_REF_Y_" type="double" value="1" />
       <param name="/FIRST_REF_Z_" type="double" value="1.5" />
       
       <param name="/RESOLUTION_" type="double" value="0.4" />
