@@ -504,47 +504,21 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
 
-  if (local_graph)
-  {
-
-    ufo::math::Vector3 current_point(given_x, given_y, given_z);
-    ufo::geometry::OBB obb = makeOBB(current_point, end_point, 10);
-
-    for (auto it = map.beginLeaves(obb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it)
-    {
-      if (it.getX() > highest_x)
-      {
-        highest_x = it.getX();
-      }
-      if (it.getX() < lowest_x)
-      {
-        lowest_x = it.getX();
-      }
-      if (it.getY() > highest_y)
-      {
-        highest_y = it.getY();
-      }
-      if (it.getY() < lowest_y)
-      {
-        lowest_y = it.getY();
-      }
-      if (it.getZ() > highest_z)
-      {
-        highest_z = it.getZ();
-      }
-      if (it.getZ() < lowest_z)
-      {
-        lowest_z = it.getZ();
-      }
-    }
-  }
-  else
-  {
-
     ufo::math::Vector3 minPoint(given_x - 1 * range, given_y - 1 * range, given_z - 1 * range);
     ufo::math::Vector3 maxPoint(given_x + 1 * range, given_y + 1 * range, given_z + 1 * range);
     ufo::geometry::AABB aabb(minPoint, maxPoint);
-    for (auto it = map.beginLeaves(aabb, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it)
+    ufo::math::Vector3 current_point(given_x, given_y, given_z);
+    ufo::geometry::OBB obb = makeOBB(current_point, end_point, 10);
+
+    ufo::geometry::BoundingVar PLANNING_GEOMETRY;
+
+    if (local_graph) {
+      PLANNING_GEOMETRY = obb;
+    } else {
+      PLANNING_GEOMETRY = aabb;
+    }
+
+    for (auto it = map.beginLeaves(PLANNING_GEOMETRY, occupied_space, free_space, unknown_space, false, min_depth), it_end = map.endLeaves(); it != it_end; ++it)
     {
       if (it.getX() > highest_x)
       {
@@ -571,7 +545,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
         lowest_z = it.getZ();
       }
     }
-  }
+  
 
   SCALER_X = highest_x - lowest_x;
   SCALER_Y = highest_y - lowest_y;
@@ -860,13 +834,14 @@ void visualize()
     GRAPH_nodes.scale.y = 0.4;
     GRAPH_nodes.scale.z = 0.4;
     GRAPH_line_list.scale.x = 0.02;
-    GRAPH_nodes.color.r = 1;
+    GRAPH_line_list.scale.y = 0.02;
+    GRAPH_nodes.color.r = 0.6;
     // GRAPH_nodes.color.g = 0.8;
     // GRAPH_nodes.color.b = 0.8;
     GRAPH_nodes.color.a = 1;
-    GRAPH_line_list.color.r = 1;
-    GRAPH_line_list.color.g = 1;
-    GRAPH_line_list.color.b = 1;
+    GRAPH_line_list.color.r = 0.5;
+    GRAPH_line_list.color.g = 0.5;
+    GRAPH_line_list.color.b = 0.5;
     GRAPH_line_list.color.a = 1;
     std::list<node *>::iterator it_vis;
     for (it_vis = Local_Planning_Graph.begin(); it_vis != Local_Planning_Graph.end(); it_vis++)

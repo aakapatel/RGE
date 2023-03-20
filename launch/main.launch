@@ -4,7 +4,7 @@
   <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen"> -->
 
       <param name="/ODOM_FRAME_ID_" type="str" value="world"/>
-      
+
       <param name="/INITIALIZE_" type="bool" value="True" />
 
       <param name="/FIRST_REF_X_" type="double" value="0" />
@@ -16,7 +16,7 @@
       <param name="/MIN_DIST_NODE_" type="double" value="0.5" />
             
       <param name="/RADIOUS_" type="double" value="0.5" />
-      
+
       <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
       
       <param name="/LOCAL_RANGE_" type="double" value="14" />
