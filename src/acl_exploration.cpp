@@ -2016,75 +2016,115 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
     }
 
     // ALC_POINTS = LoopClosurePath(all.list);
-
-    for (auto graph_it = parent_nodes.begin(); graph_it != --parent_nodes.end(); graph_it++)
+    std::vector< std::pair< std::vector< Graph::planning_node >::iterator, std::vector < Graph::planning_node >::iterator > > PAIRS;
+    
+    for (auto it = parent_nodes.begin(); it != --parent_nodes.end(); it++)
     {
-      ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+      ufo::math::Vector3 p1((*it).myposition.x, (*it).myposition.y, (*it).myposition.z);
 
-      for (auto graph_it2 =  graph_it; graph_it2 != parent_nodes.end(); graph_it2++) {
-      // for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++){
+      for (auto it2 = it; it2 != parent_nodes.end(); it2++) {
 
-        // ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
-        ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
+        ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
 
-        ufo::geometry::OBB obb = makeOBB (d1, d2, PLANNING_GRAPH_COLISSION_MARGIN);   
-        ufo::geometry::LineSegment line_check(d1, d2);                       
-        double range = calculateDistance(d1, d2);
-
-        if (local_exploration)
-        {
-          if (calculateDistance(current.position,d1) < LOCAL_RANGE and calculateDistance(current.position,d2) < LOCAL_RANGE and range < 4 and range > 2)
-          {
-            if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) 
-            // if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
-            {
-              planning.node_container.push_back(*graph_it);
-              // (*graph_it).AddConnection(*graph_it2);
-              (*graph_it2).AddConnection(*graph_it);
-
-              // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
-
-                   node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
-                                                           (*graph_it).myposition.z);
-                   node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
-                                                           (*graph_it2).myposition.z);
-                   child_node->addParent(parent_node);
-                   parent_node->addChild(child_node);
-                   Local_Planning_Graph.push_back(child_node);
-
-              // }
-            }
-          }
-        }
-        else
-        {
-          if (range > 2 and range < 4) {
-            if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) 
-            // if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
-            {
-              planning.node_container.push_back(*graph_it);
-              // (*graph_it).AddConnection(*graph_it2);
-              (*graph_it2).AddConnection(*graph_it);
-
-
-              // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
-
-                   node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
-                                                           (*graph_it).myposition.z);
-                   node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
-                                                           (*graph_it2).myposition.z);
-                   child_node->addParent(parent_node);
-                   parent_node->addChild(child_node);
-                   Local_Planning_Graph.push_back(child_node);
-
-
-              // }
-
-            }
-          }
+        double dist = calculateDistance(p1,p2);
+        if (dist > 2 and dist < 4) {
+          PAIRS.push_back(std::make_pair(it, it2));
         }
       }
     }
+
+    // cout << "pair check " << PAIRS.size() << endl;
+
+    for (auto i = PAIRS.begin(); i != PAIRS.end(); i++) {
+
+      ufo::math::Vector3 n1(((*i).first)->myposition.x, ((*i).first)->myposition.y, ((*i).first)->myposition.z);
+      ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
+      ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
+
+      if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH))
+      {
+        planning.node_container.push_back(*(i)->first);
+        planning.node_container.push_back(*(i)->second);
+        (*(i)->first).AddConnection(*(i)->second);
+        node *parent_node = new node(((*i).first)->myposition.x, ((*i).first)->myposition.y,
+                                     ((*i).first)->myposition.z);
+        node *child_node = new node(((*i).second)->myposition.x, ((*i).second)->myposition.y,
+                                    ((*i).second)->myposition.z);
+        child_node->addParent(parent_node);
+        parent_node->addChild(child_node);
+        Local_Planning_Graph.push_back(child_node);
+      }
+    }
+
+
+    // for (auto graph_it = parent_nodes.begin(); graph_it != --parent_nodes.end(); graph_it++)
+    // {
+    //   ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+
+    //   for (auto graph_it2 =  graph_it; graph_it2 != parent_nodes.end(); graph_it2++) {
+    //   // for (auto graph_it2 = std::next(my_nodes.begin(), 1); graph_it2 != my_nodes.end(); graph_it2++){
+
+    //     // ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
+    //     ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
+
+    //     ufo::geometry::OBB obb = makeOBB (d1, d2, PLANNING_GRAPH_COLISSION_MARGIN);   
+    //     // ufo::geometry::LineSegment line_check(d1, d2);                       
+    //     double range = calculateDistance(d1, d2);
+
+    //     if (local_exploration)
+    //     {
+    //       if (calculateDistance(current.position,d1) < LOCAL_RANGE and calculateDistance(current.position,d2) < LOCAL_RANGE and range < 4 and range > 2)
+    //       {
+    //         if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) ) 
+    //         // if (isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
+    //         {
+    //           planning.node_container.push_back(*graph_it);
+    //           // (*graph_it).AddConnection(*graph_it2);
+    //           (*graph_it2).AddConnection(*graph_it);
+
+    //           // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
+
+    //                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
+    //                                                        (*graph_it).myposition.z);
+    //                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
+    //                                                        (*graph_it2).myposition.z);
+    //                child_node->addParent(parent_node);
+    //                parent_node->addChild(child_node);
+    //                Local_Planning_Graph.push_back(child_node);
+
+    //           // }
+    //         }
+    //       }
+    //     }
+    //     else
+    //     {
+    //       if (range > 2 and range < 4) {
+    //         if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH)) 
+    //         // if (!isInCollision(ufoMAP, line_check, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, line_check, false, true, false, PLANNING_CHECK_DEPTH))
+    //         {
+    //           planning.node_container.push_back(*graph_it);
+    //           // (*graph_it).AddConnection(*graph_it2);
+    //           (*graph_it2).AddConnection(*graph_it);
+
+
+    //           // if ((*graph_it).connection_exist() or (*graph_it2).connection_exist())  {
+
+    //                node *parent_node = new node((*graph_it).myposition.x, (*graph_it).myposition.y,
+    //                                                        (*graph_it).myposition.z);
+    //                node *child_node = new node((*graph_it2).myposition.x, (*graph_it2).myposition.y,
+    //                                                        (*graph_it2).myposition.z);
+    //                child_node->addParent(parent_node);
+    //                parent_node->addChild(child_node);
+    //                Local_Planning_Graph.push_back(child_node);
+
+
+    //           // }
+
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
   }
 
   if (home.navigate)
@@ -2101,7 +2141,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
         ufo::geometry::OBB obb = makeOBB (d2, d1, 0.3);                       
-        ufo::geometry::LineSegment line_check(d1, d2);
+        // ufo::geometry::LineSegment line_check(d1, d2);
         double rang = calculateDistance(d1, d2);
 
         if (rang > 1 and rang < 8)
@@ -2255,24 +2295,26 @@ void graph_navigation(bool local_nav)
       if (local_nav)
       {
         current.temppath_local.poses.push_back(global_nodes);
+        current.temppath_global.poses.clear();
       }
       else
       {
         current.temppath_global.poses.push_back(global_nodes);
+        current.temppath_local.poses.clear();
       }
     }
 
       if (local_nav)
       {
-        current.path.type.data = "local";
-        current.path.path = current.temppath_local;
-        pub.local_path_pub.publish(current.temppath_local);
+      current.path.type.data = "local";
+      current.path.path = current.temppath_local;
+      pub.local_path_pub.publish(current.temppath_local);
       }
       else
       {
-        current.path.type.data = "global";
-        current.path.path = current.temppath_global;
-        pub.global_path_pub.publish(current.temppath_global);
+      current.path.type.data = "global";
+      current.path.path = current.temppath_global;
+      pub.global_path_pub.publish(current.temppath_global);
       }
 
     pub.path_to_goal_pub.publish(current.path);
@@ -2295,6 +2337,7 @@ void graph_navigation(bool local_nav)
         
         switch_global.navigate = false;
         goto jump_here;
+        // return;
       }
       visualize();
       cout << "it .. : " << reiterate << endl;
