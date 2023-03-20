@@ -1368,7 +1368,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     oldPoint = ufo::math::Vector3(m_prevPose.pose.pose.position.x,
                                   m_prevPose.pose.pose.position.y,
                                   m_prevPose.pose.pose.position.z);
-    if (calculateDistance(newPoint, oldPoint) > 0.05)
+    if (calculateDistance(newPoint, oldPoint) > 0.5)
     {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
@@ -1911,7 +1911,9 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
   std::vector<Graph::planning_node> my_nodes;
   std::vector<Graph::planning_node> parent_nodes;
   std::vector<Graph::planning_node> child_nodes;
+  std::vector< std::pair< std::vector< Graph::planning_node >::iterator, std::vector < Graph::planning_node >::iterator > > PAIRS;
 
+  PAIRS.clear();
   planning.node_container.clear();
   my_nodes.clear();
   parent_nodes.clear();
@@ -2015,9 +2017,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       planning.graph_pointer = temp_selectGlobalFrontier(all.list);
     }
 
-    // ALC_POINTS = LoopClosurePath(all.list);
-    std::vector< std::pair< std::vector< Graph::planning_node >::iterator, std::vector < Graph::planning_node >::iterator > > PAIRS;
-    
+    // ALC_POINTS = LoopClosurePath(all.list);    
     for (auto it = parent_nodes.begin(); it != --parent_nodes.end(); it++)
     {
       ufo::math::Vector3 p1((*it).myposition.x, (*it).myposition.y, (*it).myposition.z);
@@ -2046,6 +2046,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         planning.node_container.push_back(*(i)->first);
         planning.node_container.push_back(*(i)->second);
         (*(i)->first).AddConnection(*(i)->second);
+        (*(i)->second).AddConnection(*(i)->first);
         node *parent_node = new node(((*i).first)->myposition.x, ((*i).first)->myposition.y,
                                      ((*i).first)->myposition.z);
         node *child_node = new node(((*i).second)->myposition.x, ((*i).second)->myposition.y,
@@ -2055,7 +2056,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         Local_Planning_Graph.push_back(child_node);
       }
     }
-
 
     // for (auto graph_it = parent_nodes.begin(); graph_it != --parent_nodes.end(); graph_it++)
     // {
@@ -2336,8 +2336,8 @@ void graph_navigation(bool local_nav)
       if (switch_global.navigate or home.navigate) {
         
         switch_global.navigate = false;
-        goto jump_here;
-        // return;
+        // goto jump_here;
+        return;
       }
       visualize();
       cout << "it .. : " << reiterate << endl;
