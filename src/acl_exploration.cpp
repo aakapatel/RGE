@@ -2255,7 +2255,7 @@ void graph_navigation(bool local_nav)
       {
       current.path.type.data = "local";
       current.path.path = current.temppath_local;
-      pub.local_path_pub.publish(current.temppath_local);
+      pub.global_path_pub.publish(current.temppath_local);
       }
       else
       {
@@ -2296,7 +2296,7 @@ void graph_navigation(bool local_nav)
       findPath();
       goto label;
     }
-    else if (planned.traj.size() < 2 and reiterate < 5)
+    else if (planned.traj.size() < 2 and reiterate > 6)
     {
       return;
       start_backtrack.navigate = true;
