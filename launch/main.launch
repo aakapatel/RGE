@@ -13,9 +13,9 @@
       
       <param name="/RESOLUTION_" type="double" value="0.4" />
 
-      <param name="/MIN_DIST_NODE_" type="double" value="0.5" />
+      <param name="/MIN_DIST_NODE_" type="double" value="1" />
             
-      <param name="/RADIOUS_" type="double" value="0.5" />
+      <param name="/RADIOUS_" type="double" value="1" />
 
       <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
       

@@ -432,6 +432,7 @@ Frontier_main max_information;
 Frontier_main global_frontier;
 Frontier_main planning;
 Frontier_main planned;
+Frontier_main improved;
 Frontier_main published;
 Frontier_main starting;
 Frontier_main ending;
@@ -1890,7 +1891,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
   PAIRS.clear();
   planning.node_container.clear();
-  my_nodes.clear();
   parent_nodes.clear();
   child_nodes.clear();
   Local_Planning_Graph.clear();
@@ -1964,8 +1964,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
     if (!Global_Graph.empty())
     {
-      my_nodes.clear();
-
       for (auto insert_helper = Global_Graph.begin(); insert_helper != Global_Graph.end(); insert_helper++)
       {
         child_nodes.push_back({Graph::Point{(((*insert_helper)->point)->x()), (((*insert_helper)->point)->y()), (((*insert_helper)->point)->z())}});
@@ -2047,19 +2045,14 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         Local_Planning_Graph.push_back(child_node);
       }
     }
-  }
-
-  if (home.navigate)
+  } else if (home.navigate)
   {
-
     for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++)
     {
-
       ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
 
       for (auto graph_it2 = graph_it; graph_it2 != my_nodes.end(); graph_it2++)
       {
-
         ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
 
         ufo::geometry::OBB obb = makeOBB (d2, d1, PLANNING_GRAPH_COLISSION_MARGIN);                       
@@ -2068,7 +2061,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         if (rang > 1 and rang < 8)
         {
-
           if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) &&
               isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH))
           {
@@ -2095,7 +2087,6 @@ void findPath()
 
   if (!home.navigate)
   {
-
     double close_dis = 1000000;
     double end_dis = 1000000;
     double my_end_dis = 100000000;
@@ -2133,21 +2124,24 @@ void findPath()
     Graph::Point end_pos{ending.x_ref, ending.y_ref, ending.z_ref};
 
     // cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
+
     Graph mygraph;
     planned.traj = mygraph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
-
+    
     // cout << "\nI am looking for path " << endl;
 
     if (!planned.traj.empty())
     {
 
-      cout << "\nplanned path has " << planned.traj.size() << " points" << endl;
+      cout << "\nOriginal path path has " << planned.traj.size() << " nodes " << endl;
     }
     else
     {
 
       cout << "\nthe planned traj was empty " << endl;
     }
+  
+  
   }
   else if (!planning.node_container.empty())
   {
@@ -2170,6 +2164,27 @@ void findPath()
   // cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 }
 
+
+void improvePath()
+{
+
+  high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+  Graph improved_graph;
+  Graph::Point finish{((improved.node_container.back()).myposition.x), ((improved.node_container.back()).myposition.y), ((improved.node_container.back()).myposition.z)};
+  Graph::Point start{((improved.node_container.front()).myposition.x), ((improved.node_container.front()).myposition.y), ((improved.node_container.front()).myposition.z)};
+
+  improved.traj = improved_graph.fetchPath(start, finish, improved.node_container, ufoMAP);  
+
+  cout << "\nimproved path has " << improved.traj.size() << " Nodes \n" << endl;
+  
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  // cout << "\n\033[;34m Path improvement takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+}
+
+
+
 void graph_navigation(bool local_nav)
 {
   jump_here:
@@ -2189,9 +2204,42 @@ void graph_navigation(bool local_nav)
     // cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
     current.temppath_global.poses.clear();
     current.temppath_local.poses.clear();
-    // ufo::math::Vector3 final_p(planned.traj.front().x, planned.traj.front().y, planned.traj.front().z);
-    // double view_towards = lookAround(final_p);
-    for (auto vert_it = std::next(planned.traj.begin(), 0); vert_it != planned.traj.end(); vert_it++)
+
+    std::vector<Graph::planning_node> improvement_nodes;
+
+    improvement_nodes.clear();
+    improved.node_container.clear();
+    improved.traj.clear();
+    
+    for (auto insert_helper = planned.traj.begin(); insert_helper != planned.traj.end(); insert_helper++)
+    {
+      improvement_nodes.push_back({Graph::Point{insert_helper->x, insert_helper->y, insert_helper->z}});
+    }
+
+    for (auto i = improvement_nodes.begin(); i != --improvement_nodes.end(); i++) {
+
+      for (auto i2 = std::next(improvement_nodes.begin(),1); i2 != improvement_nodes.end(); i2++) {
+
+        ufo::math::Vector3 start (i->myposition.x, i->myposition.y, i->myposition.z);
+        ufo::math::Vector3 goal (i2->myposition.x, i2->myposition.y, i2->myposition.z);
+
+        ufo::geometry::OBB obb = makeOBB (start,goal,PLANNING_GRAPH_COLISSION_MARGIN);
+
+        if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) 
+                  && !isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
+
+          improved.node_container.push_back(*i);
+          improved.node_container.push_back(*i2);
+          (*i).AddConnection(*i2);
+          (*i2).AddConnection(*i);            
+
+        }
+      }
+    }
+
+    improvePath();    
+
+    for (auto vert_it = improved.traj.begin(); vert_it != improved.traj.end(); vert_it++)
     {
 
       geometry_msgs::PoseStamped global_nodes;
@@ -2201,7 +2249,7 @@ void graph_navigation(bool local_nav)
       global_nodes.pose.orientation.x = 0;
       global_nodes.pose.orientation.y = 0;
       double head_ref;
-      if (vert_it != std::prev(planned.traj.end(),1)) {
+      if (vert_it != std::prev(improved.traj.end(),1)) {
         head_ref = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
                               ((*std::next(vert_it,1))).x - ((*vert_it)).x );
       } else {
@@ -2243,8 +2291,8 @@ void graph_navigation(bool local_nav)
     current.path.path.poses.clear();
     current.path.type.data.clear();
 
-    ufo::math::Vector3 lastpub(std::prev(planned.traj.end(), 1)->x, std::prev(planned.traj.end(), 1)->y, 
-                                          std::prev(planned.traj.end(), 1)->z);
+    ufo::math::Vector3 lastpub(std::prev(improved.traj.end(), 1)->x, std::prev(improved.traj.end(), 1)->y, 
+                                          std::prev(improved.traj.end(), 1)->z);
     published.reference = publish_goal(lastpub);
 
   }
@@ -2253,7 +2301,7 @@ void graph_navigation(bool local_nav)
     planning.improve = true;
   label:
     // if (planned.traj.size() < 3 and reiterate < 5)
-    if (planned.traj.size() < 2 )
+    if (planned.traj.size() < 2 and reiterate < 6)
     {
       if (switch_global.navigate or home.navigate) {
         
@@ -2269,9 +2317,10 @@ void graph_navigation(bool local_nav)
       planning.improve = true;
       buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
       findPath();
+      improvePath();
       goto label;
     }
-    else if (planned.traj.size() < 2 and reiterate > 6)
+    else if (planned.traj.size() < 2 and reiterate > 5)
     {
       return;
       start_backtrack.navigate = true;
