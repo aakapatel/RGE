@@ -13,17 +13,17 @@
       
       <param name="/RESOLUTION_" type="double" value="0.4" />
 
-      <param name="/MIN_DIST_NODE_" type="double" value="1" />
+      <param name="/MIN_DIST_NODE_" type="double" value="0.8" />
             
-      <param name="/RADIOUS_" type="double" value="1" />
+      <param name="/RADIOUS_" type="double" value="0.4" />
 
       <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
       
       <param name="/LOCAL_RANGE_" type="double" value="14" />
       
-      <param name="/RAW_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
+      <param name="/RAW_GRAPH_COLISSION_MARGIN_" type="double" value="0.2" />
       
-      <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
+      <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.2" />
       
       <param name="/RAW_FRONTIERS_COLISSION_MARGIN_" type="double" value="0.8" />
       
