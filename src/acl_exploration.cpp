@@ -313,6 +313,7 @@ struct Frontier_main
   std::vector<Graph::planning_node> node_container;
   node *graph_pointer;
   std::vector<Graph::Point> traj;
+  std::vector<ufo::math::Vector3> trajectory;
   ros::Publisher points_pub;
   ros::Publisher robot_box_vis_pub;
   ros::Publisher current_goal_vis_pub, current_unknowns_visualization_pub;
@@ -445,7 +446,7 @@ Frontier_main start_backtrack;
 Frontier_main resume;
 Frontier_main init;
 Frontier_main lookAt;
-
+Frontier_main final;
 
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
@@ -514,7 +515,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
     ufo::geometry::BoundingVar PLANNING_GEOMETRY;
 
     if (local_graph) {
-      PLANNING_GEOMETRY = obb;
+      PLANNING_GEOMETRY = aabb;
     } else {
       PLANNING_GEOMETRY = aabb;
     }
@@ -2223,7 +2224,7 @@ void graph_navigation(bool local_nav)
         ufo::math::Vector3 start (i->myposition.x, i->myposition.y, i->myposition.z);
         ufo::math::Vector3 goal (i2->myposition.x, i2->myposition.y, i2->myposition.z);
 
-        ufo::geometry::OBB obb = makeOBB (start,goal,PLANNING_GRAPH_COLISSION_MARGIN);
+        ufo::geometry::OBB obb = makeOBB (start, goal ,PLANNING_GRAPH_COLISSION_MARGIN);
 
         if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) 
                   && !isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
@@ -2237,24 +2238,64 @@ void graph_navigation(bool local_nav)
       }
     }
 
-    improvePath();    
-
-    for (auto vert_it = improved.traj.begin(); vert_it != improved.traj.end(); vert_it++)
+    improvePath();
+    final.trajectory.clear();
+    double r_u = 0.5;
+    double r_d = 0.5;
+    for (auto i = improved.traj.begin(); i != improved.traj.end(); ++i)
     {
+      cout << "\n original Z is " << i->z << endl;
+    lab:
+      ufo::math::Vector3 up((*i).x, (*i).y, (*i).z );
+      ufo::math::Vector3 up_plus((*i).x, (*i).y, (*i).z + r_u);
+      ufo::math::Vector3 up_minus((*i).x, (*i).y, (*i).z - r_d);
+      ufo::geometry::LineSegment line_up(up, up_plus);
+      ufo::geometry::LineSegment line_down(up, up_minus);
+      if (!isInCollision(ufoMAP, line_up, true, false, true, PLANNING_CHECK_DEPTH))
+      {
+        r_u = r_u + 0.5;
+        goto lab;
+      }
+      else if (!isInCollision(ufoMAP, line_down, true, false, true, PLANNING_CHECK_DEPTH)) {
+        r_d = r_d + 0.5;
+        goto lab;
+      }
+        else
+        {
+          ufo::math::Vector3 final_up((*i).x, (*i).y, (*i).z + r_u);
+          ufo::math::Vector3 final_down((*i).x, (*i).y, (*i).z - r_d);
+
+          ufo::math::Vector3 fin(final_up.x(), final_up.y(), (abs(final_up.z()) - abs(final_down.z())) / 2);
+
+          cout << "\n final Z is " << fin.z() << endl;
+
+          final.trajectory.push_back(fin);
+
+          r_u = 0.5;
+          r_d = 0.5;
+        }
+    }
+
+    for (auto vert_it = final.trajectory.begin(); vert_it != final.trajectory.end(); vert_it++)
+    {
+      // cout << " \nX --" << ((*vert_it)).x() << " Y -- " << ((*vert_it)).y() << " Z -- " << ((*vert_it)).z() << endl;
 
       geometry_msgs::PoseStamped global_nodes;
-      global_nodes.pose.position.x = ((*vert_it)).x;
-      global_nodes.pose.position.y = ((*vert_it)).y;
-      global_nodes.pose.position.z = ((*vert_it)).z;
+      global_nodes.pose.position.x = ((*vert_it)).x();
+      global_nodes.pose.position.y = ((*vert_it)).y();
+      global_nodes.pose.position.z = ((*vert_it)).z();
       global_nodes.pose.orientation.x = 0;
       global_nodes.pose.orientation.y = 0;
       double head_ref;
-      if (vert_it != std::prev(improved.traj.end(),1)) {
-        head_ref = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
-                              ((*std::next(vert_it,1))).x - ((*vert_it)).x );
-      } else {
-        head_ref = atan2( (*std::prev(vert_it,1)).y - (*std::prev(vert_it,2)).y , 
-                              (*std::prev(vert_it,1)).x - (*std::prev(vert_it,2)).x );
+      if (vert_it != std::prev(final.trajectory.end(), 1))
+      {
+        head_ref = atan2(((*std::next(vert_it, 1))).y() - ((*vert_it)).y(),
+                         ((*std::next(vert_it, 1))).x() - ((*vert_it)).x());
+      }
+      else
+      {
+        head_ref = atan2( (*std::prev(vert_it,1)).y() - (*std::prev(vert_it,2)).y() , 
+                              (*std::prev(vert_it,1)).x() - (*std::prev(vert_it,2)).x() );
         // head_ref = view_towards;
       }
       global_nodes.pose.orientation.z = head_ref;
@@ -2291,11 +2332,10 @@ void graph_navigation(bool local_nav)
     current.path.path.poses.clear();
     current.path.type.data.clear();
 
-    ufo::math::Vector3 lastpub(std::prev(improved.traj.end(), 1)->x, std::prev(improved.traj.end(), 1)->y, 
-                                          std::prev(improved.traj.end(), 1)->z);
+    ufo::math::Vector3 lastpub(std::prev(final.trajectory.end(), 1)->x(), std::prev(final.trajectory.end(), 1)->y(),
+                               std::prev(final.trajectory.end(), 1)->z());
     published.reference = publish_goal(lastpub);
-
-  }
+    }
   else
   {
     planning.improve = true;
