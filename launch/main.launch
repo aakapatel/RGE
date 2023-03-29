@@ -7,7 +7,7 @@
 
       <param name="/INITIALIZE_" type="bool" value="True" />
 
-      <param name="/FIRST_REF_X_" type="double" value="4" />
+      <param name="/FIRST_REF_X_" type="double" value="0" />
       <param name="/FIRST_REF_Y_" type="double" value="0" />
       <param name="/FIRST_REF_Z_" type="double" value="2" />
       
@@ -19,7 +19,7 @@
 
       <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
       
-      <param name="/LOCAL_RANGE_" type="double" value="14" />
+      <param name="/LOCAL_RANGE_" type="double" value="12" />
       
       <param name="/RAW_GRAPH_COLISSION_MARGIN_" type="double" value="0.2" />
       

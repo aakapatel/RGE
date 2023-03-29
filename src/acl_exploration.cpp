@@ -313,7 +313,6 @@ struct Frontier_main
   std::vector<Graph::planning_node> node_container;
   node *graph_pointer;
   std::vector<Graph::Point> traj;
-  std::vector<ufo::math::Vector3> trajectory;
   ros::Publisher points_pub;
   ros::Publisher robot_box_vis_pub;
   ros::Publisher current_goal_vis_pub, current_unknowns_visualization_pub;
@@ -446,7 +445,7 @@ Frontier_main start_backtrack;
 Frontier_main resume;
 Frontier_main init;
 Frontier_main lookAt;
-Frontier_main final;
+
 
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
@@ -515,7 +514,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
     ufo::geometry::BoundingVar PLANNING_GEOMETRY;
 
     if (local_graph) {
-      PLANNING_GEOMETRY = aabb;
+      PLANNING_GEOMETRY = obb;
     } else {
       PLANNING_GEOMETRY = aabb;
     }
@@ -670,7 +669,7 @@ std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std
 
       child.dist_to_start = current_node.dist_to_start + child.myposition.DistTo(current_node.myposition);
 
-      child.total_dist = child.dist_to_start + 0.05 * (child.myposition.DistTo(end_node.myposition));
+      child.total_dist = child.dist_to_start + (child.myposition.DistTo(end_node.myposition));
 
       if (std::find_if(open_list.begin(), open_list.end(), [&child](const planning_node &node)
                        { return ((node == child) && (child.dist_to_start > node.dist_to_start)); }) != open_list.end())
@@ -1006,7 +1005,7 @@ void fetchTraversable(std::list<ufo::math::Vector3> frontier_list)
   std::list<ufo::math::Vector3> extracted;
   for (ufo::math::Vector3 goal : frontier_list)
   {
-    ufo::geometry::OBB obb = makeOBB (current.position, goal, 0.8);                       
+    ufo::geometry::OBB obb = makeOBB (current.position, goal, RAW_FRONTIERS_COLISSION_MARGIN);                       
     if (!isInCollision(ufoMAP, obb, true, false, false, PLANNING_CHECK_DEPTH) && calculateDistance(goal, current.position) > 3)
     {
       extracted.push_back(goal);
@@ -1067,6 +1066,7 @@ bool isLocal(ufo::math::Vector3 front)
   double angle = calculateAngle(front, current.position, current.heading);
   double distance = calculateDistance(front, current.position);
   if (((angle < 40) && (angle > -40)) && distance < LOCAL_RANGE)
+  // if (distance < LOCAL_RANGE)
   {
     return true;
   }
@@ -1136,18 +1136,29 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
 node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
 {
   double score;
-  double myScore = 100000000;
+  double myScore = 10000000000000;
   ufo::math::Vector3 selectg;
+
+  double radius = 0.1;
 
   for (ufo::math::Vector3 globalfrontier : global)
   {
+    ufo::geometry::Sphere sphere(globalfrontier, radius);
     score = calculateDistance(globalfrontier, current.position);
     if (score < myScore)
     {
-      myScore = score;
-      selectg = globalfrontier;
+     
+      if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) 
+                              && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH)) {
+
+          radius = radius + 0.1;
+          myScore = score - 10 * radius;
+          selectg = globalfrontier;
+       }
+      
     }
   }
+  
   double pen;
   double mypen = 10000000000000;
   node *my_nod;
@@ -1173,16 +1184,25 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
 ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global)
 {
   double score;
-  double myScore = 100000000;
+  double myScore = 100000000000000;
   ufo::math::Vector3 selectg;
+  double radius = 0.1;
 
   for (ufo::math::Vector3 globalfrontier : global)
   {
+    ufo::geometry::Sphere sphere(globalfrontier, radius);
     score = calculateDistance(globalfrontier, current.position);
     if (score < myScore)
     {
-      myScore = score;
-      selectg = globalfrontier;
+     
+      if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) 
+                              && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH)) {
+
+          radius = radius + 0.1;
+          myScore = score - 10 * radius;
+          selectg = globalfrontier;
+       }
+      
     }
   }
 
@@ -1384,17 +1404,20 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
   ROBOT_BOX.pose.position.x = current.position.x();
   ROBOT_BOX.pose.position.y = current.position.y();
   ROBOT_BOX.pose.position.z = current.position.z();
-  ROBOT_BOX.pose.orientation.x = 0;
-  ROBOT_BOX.pose.orientation.y = 0;
-  ROBOT_BOX.pose.orientation.z = 0;
-  ROBOT_BOX.pose.orientation.w = 1;
+  ROBOT_BOX.pose.orientation.x = msg->pose.pose.orientation.x;
+  ROBOT_BOX.pose.orientation.y = msg->pose.pose.orientation.y;
+  ROBOT_BOX.pose.orientation.z = msg->pose.pose.orientation.z;
+  ROBOT_BOX.pose.orientation.w = msg->pose.pose.orientation.w;
   ROBOT_BOX.id = 0;
-  ROBOT_BOX.type = visualization_msgs::Marker::CUBE;
-  ROBOT_BOX.scale.x = 4;
-  ROBOT_BOX.scale.y = 4;
-  ROBOT_BOX.scale.z = 4;
+  ROBOT_BOX.type = visualization_msgs::Marker::MESH_RESOURCE;
+  ROBOT_BOX.mesh_resource = "package://acl_exploration/meshes/shafter.dae";
+  ROBOT_BOX.scale.x = 0.001;
+  ROBOT_BOX.scale.y = 0.001;
+  ROBOT_BOX.scale.z = 0.001;
   ROBOT_BOX.color.r = 1.0;
-  ROBOT_BOX.color.a = 0.2;
+  ROBOT_BOX.color.g = 1.0;
+  ROBOT_BOX.color.b = 1.0;
+  ROBOT_BOX.color.a = 1.0;
   pub.robot_box_vis_pub.publish(ROBOT_BOX);
 
 }
@@ -1415,13 +1438,13 @@ nav_msgs::Path backTrack(bool backtrack)
       global_nodes2.pose.position.x = backtrack_it->x();
       global_nodes2.pose.position.y = backtrack_it->y();
       global_nodes2.pose.position.z = backtrack_it->z();
-      // std::cout<<"backtrace adding"<<std::endl;
-      // std::cout<<backtrack_it->x()<<" "<<backtrack_it->y()<<" "<<backtrack_it->z()<<std::endl;
+      std::cout<<"backtrace adding"<<std::endl;
+      std::cout<<backtrack_it->x()<<" "<<backtrack_it->y()<<" "<<backtrack_it->z()<<std::endl;
 
       global_nodes2.header.stamp = ros::Time::now();
       global_nodes2.header.frame_id = ODOM_FRAME_ID;
       retrace.poses.push_back(global_nodes2);
-      ufo::geometry::OBB obb = makeOBB(*backtrack_it, current.end_pt, 0.5);
+      ufo::geometry::OBB obb = makeOBB(current.end_pt, *backtrack_it, 0.5);
       if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
         global_nodes2.pose.position.x = current.end_pt.x();
         global_nodes2.pose.position.y = current.end_pt.y();
@@ -1471,7 +1494,7 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
     ufo::geometry::Sphere sphere(frontier_point, RAW_FRONTIERS_COLISSION_MARGIN);
-    if (!isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
+    if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH))
     {
       mylist.push_back(frontier_point);
       all.list = mylist;
@@ -1996,13 +2019,12 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
 
         double dist = calculateDistance(p1,p2);
-        if (dist > 2 and dist < 4) {
+        // if (dist > 2 and dist < 4) {
+          if (dist < 4) {
           PAIRS.push_back(std::make_pair(it, it2));
         }
       }
     }
-
-    // cout << "pair check " << PAIRS.size() << endl;
 
     for (auto i = PAIRS.begin(); i != PAIRS.end(); i++) {
 
@@ -2224,8 +2246,11 @@ void graph_navigation(bool local_nav)
         ufo::math::Vector3 start (i->myposition.x, i->myposition.y, i->myposition.z);
         ufo::math::Vector3 goal (i2->myposition.x, i2->myposition.y, i2->myposition.z);
 
-        ufo::geometry::OBB obb = makeOBB (start, goal ,PLANNING_GRAPH_COLISSION_MARGIN);
+        double dist = calculateDistance(start, goal);
 
+        ufo::geometry::OBB obb = makeOBB (goal, start, PLANNING_GRAPH_COLISSION_MARGIN);
+        
+        if (dist < 8) {
         if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) 
                   && !isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
 
@@ -2235,70 +2260,30 @@ void graph_navigation(bool local_nav)
           (*i2).AddConnection(*i);            
 
         }
-      }
-    }
-
-    improvePath();
-    final.trajectory.clear();
-    double r_u = 0.5;
-    double r_d = 0.5;
-    for (auto i = improved.traj.begin(); i != improved.traj.end(); ++i)
-    {
-      cout << "\n original Z is " << i->z << endl;
-    lab:
-      ufo::math::Vector3 up((*i).x, (*i).y, (*i).z );
-      ufo::math::Vector3 up_plus((*i).x, (*i).y, (*i).z + r_u);
-      ufo::math::Vector3 up_minus((*i).x, (*i).y, (*i).z - r_d);
-      ufo::geometry::LineSegment line_up(up, up_plus);
-      ufo::geometry::LineSegment line_down(up, up_minus);
-      if (!isInCollision(ufoMAP, line_up, true, false, true, PLANNING_CHECK_DEPTH))
-      {
-        r_u = r_u + 0.5;
-        goto lab;
-      }
-      else if (!isInCollision(ufoMAP, line_down, true, false, true, PLANNING_CHECK_DEPTH)) {
-        r_d = r_d + 0.5;
-        goto lab;
-      }
-        else
-        {
-          ufo::math::Vector3 final_up((*i).x, (*i).y, (*i).z + r_u);
-          ufo::math::Vector3 final_down((*i).x, (*i).y, (*i).z - r_d);
-
-          ufo::math::Vector3 fin(final_up.x(), final_up.y(), (abs(final_up.z()) - abs(final_down.z())) / 2);
-
-          cout << "\n final Z is " << fin.z() << endl;
-
-          final.trajectory.push_back(fin);
-
-          r_u = 0.5;
-          r_d = 0.5;
         }
+      }
     }
 
-    for (auto vert_it = final.trajectory.begin(); vert_it != final.trajectory.end(); vert_it++)
-    {
-      // cout << " \nX --" << ((*vert_it)).x() << " Y -- " << ((*vert_it)).y() << " Z -- " << ((*vert_it)).z() << endl;
+    improvePath();    
 
+    for (auto vert_it = improved.traj.begin(); vert_it != improved.traj.end(); vert_it++)
+    {
+      double head_ref;
       geometry_msgs::PoseStamped global_nodes;
-      global_nodes.pose.position.x = ((*vert_it)).x();
-      global_nodes.pose.position.y = ((*vert_it)).y();
-      global_nodes.pose.position.z = ((*vert_it)).z();
+      global_nodes.pose.position.x = ((*vert_it)).x;
+      global_nodes.pose.position.y = ((*vert_it)).y;
+      global_nodes.pose.position.z = ((*vert_it)).z;
       global_nodes.pose.orientation.x = 0;
       global_nodes.pose.orientation.y = 0;
-      double head_ref;
-      if (vert_it != std::prev(final.trajectory.end(), 1))
-      {
-        head_ref = atan2(((*std::next(vert_it, 1))).y() - ((*vert_it)).y(),
-                         ((*std::next(vert_it, 1))).x() - ((*vert_it)).x());
-      }
-      else
-      {
-        head_ref = atan2( (*std::prev(vert_it,1)).y() - (*std::prev(vert_it,2)).y() , 
-                              (*std::prev(vert_it,1)).x() - (*std::prev(vert_it,2)).x() );
-        // head_ref = view_towards;
-      }
-      global_nodes.pose.orientation.z = head_ref;
+      // if (vert_it != std::prev(improved.traj.end(),1)) {
+      // head_ref = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
+      //                         ((*std::next(vert_it,1))).x - ((*vert_it)).x);
+      // } else {
+      //   head_ref = atan2( (*std::prev(vert_it,1)).y - (*std::prev(vert_it,2)).y , 
+      //                         (*std::prev(vert_it,1)).x - (*std::prev(vert_it,2)).x );
+      //   // head_ref = view_towards;
+      // }
+      global_nodes.pose.orientation.z = 0;
       global_nodes.pose.orientation.w = 1;
       global_nodes.header.stamp = ros::Time::now();
       global_nodes.header.frame_id = ODOM_FRAME_ID;
@@ -2332,16 +2317,17 @@ void graph_navigation(bool local_nav)
     current.path.path.poses.clear();
     current.path.type.data.clear();
 
-    ufo::math::Vector3 lastpub(std::prev(final.trajectory.end(), 1)->x(), std::prev(final.trajectory.end(), 1)->y(),
-                               std::prev(final.trajectory.end(), 1)->z());
+    ufo::math::Vector3 lastpub(std::prev(improved.traj.end(), 1)->x, std::prev(improved.traj.end(), 1)->y, 
+                                          std::prev(improved.traj.end(), 1)->z);
     published.reference = publish_goal(lastpub);
-    }
+
+  }
   else
   {
     planning.improve = true;
   label:
     // if (planned.traj.size() < 3 and reiterate < 5)
-    if (planned.traj.size() < 2 and reiterate < 6)
+    if (planned.traj.size() < 2 and reiterate <= 5)
     {
       if (switch_global.navigate or home.navigate) {
         
@@ -2362,6 +2348,7 @@ void graph_navigation(bool local_nav)
     }
     else if (planned.traj.size() < 2 and reiterate > 5)
     {
+      
       return;
       start_backtrack.navigate = true;
 
