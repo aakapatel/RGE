@@ -7,7 +7,7 @@
 
       <param name="/INITIALIZE_" type="bool" value="True" />
 
-      <param name="/FIRST_REF_X_" type="double" value="4" />
+      <param name="/FIRST_REF_X_" type="double" value="-2" />
       <param name="/FIRST_REF_Y_" type="double" value="0" />
       <param name="/FIRST_REF_Z_" type="double" value="2" />
       
@@ -25,7 +25,7 @@
       
       <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
       
-      <param name="/RAW_FRONTIERS_COLISSION_MARGIN_" type="double" value="0.8" />
+      <param name="/RAW_FRONTIERS_COLISSION_MARGIN_" type="double" value="0.5" />
       
       <param name="/PLANNING_CHECK_DEPTH_" type="double" value="0" />
       
@@ -43,11 +43,11 @@
       
       <param name="/MAX_PLANNING_SPACE_LOCAL_" type="double" value="40" />
       
-      <param name="/MAX_PLANNING_SPACE_GLOBAL_" type="double" value="100" />
+      <param name="/MAX_PLANNING_SPACE_GLOBAL_" type="double" value="60" />
       
-      <param name="/IMPROVEMENT_SCALE_FACTOR_IT_" type="double" value="1.5" />
+      <param name="/IMPROVEMENT_SCALE_FACTOR_IT_" type="double" value="1" />
       
-      <param name="/IMPROVEMENT_SCALE_FACTOR_RANGE_" type="double" value="1.5" />
+      <param name="/IMPROVEMENT_SCALE_FACTOR_RANGE_" type="double" value="1" />
       
 
       <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen">

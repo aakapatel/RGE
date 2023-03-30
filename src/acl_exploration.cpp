@@ -445,6 +445,8 @@ Frontier_main start_backtrack;
 Frontier_main resume;
 Frontier_main init;
 Frontier_main lookAt;
+Frontier_main not_traversable;
+Frontier_main raw_frontiers;
 
 
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
@@ -509,12 +511,12 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
     ufo::math::Vector3 maxPoint(given_x + 1 * range, given_y + 1 * range, given_z + 1 * range);
     ufo::geometry::AABB aabb(minPoint, maxPoint);
     ufo::math::Vector3 current_point(given_x, given_y, given_z);
-    ufo::geometry::OBB obb = makeOBB(current_point, end_point, 10);
+    ufo::geometry::OBB obb = makeOBB(current_point, end_point, 5);
 
     ufo::geometry::BoundingVar PLANNING_GEOMETRY;
 
     if (local_graph) {
-      PLANNING_GEOMETRY = aabb;
+      PLANNING_GEOMETRY = obb;
     } else {
       PLANNING_GEOMETRY = aabb;
     }
@@ -553,7 +555,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
   SCALER_Z = highest_z - lowest_z;
 }
 
-void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 final_point, int max_iterations)
+void buildGraph(bool request_local, float given_x, float given_y, float given_z, ufo::math::Vector3 final_point, int max_iterations)
 {
   for (std::list<node *>::iterator it_clear_helper = Global_Graph.begin(); it_clear_helper != --Global_Graph.end(); it_clear_helper++)
   {
@@ -564,11 +566,11 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
   Global_Graph.clear();
   // std::cout << "\nBuilding graph... " << std::endl;
   node *current_pos = new node(given_x, given_y, given_z);
-  // node *goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
+  node *goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
   // goal_pt->addParent(nullptr);
   current_pos->addParent(nullptr);
   Global_Graph.push_back(current_pos);
-  // Global_Graph.push_back(goal_pt);
+  Global_Graph.push_back(goal_pt);
 
   srand(time(0));
   itterations = 0;
@@ -600,9 +602,14 @@ void buildGraph(float given_x, float given_y, float given_z, ufo::math::Vector3 
       ufo::math::Vector3 direction = random_point - start_point;
       ufo::geometry::LineSegment myline(random_point, start_point);
       // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
+      double min_dist = MIN_DIST_NODE;
+      if (request_local) {
+        min_dist = min_dist;
+      } else {
+        min_dist = MIN_DIST_NODE;
+      }
       if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) 
-                and calculateDistance(random_point, start_point) > MIN_DIST_NODE)
-        // if (isCollisionFreeLine(ufoMAP, start_point, random_point, 0))
+                and calculateDistance(random_point, start_point) > min_dist)
 
         {
           node *new_node = new node(x, y, z);
@@ -1150,7 +1157,7 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
   
     }
   }
-  
+  current.end_pt = selectg;
   double pen;
   double mypen = 10000000000000;
   node *my_nod;
@@ -1181,14 +1188,11 @@ ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global)
     score = calculateDistance(globalfrontier, current.position);
     if (score < myScore)
     {
-
       myScore = score;
-      selectg = globalfrontier;
-       
-      
+      selectg = globalfrontier;  
     }
   }
-
+  current.end_pt = selectg;
   return selectg;
 }
 
@@ -1207,6 +1211,7 @@ node *switchedGlobalFrontier(std::list<ufo::math::Vector3> global)
        selectg = globalfrontier;
     }
   }
+  current.end_pt = selectg;
   double pen;
   double mypen = 10000000000000;
   node *my_nod;
@@ -1461,31 +1466,65 @@ void switchCallback(const std_msgs::String::ConstPtr &go_global)
   temp_local.navigate = false;
 }
 
+bool containsThisFrontier(std::list<ufo::math::Vector3> raw_octree, ufo::math::Vector3 check_this) {
+
+  for (auto i = raw_octree.begin(); i != raw_octree.end(); i++) {
+
+    if ( i->x() == check_this.x() && i->y() == check_this.y() && i->z() == check_this.z() ) {
+
+      return true;
+
+    } else {
+      return false;
+    }
+
+  }
+
+}
+
 void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
 {
 
   frontiers_received = true;
   ufo::math::Vector3 frontier_point;
-  std::list<ufo::math::Vector3> seg1, seg2, seg3, seg4, seg5, seg6, 
-                                      seg7, seg8, myseg, mylist, mylist1, mylist2;
-  mylist.clear();
+  std::list<ufo::math::Vector3> raw_list;
+
   for (geometry_msgs::Point frontier : msg->points)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
-    ufo::geometry::Sphere sphere(frontier_point, RAW_FRONTIERS_COLISSION_MARGIN);
-    if (!isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
-    {
-      mylist.push_back(frontier_point);
-      all.list = mylist;
-      if (isLocal(frontier_point))
+    raw_list.push_back(frontier_point);
+    raw_frontiers.list = raw_list;
+  }
+    if (msg->points.empty())
+  {
+    home.navigate = true;
+  }
+}
+
+void frontiersClassification () {
+
+  std::list<ufo::math::Vector3> seg1, seg2, seg3, seg4, seg5, seg6, 
+                                      seg7, seg8, myseg, mylist, mylist1, mylist2;
+  mylist.clear();
+  for (ufo::math::Vector3 frontier_point : raw_frontiers.list)
+  {
+    
+    if (!containsThisFrontier(not_traversable.list, frontier_point)) {
+      ufo::geometry::Sphere sphere(frontier_point, RAW_FRONTIERS_COLISSION_MARGIN);
+      if (!isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
       {
-        mylist1.push_back(frontier_point);
-        local.list = mylist1;
-      }
-      else
-      {
-        mylist2.push_back(frontier_point);
-        global.list = mylist2;
+        mylist.push_back(frontier_point);
+        all.list = mylist;
+        if (isLocal(frontier_point))
+        {
+          mylist1.push_back(frontier_point);
+          local.list = mylist1;
+        }
+        else
+        {
+          mylist2.push_back(frontier_point);
+          global.list = mylist2;
+        }
       }
     }
   }
@@ -1584,10 +1623,6 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
     global.navigate = false;
   }
 
-  if (msg->points.empty())
-  {
-    home.navigate = true;
-  }
 }
 
 void fetchUnknownNodes(ufo::math::Vector3 point, 
@@ -1963,7 +1998,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
     }
 
     planningSpace(local_exploration, current.end_pt, planning_range, ufoMAP, false, true, false, current.position.x(), current.position.y(), current.position.z(), PLANNING_CHECK_DEPTH);
-    buildGraph(current.position.x(), current.position.y(), current.position.z(), current.end_pt, max_it);
+    buildGraph(local_exploration, current.position.x(), current.position.y(), current.position.z(), current.end_pt, max_it);
 
     if (!Global_Graph.empty())
     {
@@ -2266,14 +2301,6 @@ void graph_navigation(bool local_nav)
       global_nodes.pose.position.z = ((*vert_it)).z;
       global_nodes.pose.orientation.x = 0;
       global_nodes.pose.orientation.y = 0;
-      // if (vert_it != std::prev(improved.traj.end(),1)) {
-      // head_ref = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
-      //                         ((*std::next(vert_it,1))).x - ((*vert_it)).x);
-      // } else {
-      //   head_ref = atan2( (*std::prev(vert_it,1)).y - (*std::prev(vert_it,2)).y , 
-      //                         (*std::prev(vert_it,1)).x - (*std::prev(vert_it,2)).x );
-      //   // head_ref = view_towards;
-      // }
       global_nodes.pose.orientation.z = 0;
       global_nodes.pose.orientation.w = 1;
       global_nodes.header.stamp = ros::Time::now();
@@ -2318,7 +2345,7 @@ void graph_navigation(bool local_nav)
     planning.improve = true;
   label:
     // if (planned.traj.size() < 3 and reiterate < 5)
-    if (planned.traj.size() < 2 and reiterate <= 5)
+    if (planned.traj.size() < 2 and reiterate <= 2)
     {
       if (switch_global.navigate or home.navigate) {
         
@@ -2337,9 +2364,17 @@ void graph_navigation(bool local_nav)
       improvePath();
       goto label;
     }
-    else if (planned.traj.size() < 2 and reiterate > 5)
+    else if (planned.traj.size() < 2 and reiterate > 2)
     {
-      
+
+      not_traversable.list.push_back(current.end_pt);
+      for (auto i = all.list.begin(); i != all.list.end(); i++) {
+        if (i->x() == current.end_pt.x() && i->y() == current.end_pt.y()) {
+          i = all.list.erase(i);
+        }
+      }
+      frontiersClassification();
+
       return;
       start_backtrack.navigate = true;
 
@@ -2540,6 +2575,8 @@ int main(int argc, char *argv[])
       main computations to be executed here on
     */
 
+    frontiersClassification();
+
     if (firstTime and explore.navigate and INITIALIZE)
     {
 
@@ -2559,6 +2596,9 @@ int main(int argc, char *argv[])
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
+
+      
+
       // fetchUnknownNodes(current.position, ufoMAP);
 
       // lookAround();
