@@ -514,7 +514,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range, 
     ufo::geometry::BoundingVar PLANNING_GEOMETRY;
 
     if (local_graph) {
-      PLANNING_GEOMETRY = obb;
+      PLANNING_GEOMETRY = aabb;
     } else {
       PLANNING_GEOMETRY = aabb;
     }
@@ -952,7 +952,7 @@ void visualize()
     pub.local_nodes_pub.publish(local_frontier_nodes);
   }
 
-  if (!global.list.empty())
+  if (!all.list.empty())
   {
     global_frontier_nodes.header.frame_id = ODOM_FRAME_ID;
     global_frontier_nodes.ns = "points";
@@ -966,7 +966,7 @@ void visualize()
     global_frontier_nodes.color.g = 0.8f;
     global_frontier_nodes.color.a = 0.6;
     std::list<ufo::math::Vector3>::iterator it_vis5;
-    for (it_vis5 = global.list.begin(); it_vis5 != global.list.end(); it_vis5++)
+    for (it_vis5 = all.list.begin(); it_vis5 != all.list.end(); it_vis5++)
     {
       geometry_msgs::Point p0;
       p0.x = it_vis5->x();
@@ -1139,23 +1139,15 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
   double myScore = 10000000000000;
   ufo::math::Vector3 selectg;
 
-  double radius = 0.1;
-
   for (ufo::math::Vector3 globalfrontier : global)
   {
-    ufo::geometry::Sphere sphere(globalfrontier, radius);
     score = calculateDistance(globalfrontier, current.position);
     if (score < myScore)
     {
-     
-      if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) 
-                              && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH)) {
 
-          radius = radius + 0.1;
-          myScore = score - 10 * radius;
-          selectg = globalfrontier;
-       }
-      
+      myScore = score;
+      selectg = globalfrontier;
+  
     }
   }
   
@@ -1169,13 +1161,10 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
     pen = nearest_dis;
     if (pen < mypen)
     {
-    double radius = 1;
-    ufo::geometry::Sphere sphere(*((*rit)->point), radius);
-    if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
-    {
+
       mypen = pen;
       my_nod = *rit;
-    }
+
     }
   }
   return my_nod;
@@ -1186,22 +1175,16 @@ ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global)
   double score;
   double myScore = 100000000000000;
   ufo::math::Vector3 selectg;
-  double radius = 0.1;
 
   for (ufo::math::Vector3 globalfrontier : global)
   {
-    ufo::geometry::Sphere sphere(globalfrontier, radius);
     score = calculateDistance(globalfrontier, current.position);
     if (score < myScore)
     {
-     
-      if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) 
-                              && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH)) {
 
-          radius = radius + 0.1;
-          myScore = score - 10 * radius;
-          selectg = globalfrontier;
-       }
+      myScore = score;
+      selectg = globalfrontier;
+       
       
     }
   }
@@ -1220,8 +1203,8 @@ node *switchedGlobalFrontier(std::list<ufo::math::Vector3> global)
     score = calculateDistance(globalfrontier, current.position);
     if (score > myScore)
     {
-      myScore = score;
-      selectg = globalfrontier;
+       myScore = score;
+       selectg = globalfrontier;
     }
   }
   double pen;
@@ -1234,13 +1217,9 @@ node *switchedGlobalFrontier(std::list<ufo::math::Vector3> global)
     pen = nearest_dis;
     if (pen < mypen)
     {
-    double radius = 1;
-    ufo::geometry::Sphere sphere(*((*rit)->point), radius);
-    if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH) && !isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
-    {
+
       mypen = pen;
       my_nod = *rit;
-    }
 
     }
   }
@@ -1489,12 +1468,12 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   ufo::math::Vector3 frontier_point;
   std::list<ufo::math::Vector3> seg1, seg2, seg3, seg4, seg5, seg6, 
                                       seg7, seg8, myseg, mylist, mylist1, mylist2;
-
+  mylist.clear();
   for (geometry_msgs::Point frontier : msg->points)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
     ufo::geometry::Sphere sphere(frontier_point, RAW_FRONTIERS_COLISSION_MARGIN);
-    if (isInCollision(ufoMAP, sphere, false, true, false, PLANNING_CHECK_DEPTH))
+    if (!isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
     {
       mylist.push_back(frontier_point);
       all.list = mylist;
@@ -2248,7 +2227,7 @@ void graph_navigation(bool local_nav)
 
         double dist = calculateDistance(start, goal);
 
-        ufo::geometry::OBB obb = makeOBB (goal, start, PLANNING_GRAPH_COLISSION_MARGIN);
+        ufo::geometry::OBB obb = makeOBB (start, goal, PLANNING_GRAPH_COLISSION_MARGIN);
         
         if (dist < 8) {
         if (isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH) 
@@ -2266,7 +2245,19 @@ void graph_navigation(bool local_nav)
 
     improvePath();    
 
-    for (auto vert_it = improved.traj.begin(); vert_it != improved.traj.end(); vert_it++)
+    published.traj.clear();
+
+    if (improved.traj.size() > 1) {
+
+      published.traj = improved.traj;
+
+    } else {
+
+      published.traj = planned.traj;
+
+    }
+
+    for (auto vert_it = published.traj.begin(); vert_it != published.traj.end(); vert_it++)
     {
       double head_ref;
       geometry_msgs::PoseStamped global_nodes;
@@ -2317,8 +2308,8 @@ void graph_navigation(bool local_nav)
     current.path.path.poses.clear();
     current.path.type.data.clear();
 
-    ufo::math::Vector3 lastpub(std::prev(improved.traj.end(), 1)->x, std::prev(improved.traj.end(), 1)->y, 
-                                          std::prev(improved.traj.end(), 1)->z);
+    ufo::math::Vector3 lastpub(std::prev(published.traj.end(), 1)->x, std::prev(published.traj.end(), 1)->y, 
+                                          std::prev(published.traj.end(), 1)->z);
     published.reference = publish_goal(lastpub);
 
   }
