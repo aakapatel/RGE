@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <tf/tf.h>
 #include <ros/package.h>
+#include <ros/console.h>
 #include <dynamic_reconfigure/server.h>
 #include <acl_exploration/ServerConfig.h>
 #include "acl_exploration/Frontiers.h"
@@ -56,7 +57,7 @@ public:
   double distanceToParent = -1;
   std::list<struct node *> myChilds{};
   std::list<struct node *> myPath{};
-  
+  bool isTraversableByDrone;
   double distanceToGoal;
   node(float x, float y, float z)
   {
@@ -77,6 +78,9 @@ public:
   void addParent(node *newParent)
   {
     myParent = newParent;
+  }
+  bool getTraversabilityStatus (node *current_node) {
+    return current_node->isTraversableByDrone;
   }
   void changeDistanceToGoal(double newDistance)
   {
@@ -409,6 +413,7 @@ std::list<ufo::math::Vector3> positionslist;
 
 std::list<struct node *> Global_Graph{};
 std::list<struct node *> Local_Planning_Graph{};
+std::list<struct node *> classifiedFrontiers{};
 std::list<struct node *> skeleton{};
 std::list<struct node *> CHOSEN_PATH{};
 std::list<double> CHOSEN_PATH_VREF{};
@@ -809,9 +814,9 @@ void visualize()
   CURRENT_GOAL.header.frame_id = ODOM_FRAME_ID;
   CURRENT_GOAL.ns = "goal";
   CURRENT_GOAL.action = visualization_msgs::Marker::ADD;
-  CURRENT_GOAL.pose.position.x = current.end_pt.x();
-  CURRENT_GOAL.pose.position.y = current.end_pt.y();
-  CURRENT_GOAL.pose.position.z = current.end_pt.z();
+  CURRENT_GOAL.pose.position.x = published.list.back().x();
+  CURRENT_GOAL.pose.position.y = published.list.back().y();
+  CURRENT_GOAL.pose.position.z = published.list.back().z();
   CURRENT_GOAL.pose.orientation.x = 0;
   CURRENT_GOAL.pose.orientation.y = 0;
   CURRENT_GOAL.pose.orientation.z = 0;
@@ -1143,7 +1148,7 @@ ufo::math::Vector3 selectLocalFrontier(std::list<ufo::math::Vector3> accessible,
 node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
 {
   double score;
-  double myScore = 10000000000000;
+  double myScore = std::numeric_limits<double>::max();
   ufo::math::Vector3 selectg;
 
   for (ufo::math::Vector3 globalfrontier : global)
@@ -1159,7 +1164,7 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
   }
   current.end_pt = selectg;
   double pen;
-  double mypen = 10000000000000;
+  double mypen = std::numeric_limits<double>::max();
   node *my_nod;
   for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++)
   {
@@ -1180,7 +1185,7 @@ node *temp_selectGlobalFrontier(std::list<ufo::math::Vector3> global)
 ufo::math::Vector3 selectGlobalFrontier(std::list<ufo::math::Vector3> global)
 {
   double score;
-  double myScore = 100000000000000;
+  double myScore = std::numeric_limits<double>::max();
   ufo::math::Vector3 selectg;
 
   for (ufo::math::Vector3 globalfrontier : global)
@@ -1213,7 +1218,7 @@ node *switchedGlobalFrontier(std::list<ufo::math::Vector3> global)
   }
   current.end_pt = selectg;
   double pen;
-  double mypen = 10000000000000;
+  double mypen = std::numeric_limits<double>::max();
   node *my_nod;
   for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++)
   {
@@ -1234,7 +1239,7 @@ node *switchedGlobalFrontier(std::list<ufo::math::Vector3> global)
 std::list<node *> LoopClosurePath(std::list<ufo::math::Vector3> global)
 {
   double score1;
-  double myScore1 = 100000000;
+  double myScore1 = std::numeric_limits<double>::max();
   ufo::math::Vector3 selectg1;
   std::list<node *> alc_candidates;
   std::list<ufo::math::Vector3> successful_ray;
@@ -1428,13 +1433,13 @@ nav_msgs::Path backTrack(bool backtrack)
       global_nodes2.header.stamp = ros::Time::now();
       global_nodes2.header.frame_id = ODOM_FRAME_ID;
       retrace.poses.push_back(global_nodes2);
-      ufo::geometry::OBB obb = makeOBB(current.end_pt, *backtrack_it, 0.5);
+      ufo::geometry::OBB obb = makeOBB(published.list.back(), *backtrack_it, 0.5);
       if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH)) {
-        global_nodes2.pose.position.x = current.end_pt.x();
-        global_nodes2.pose.position.y = current.end_pt.y();
-        global_nodes2.pose.position.z = current.end_pt.z();
+        global_nodes2.pose.position.x = published.list.back().x();
+        global_nodes2.pose.position.y = published.list.back().y();
+        global_nodes2.pose.position.z = published.list.back().z();
         retrace.poses.push_back(global_nodes2);
-        published.reference = publish_goal(current.end_pt);
+        published.reference = publish_goal(published.list.back());
         break;
       }
     }
@@ -1488,12 +1493,13 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   frontiers_received = true;
   ufo::math::Vector3 frontier_point;
   std::list<ufo::math::Vector3> raw_list;
+  raw_frontiers.list.clear();
 
   for (geometry_msgs::Point frontier : msg->points)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
-    raw_list.push_back(frontier_point);
-    raw_frontiers.list = raw_list;
+    raw_frontiers.list.push_back(frontier_point);
+  
   }
     if (msg->points.empty())
   {
@@ -1504,31 +1510,58 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
 void frontiersClassification () {
 
   std::list<ufo::math::Vector3> seg1, seg2, seg3, seg4, seg5, seg6, 
-                                      seg7, seg8, myseg, mylist, mylist1, mylist2;
-  mylist.clear();
-  for (ufo::math::Vector3 frontier_point : raw_frontiers.list)
+                                      seg7, seg8, myseg;
+
+  all.list.clear();
+  local.list.clear();
+  global.list.clear();
+  classifiedFrontiers.clear();
+  if (!classifiedFrontiers.empty()) {
+  for (std::list<node *>::iterator it_clear_helper = classifiedFrontiers.begin(); it_clear_helper != --classifiedFrontiers.end(); it_clear_helper++)
   {
+    (*it_clear_helper)->readyForDeletion();
+    delete (*it_clear_helper);
+  }
+  }
+  for (auto frontier_point = raw_frontiers.list.begin(); frontier_point != raw_frontiers.list.end(); frontier_point++)
+  {
+
+      node *frontier_node = new node(frontier_point->x(), frontier_point->y(), frontier_point->z());
+      // frontier_node->isTraversableByDrone = true;
+      // if (!not_traversable.list.empty()) {
+
+        if (containsThisFrontier(not_traversable.list, *frontier_point)) {
+          frontier_node->isTraversableByDrone = false;
+          cout << " ------------ got one non traversable ------------ " << endl;
+        } else {
+          frontier_node->isTraversableByDrone = true;
+        }
+      // }
+        classifiedFrontiers.push_back(frontier_node);
+  }
+  // cout << "\nclassified frontiers are ----  " << classifiedFrontiers.size() << endl;
+  for (auto i = classifiedFrontiers.begin(); i != classifiedFrontiers.end(); i++) {
     
-    if (!containsThisFrontier(not_traversable.list, frontier_point)) {
-      ufo::geometry::Sphere sphere(frontier_point, RAW_FRONTIERS_COLISSION_MARGIN);
-      if (!isInCollision(ufoMAP, sphere, true, false, true, PLANNING_CHECK_DEPTH))
+    ufo::math::Vector3 insert_helper ((*i)->point->x(),(*i)->point->y(),(*i)->point->z());
+    ufo::geometry::Sphere sphere(insert_helper, RAW_FRONTIERS_COLISSION_MARGIN);
+    if ((*i)->getTraversabilityStatus(*i))
+    {
+      all.list.push_back(insert_helper);
+      // all.list = mylist;
+      if (isLocal(insert_helper))
       {
-        mylist.push_back(frontier_point);
-        all.list = mylist;
-        if (isLocal(frontier_point))
-        {
-          mylist1.push_back(frontier_point);
-          local.list = mylist1;
-        }
-        else
-        {
-          mylist2.push_back(frontier_point);
-          global.list = mylist2;
-        }
+        local.list.push_back(insert_helper);
+      }
+      else
+      {
+        global.list.push_back(insert_helper);
       }
     }
   }
-
+  if (classifiedFrontiers.size() > all.list.size() ) {
+  
+  cout << "\n Removed frontiers are ----  " << classifiedFrontiers.size() - all.list.size() << endl;
+  }
   for (ufo::math::Vector3 localnode : local.list)
   {
 
@@ -1848,7 +1881,7 @@ void exploreLocally()
   // -------------------------- graph based local exploration -------------------//
 
   double pen;
-  double mypen = 10000000000000;
+  double mypen = std::numeric_limits<double>::max();
   node *local_nod;
   for (auto rit = Global_Graph.begin(); rit != Global_Graph.end(); rit++)
   {
@@ -1908,7 +1941,13 @@ void fetchGlobalFrontier()
   }
   global_frontier.position = gf;
 }
-
+bool validPath () {
+  if (planned.traj.size() > 1) {
+    return true;
+  } else {
+    return false;
+  }
+}
 void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, double reit, double range_up_scale)
 {
 
@@ -1922,10 +1961,11 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
   int max_it;
   float planning_range;
   IMPROVEMENT_SCALE_FACTOR_IT = reit;
-  std::vector<Graph::planning_node> my_nodes;
+  std::vector<Graph::planning_node> homing_nodes;
   std::vector<Graph::planning_node> parent_nodes;
   std::vector<Graph::planning_node> child_nodes;
-  std::vector< std::pair< std::vector< Graph::planning_node >::iterator, std::vector < Graph::planning_node >::iterator > > PAIRS;
+  std::vector< std::pair< std::vector< Graph::planning_node >::iterator, 
+                          std::vector < Graph::planning_node >::iterator > > PAIRS;
 
   PAIRS.clear();
   planning.node_container.clear();
@@ -1935,27 +1975,24 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
   if (go_home)
   {
 
-    my_nodes.clear();
+    homing_nodes.clear();
 
     for (auto insert_helper = old_poses.list.begin(); insert_helper != std::prev(old_poses.list.end(), 4); insert_helper++)
     {
 
-      my_nodes.push_back({Graph::Point{insert_helper->x(), insert_helper->y(), insert_helper->z()}});
+      homing_nodes.push_back({Graph::Point{insert_helper->x(), insert_helper->y(), insert_helper->z()}});
     }
   }
 
   if (!home.navigate and !go_home)
   {
-
     if (local_exploration)
     {
-
       int min = MIN_ITERATION_LOCAL;
       float original_planning_range = MIN_PLANNING_SPACE_LOCAL;
 
       if (improvement and max_it < MAX_ITERATION_LOCAL and planning_range < MAX_PLANNING_SPACE_LOCAL)
       {
-        // if (improvement and max_it < MAX_ITERATION_LOCAL) {
         max_it = min + IMPROVEMENT_SCALE_FACTOR_IT * min;
         planning_range = original_planning_range + (range_up_scale * original_planning_range);
       }
@@ -1972,7 +2009,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       float original_planning_range_G = MIN_PLANNING_SPACE_GLOBAL;
       if (improvement and max_it < MAX_ITERATION_GLOBAL and planning_range < MAX_PLANNING_SPACE_GLOBAL)
       {
-        // if (improvement and max_it < MAX_ITERATION_GLOBAL) {
         max_it = min_G + IMPROVEMENT_SCALE_FACTOR_IT * min_G;
         planning_range = original_planning_range_G + (range_up_scale * original_planning_range_G);
       }
@@ -1982,23 +2018,21 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         planning_range = MIN_PLANNING_SPACE_GLOBAL;
       }
     }
-
-    current.end_pt.x() = 0;
-    current.end_pt.y() = 0;
-    current.end_pt.z() = 1;
-    
+    ufo::math::Vector3 most_recent_goal;
 
     if (local_exploration)
     {
-      current.end_pt = informativeFrontier();
+      most_recent_goal = informativeFrontier();
+      published.list.push_back(most_recent_goal);
     }
     else
     {
-      current.end_pt = selectGlobalFrontier(all.list);
+      most_recent_goal = selectGlobalFrontier(all.list);
+      published.list.push_back(most_recent_goal);
     }
 
-    planningSpace(local_exploration, current.end_pt, planning_range, ufoMAP, false, true, false, current.position.x(), current.position.y(), current.position.z(), PLANNING_CHECK_DEPTH);
-    buildGraph(local_exploration, current.position.x(), current.position.y(), current.position.z(), current.end_pt, max_it);
+    planningSpace(local_exploration, most_recent_goal, planning_range, ufoMAP, false, true, false, current.position.x(), current.position.y(), current.position.z(), PLANNING_CHECK_DEPTH);
+    buildGraph(local_exploration, current.position.x(), current.position.y(), current.position.z(), most_recent_goal, max_it);
 
     if (!Global_Graph.empty())
     {
@@ -2014,12 +2048,10 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
     if (switch_global.navigate)
     {
-
       planning.graph_pointer = switchedGlobalFrontier(all.list);
     }
     else if (!home.navigate and !go_home)
     {
-
       planning.graph_pointer = temp_selectGlobalFrontier(all.list);
     }
 
@@ -2084,14 +2116,12 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
     }
   } else if (home.navigate)
   {
-    for (auto graph_it = my_nodes.begin(); graph_it != --my_nodes.end(); graph_it++)
+    for (auto graph_it = homing_nodes.begin(); graph_it != --homing_nodes.end(); graph_it++)
     {
       ufo::math::Vector3 d1((*graph_it).myposition.x, (*graph_it).myposition.y, (*graph_it).myposition.z);
-
-      for (auto graph_it2 = graph_it; graph_it2 != my_nodes.end(); graph_it2++)
+      for (auto graph_it2 = graph_it; graph_it2 != homing_nodes.end(); graph_it2++)
       {
         ufo::math::Vector3 d2((*graph_it2).myposition.x, (*graph_it2).myposition.y, (*graph_it2).myposition.z);
-
         ufo::geometry::OBB obb = makeOBB (d2, d1, PLANNING_GRAPH_COLISSION_MARGIN);                       
         // ufo::geometry::LineSegment line_check(d1, d2);
         double rang = calculateDistance(d1, d2);
@@ -2119,15 +2149,13 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
 void findPath()
 {
-
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
   if (!home.navigate)
   {
-    double close_dis = 1000000;
-    double end_dis = 1000000;
-    double my_end_dis = 100000000;
-    double my_close_dis = 100000000;
+    double close_dis = std::numeric_limits<double>::max();
+    double end_dis = std::numeric_limits<double>::max();
+    double my_end_dis = std::numeric_limits<double>::max();
+    double my_close_dis = std::numeric_limits<double>::max();
 
     for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++)
     {
@@ -2147,7 +2175,6 @@ void findPath()
         starting.y_ref = ((*closest_it).myposition.y);
         starting.z_ref = ((*closest_it).myposition.z);
       }
-
       if (end_dis < my_end_dis)
       {
         my_end_dis = end_dis;
@@ -2160,40 +2187,22 @@ void findPath()
     Graph::Point start_pos{starting.x_ref, starting.y_ref, starting.z_ref};
     Graph::Point end_pos{ending.x_ref, ending.y_ref, ending.z_ref};
 
-    // cout << "\nPlanning container has " << planning.node_container.size() << " nodes" << endl;
-
-    Graph mygraph;
-    planned.traj = mygraph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
+    Graph exploration_graph;
+    planned.traj = exploration_graph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
     
-    // cout << "\nI am looking for path " << endl;
-
-    if (!planned.traj.empty())
-    {
-
-      cout << "\nOriginal path path has " << planned.traj.size() << " nodes " << endl;
-    }
-    else
-    {
-
-      cout << "\nthe planned traj was empty " << endl;
-    }
-  
-  
+    ROS_INFO_COND (validPath(), "Valid Path");
+    ROS_WARN_COND (!validPath(), "the planned traj was empty");
+ 
   }
-  else if (!planning.node_container.empty())
+  else
   {
-
     Graph::Point current_state{((planning.node_container.back()).myposition.x), ((planning.node_container.back()).myposition.y), ((planning.node_container.back()).myposition.z)};
     Graph::Point home_state{((planning.node_container.front()).myposition.x), ((planning.node_container.front()).myposition.y), ((planning.node_container.front()).myposition.z)};
-
     Graph homing_graph;
     planned.traj = homing_graph.fetchPath(current_state, home_state, planning.node_container, ufoMAP);
 
-    if (planned.traj.size() > 1)
-    {
-
-      cout << "homing path is valid" << endl;
-    }
+    ROS_INFO_COND (validPath(), "homing path is valid");
+    
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
@@ -2201,38 +2210,30 @@ void findPath()
   // cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 }
 
-
 void improvePath()
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-
   Graph improved_graph;
   Graph::Point finish{((improved.node_container.back()).myposition.x), ((improved.node_container.back()).myposition.y), ((improved.node_container.back()).myposition.z)};
   Graph::Point start{((improved.node_container.front()).myposition.x), ((improved.node_container.front()).myposition.y), ((improved.node_container.front()).myposition.z)};
 
   improved.traj = improved_graph.fetchPath(start, finish, improved.node_container, ufoMAP);  
-
-  cout << "\nimproved path has " << improved.traj.size() << " Nodes \n" << endl;
   
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
   // cout << "\n\033[;34m Path improvement takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
 }
 
-
-
-void graph_navigation(bool local_nav)
+void graph_navigation(bool local_nav, double reiterate, double scale_range)
 {
-  jump_here:
+
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  double reiterate = 1;
-  double scale_range = 1;
 
   buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
   findPath();
 
-  if (planned.traj.size() >= 2)
+  if (validPath())
   {
 
     planning.improve = false;
@@ -2281,15 +2282,10 @@ void graph_navigation(bool local_nav)
     improvePath();    
 
     published.traj.clear();
-
     if (improved.traj.size() > 1) {
-
       published.traj = improved.traj;
-
     } else {
-
       published.traj = planned.traj;
-
     }
 
     for (auto vert_it = published.traj.begin(); vert_it != published.traj.end(); vert_it++)
@@ -2299,13 +2295,8 @@ void graph_navigation(bool local_nav)
       global_nodes.pose.position.x = ((*vert_it)).x;
       global_nodes.pose.position.y = ((*vert_it)).y;
       global_nodes.pose.position.z = ((*vert_it)).z;
-      global_nodes.pose.orientation.x = 0;
-      global_nodes.pose.orientation.y = 0;
-      global_nodes.pose.orientation.z = 0;
-      global_nodes.pose.orientation.w = 1;
       global_nodes.header.stamp = ros::Time::now();
       global_nodes.header.frame_id = ODOM_FRAME_ID;
-      
       if (local_nav)
       {
         current.temppath_local.poses.push_back(global_nodes);
@@ -2317,7 +2308,6 @@ void graph_navigation(bool local_nav)
         current.temppath_local.poses.clear();
       }
     }
-
       if (local_nav)
       {
       current.path.type.data = "local";
@@ -2342,86 +2332,21 @@ void graph_navigation(bool local_nav)
   }
   else
   {
+    not_traversable.list.push_back(published.list.back());
+    frontiersClassification();
     planning.improve = true;
-  label:
-    // if (planned.traj.size() < 3 and reiterate < 5)
-    if (planned.traj.size() < 2 and reiterate <= 2)
+    if (!validPath() and reiterate < 4)
     {
-      if (switch_global.navigate or home.navigate) {
-        
-        switch_global.navigate = false;
-        // goto jump_here;
-        return;
-      }
-      visualize();
-      cout << "it .. : " << reiterate << endl;
-      std::cout << "\nCould not find a good path... requesting improvement.... \n";
+      ROS_WARN("No Good Path .. Graph Expansion Underway.. ");
       reiterate = reiterate + 1;
       scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
       planning.improve = true;
-      buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
-      findPath();
-      improvePath();
-      goto label;
+      graph_navigation(local_nav, reiterate, scale_range);
     }
-    else if (planned.traj.size() < 2 and reiterate > 2)
+    else 
     {
-
-      not_traversable.list.push_back(current.end_pt);
-      for (auto i = all.list.begin(); i != all.list.end(); i++) {
-        if (i->x() == current.end_pt.x() && i->y() == current.end_pt.y()) {
-          i = all.list.erase(i);
-        }
-      }
-      frontiersClassification();
-
+      switch_global.navigate = true;
       return;
-      start_backtrack.navigate = true;
-
-      nav_msgs::Path retrace_path = backTrack(start_backtrack.navigate);
-
-      for (auto it_rt = (retrace_path.poses.begin()); it_rt != retrace_path.poses.end(); it_rt++)
-      {
-
-        cout << "X : " << it_rt->pose.position.x << "\n ";
-        cout << "Y : " << it_rt->pose.position.y << "\n ";
-        cout << "Z : " << it_rt->pose.position.z << "\n ";
-        cout << "--------"
-             << "\n ";
-        geometry_msgs::PoseStamped global_nodes;
-        global_nodes.pose.position.x = it_rt->pose.position.x;
-        global_nodes.pose.position.y = it_rt->pose.position.y;
-        global_nodes.pose.position.z = it_rt->pose.position.z;
-        global_nodes.pose.orientation.x = 0;
-        global_nodes.pose.orientation.y = 0;
-        global_nodes.pose.orientation.z = atan2( ((std::next(it_rt,1)))->pose.position.y - ((it_rt))->pose.position.y , 
-                                                        ((std::next(it_rt,1)))->pose.position.x - ((it_rt))->pose.position.x );
-        global_nodes.pose.orientation.w = 1;
-        global_nodes.header.stamp = ros::Time::now();
-        global_nodes.header.frame_id = ODOM_FRAME_ID;
-
-        current.temppath_global.poses.push_back(global_nodes);
-        current.path.path = current.temppath_global;
-        if (local_nav)
-        {
-          current.path.type.data = "local";
-        }
-        else
-        {
-          current.path.type.data = "global";
-          pub.global_path_pub.publish(current.temppath_global);
-        }
-      }
-
-      pub.path_to_goal_pub.publish(current.path);
-      
-      std::vector<geometry_msgs::PoseStamped>::const_iterator it_r = std::prev(current.temppath_global.poses.end(), 1);
-      ufo::math::Vector3 lastpub(it_r->pose.position.x, it_r->pose.position.y, it_r->pose.position.z);
-      published.reference = publish_goal(lastpub);
-
-      current.path.path.poses.clear();
-      current.path.type.data.clear();
-      current.temppath_global.poses.clear();
     }
     
   }
@@ -2435,29 +2360,21 @@ void return_to_base_planning()
   double scale_range = 1;
   buildPlanningGraph(true, false, planning.improve, reiterate, scale_range);
   findPath();
-
-  if (!planned.traj.empty())
+  if (validPath())
   {
-
     planning.improve = false;
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     cout << "\n\033[;34mReturn to base planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
-
       for (auto vert_it = std::next(planned.traj.begin(), 0); vert_it != std::prev(planned.traj.end(), 0); vert_it++)
       {
-
         geometry_msgs::PoseStamped global_nodes;
         global_nodes.pose.position.x = ((*vert_it)).x;
         global_nodes.pose.position.y = ((*vert_it)).y;
         global_nodes.pose.position.z = ((*vert_it)).z;
         global_nodes.header.stamp = ros::Time::now();
         global_nodes.header.frame_id = ODOM_FRAME_ID;
-        global_nodes.pose.orientation.x = 0;
-        global_nodes.pose.orientation.y = 0;
-        global_nodes.pose.orientation.z = atan2( ((*std::next(vert_it,1))).y - ((*vert_it)).y , 
-                                                        ((*std::next(vert_it,1))).x - ((*vert_it)).x );
-        global_nodes.pose.orientation.w = 1;
+
         current.temppath_homing.poses.push_back(global_nodes);
         current.path.path = current.temppath_homing;
         current.path.type.data = "homing";
@@ -2575,7 +2492,7 @@ int main(int argc, char *argv[])
       main computations to be executed here on
     */
 
-    frontiersClassification();
+     frontiersClassification();
 
     if (firstTime and explore.navigate and INITIALIZE)
     {
@@ -2597,7 +2514,7 @@ int main(int argc, char *argv[])
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
 
-      
+     
 
       // fetchUnknownNodes(current.position, ufoMAP);
 
@@ -2610,7 +2527,7 @@ int main(int argc, char *argv[])
 
         exploreLocally();
 
-        graph_navigation(true);
+        graph_navigation(true, 1, IMPROVEMENT_SCALE_FACTOR_RANGE);
 
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto local_planning_duration = duration_cast<microseconds>(stop_total - start_total);
@@ -2628,7 +2545,7 @@ int main(int argc, char *argv[])
 
         high_resolution_clock::time_point start_total = high_resolution_clock::now();
 
-        graph_navigation(false);
+        graph_navigation(false, 1, IMPROVEMENT_SCALE_FACTOR_RANGE);
 
         high_resolution_clock::time_point stop_total = high_resolution_clock::now();
         auto global_planning_duration = duration_cast<std::chrono::milliseconds>(stop_total - start_total);

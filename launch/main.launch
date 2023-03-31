@@ -1,15 +1,15 @@
 <?xml version="1.0" ?>
 <launch>
-
+  <env name="ROSCONSOLE_FORMAT" value="[${severity}] : ${message}"/>
   <!-- <node pkg="acl_exploration" type="acl_exploration_node" name="acl_exploration_node" output="screen"> -->
 
       <param name="/ODOM_FRAME_ID_" type="str" value="world"/>
 
-      <param name="/INITIALIZE_" type="bool" value="True" />
+      <param name="/INITIALIZE_" type="bool" value="true" />
 
-      <param name="/FIRST_REF_X_" type="double" value="-2" />
+      <param name="/FIRST_REF_X_" type="double" value="4" />
       <param name="/FIRST_REF_Y_" type="double" value="0" />
-      <param name="/FIRST_REF_Z_" type="double" value="2" />
+      <param name="/FIRST_REF_Z_" type="double" value="1" />
       
       <param name="/RESOLUTION_" type="double" value="0.4" />
 
@@ -23,7 +23,7 @@
       
       <param name="/RAW_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
       
-      <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
+      <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.8" />
       
       <param name="/RAW_FRONTIERS_COLISSION_MARGIN_" type="double" value="0.5" />
       
