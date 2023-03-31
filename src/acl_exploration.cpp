@@ -1496,24 +1496,6 @@ void switchCallback(const std_msgs::String::ConstPtr &go_global)
   temp_local.navigate = false;
 }
 
-bool containsThisFrontier(std::list<ufo::math::Vector3> raw_octree, ufo::math::Vector3 check_this)
-{
-
-  for (auto i = raw_octree.begin(); i != raw_octree.end(); i++)
-  {
-
-    if (calculateDistance (*i, check_this) < 1)
-    {
-
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }
-}
-
 void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
 {
 
@@ -1524,10 +1506,6 @@ void frontiersCallback(const acl_exploration::Frontiers::ConstPtr &msg)
   {
     frontier_point = ufo::math::Vector3(frontier.x, frontier.y, frontier.z);
     raw_frontiers.list.push_back(frontier_point);
-    if (std::find (not_traversable.list.begin(), not_traversable.list.end(), frontier_point ) != not_traversable.list.end() ) {
-      cout << " check check ----------" << endl;
-      raw_frontiers.list.remove(frontier_point);
-    }
   }
   if (msg->points.empty())
   {
@@ -1541,29 +1519,23 @@ void frontiersClassification()
   local.list.clear();
   global.list.clear();
   classifiedFrontiers.clear();
-  // if (!classifiedFrontiers.empty())
-  // {
-  //   for (std::list<node *>::iterator it_clear_helper = classifiedFrontiers.begin(); it_clear_helper != --classifiedFrontiers.end(); it_clear_helper++)
-  //   {
-  //     (*it_clear_helper)->readyForDeletion();
-  //     delete (*it_clear_helper);
-  //   }
-  // }
+  if (!classifiedFrontiers.empty())
+  {
+    for (std::list<node *>::iterator it_clear_helper = classifiedFrontiers.begin(); it_clear_helper != --classifiedFrontiers.end(); it_clear_helper++)
+    {
+      (*it_clear_helper)->readyForDeletion();
+      delete (*it_clear_helper);
+    }
+  }
   for (auto frontier_point = raw_frontiers.list.begin(); frontier_point != raw_frontiers.list.end(); frontier_point++)
   {
     node *frontier_node = new node(frontier_point->x(), frontier_point->y(), frontier_point->z());
-    // if (!not_traversable.list.empty()) {
 
     if (std::find (not_traversable.list.begin(), not_traversable.list.end(), *frontier_point ) != not_traversable.list.end() ) 
     {
       frontier_node->setTraversabilityStatus(false);
       cout << " ------------ non traversable added ------------ " << endl;
     }
-    // else
-    // {
-    //   frontier_node->setTraversabilityStatus(true);
-    // }
-    // }
     classifiedFrontiers.push_back(frontier_node);
   }
   for (auto i = classifiedFrontiers.begin(); i != classifiedFrontiers.end(); i++)
