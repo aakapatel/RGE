@@ -574,13 +574,12 @@ void buildGraph(bool request_local, float given_x, float given_y, float given_z,
   }
 
   Global_Graph.clear();
-  // std::cout << "\nBuilding graph... " << std::endl;
   node *current_pos = new node(given_x, given_y, given_z);
-  node *goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
+  // node *goal_pt = new node(final_point.x(), final_point.y(), final_point.z());
   // goal_pt->addParent(nullptr);
   current_pos->addParent(nullptr);
   Global_Graph.push_back(current_pos);
-  Global_Graph.push_back(goal_pt);
+  // Global_Graph.push_back(goal_pt);
 
   srand(time(0));
   itterations = 0;
@@ -632,13 +631,11 @@ void buildGraph(bool request_local, float given_x, float given_y, float given_z,
     };
     itterations++;
   };
-  std::cout << "\nGraph built successfully with " << Global_Graph.size() << " nodes\n"
-            << std::endl;
+  ROS_INFO_STREAM ( "Graph contains --> " << Global_Graph.size() << " Nodes\n");
 };
 
 std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std::vector<planning_node> all_nodes, ufo::map::OccupancyMapColor const &map)
 {
-
   planning_node start_node;
   planning_node end_node;
 
@@ -674,8 +671,6 @@ std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std
       }
       return (found_path);
     }
-
-    // cout << "found path size before .. " << found_path.size() << endl;
 
     for (planning_node &node : *current_node.connections)
     {
@@ -1451,7 +1446,6 @@ nav_msgs::Path backTrack(bool backtrack)
       global_nodes2.pose.position.x = backtrack_it->x();
       global_nodes2.pose.position.y = backtrack_it->y();
       global_nodes2.pose.position.z = backtrack_it->z();
-      std::cout << "backtrace adding" << std::endl;
       std::cout << backtrack_it->x() << " " << backtrack_it->y() << " " << backtrack_it->z() << std::endl;
 
       global_nodes2.header.stamp = ros::Time::now();
@@ -1534,14 +1528,12 @@ void frontiersClassification()
     if (std::find (not_traversable.list.begin(), not_traversable.list.end(), *frontier_point ) != not_traversable.list.end() ) 
     {
       frontier_node->setTraversabilityStatus(false);
-      cout << " ------------ non traversable added ------------ " << endl;
     }
     classifiedFrontiers.push_back(frontier_node);
   }
   for (auto i = classifiedFrontiers.begin(); i != classifiedFrontiers.end(); i++)
   { 
     if (!(*i)->getTraversabilityStatus()) {
-      cout << "contains untraversable frontiers " << endl;
     }
     ufo::math::Vector3 sorting_helper((*i)->point->x(), (*i)->point->y(), (*i)->point->z());
     ufo::geometry::Sphere sphere(sorting_helper, RAW_FRONTIERS_COLISSION_MARGIN);
@@ -1557,10 +1549,6 @@ void frontiersClassification()
         global.list.push_back(sorting_helper);
       }
     }
-  }
-  if (classifiedFrontiers.size() > all.list.size())
-  {
-    cout << "\n Removed " << classifiedFrontiers.size() - all.list.size() << " frontier nodes" << endl;
   }
   
   fetchTraversable(local.list);
@@ -1770,7 +1758,6 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
 
 double lookAround(ufo::math::Vector3 final_pose)
 {
-  cout << "looking at .." << endl;
   lookAt.list.clear();
   if (!all.list.empty())
   {
@@ -1789,8 +1776,6 @@ double lookAround(ufo::math::Vector3 final_pose)
       }
     }
   }
-  cout << "\nALL " << all.list.size() << endl;
-  cout << "\nLOOK AT -----  " << lookAt.list.size() << endl;
 
   ufo::math::Vector3 look_towards_frontier;
   if (!lookAt.list.empty())
@@ -1811,7 +1796,6 @@ double lookAround(ufo::math::Vector3 final_pose)
 
   if (look_towards_frontier.x() != 0 and look_towards_frontier.y() != 0)
   {
-    cout << "found a frontier to look at " << endl;
     double head_ref = atan2(look_towards_frontier.y() - final_pose.y(), look_towards_frontier.x() - final_pose.x());
     // geometry_msgs::PoseStamped look_ref;
     // look_ref.pose.position.x = current.position.x();
@@ -2112,7 +2096,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  // cout << "\n\033[;34m Making the planning graph takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+  // ROS_INFO_STREAM ("\033[;34m Making the planning graph takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
 }
 
 void findPath()
@@ -2158,8 +2142,8 @@ void findPath()
     Graph exploration_graph;
     planned.traj = exploration_graph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
 
-    ROS_INFO_COND(validPath(), "Valid Path");
-    ROS_WARN_COND(!validPath(), "the planned traj was empty");
+    ROS_INFO_COND(validPath(), "Valid Path\n");
+    ROS_WARN_COND(!validPath(), "the planned traj was empty\n");
   }
   else
   {
@@ -2168,12 +2152,12 @@ void findPath()
     Graph homing_graph;
     planned.traj = homing_graph.fetchPath(current_state, home_state, planning.node_container, ufoMAP);
 
-    ROS_INFO_COND(validPath(), "homing path is valid");
+    ROS_INFO_COND(validPath(), "homing path is valid\n");
   }
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  // cout << "\n\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+  // ROS_INFO_STREAM ( << "\033[;34m Path finding takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
 }
 
 void improvePath()
@@ -2188,7 +2172,7 @@ void improvePath()
 
   high_resolution_clock::time_point stop_total = high_resolution_clock::now();
   auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-  // cout << "\n\033[;34m Path improvement takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+  // ROS_INFO_STREAM ( "\033[;34m Path improvement takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
 }
 
 void graph_navigation(bool local_nav, double reiterate, double scale_range)
@@ -2205,7 +2189,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
     planning.improve = false;
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-    // cout << "\n\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    // ROS_INFO_STREAM ( "\033[;34m Graph Based Planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
     current.temppath_global.poses.clear();
     current.temppath_local.poses.clear();
 
@@ -2311,8 +2295,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
       }
     }
     frontiersClassification();
-    visualize();
-    if (!validPath() and reiterate < 4)
+    if (!validPath() and reiterate < 6)
     {
       ROS_WARN("No Good Path .. Graph Expansion Underway.. ");
       reiterate = reiterate + 1;
@@ -2340,7 +2323,7 @@ void return_to_base_planning()
     planning.improve = false;
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-    cout << "\n\033[;34mReturn to base planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+    ROS_INFO_STREAM ("\033[;34mReturn to base planning took \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
     for (auto vert_it = std::next(planned.traj.begin(), 0); vert_it != std::prev(planned.traj.end(), 0); vert_it++)
     {
       geometry_msgs::PoseStamped global_nodes;
@@ -2353,7 +2336,6 @@ void return_to_base_planning()
       current.path.path = current.temppath_homing;
       current.path.type.data = "homing";
     }
-
     pub.path_to_goal_pub.publish(current.path);
     pub.homing_path_pub.publish(current.temppath_homing);
     current.path.path.poses.clear();
@@ -2362,7 +2344,6 @@ void return_to_base_planning()
     ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y, planned.traj.back().z);
     published.reference = publish_goal(lastpub);
   }
-
   planned.traj.clear();
 }
 
@@ -2523,7 +2504,7 @@ int main(int argc, char *argv[])
 
       if (home.navigate)
       {
-        std::cout << "returning home" << std::endl;
+        ROS_INFO_STREAM ( "returning home" );
         local.navigate = false;
         global.navigate = false;
         // explore.navigate = false;
@@ -2534,7 +2515,7 @@ int main(int argc, char *argv[])
 
       high_resolution_clock::time_point stop_total = high_resolution_clock::now();
       auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-      cout << "\n \033[;32mTotal planning execution time: \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n " << endl;
+      ROS_INFO_STREAM ("\033[;32mTotal planning execution time: \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
       // std_msgs::Int64 exec_time;
 
