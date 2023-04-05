@@ -23,7 +23,7 @@
       
       <param name="/RAW_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
       
-      <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.6" />
+      <param name="/PLANNING_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
       
       <param name="/RAW_FRONTIERS_COLISSION_MARGIN_" type="double" value="0.5" />
       
