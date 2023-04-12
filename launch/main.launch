@@ -33,7 +33,7 @@
       
       <param name="/MIN_ITERATION_GLOBAL_" type="double" value="6000" />
       
-      <param name="/MIN_PLANNING_SPACE_LOCAL_" type="double" value="15" />
+      <param name="/MIN_PLANNING_SPACE_LOCAL_" type="double" value="5" />
       
       <param name="/MIN_PLANNING_SPACE_GLOBAL_" type="double" value="15" />
       

@@ -64,10 +64,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 5 121
-        "# Leaf Nodes": 10 720
+        "# Inner Nodes": 14 249
+        "# Leaf Nodes": 39 040
         Resolution: 40 cm
-        Size: 203,77 KiB
+        Size: 638,96 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -118,8 +118,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 6.137854099273682
-        Min Value: -0.02189052104949951
+        Max Value: 6.143683910369873
+        Min Value: -0.03834986686706543
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -197,7 +197,8 @@ Visualization Manager:
       Marker Topic: /planning_graph
       Name: Marker
       Namespaces:
-        {}
+        lines: true
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -205,7 +206,7 @@ Visualization Manager:
       Marker Topic: /ROBOT_BOX
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -213,7 +214,8 @@ Visualization Manager:
       Marker Topic: /reserved_graph
       Name: Marker
       Namespaces:
-        {}
+        lines: true
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -291,8 +293,8 @@ Visualization Manager:
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
-      Line Style: Lines
-      Line Width: 0.30000001192092896
+      Line Style: Billboards
+      Line Width: 0.10000000149011612
       Name: Path
       Offset:
         X: 0
@@ -427,7 +429,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 49.78770446777344
+      Distance: 86.08860778808594
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -435,9 +437,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.7112223505973816
-        Y: 2.836165189743042
-        Z: -0.5000576972961426
+        X: -3.3074004650115967
+        Y: -1.9759377241134644
+        Z: -0.49750736355781555
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

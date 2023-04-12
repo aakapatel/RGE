@@ -459,6 +459,7 @@ Frontier_main init;
 Frontier_main lookAt;
 Frontier_main not_traversable;
 Frontier_main raw_frontiers;
+Frontier_main request_global;
 
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
@@ -648,8 +649,8 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
 
-  ufo::math::Vector3 minPoint(source_node.x() - 1 , source_node.y() - 1 , source_node.z() - 1 );
-  ufo::math::Vector3 maxPoint(source_node.x() + 1 , source_node.y() + 1 , source_node.z() + 1 );
+  ufo::math::Vector3 minPoint(source_node.x() - 1 * MIN_PLANNING_SPACE_LOCAL , source_node.y() - 1 * MIN_PLANNING_SPACE_LOCAL , source_node.z() - 1 * MIN_PLANNING_SPACE_LOCAL);
+  ufo::math::Vector3 maxPoint(source_node.x() + 1 * MIN_PLANNING_SPACE_LOCAL , source_node.y() + 1 * MIN_PLANNING_SPACE_LOCAL , source_node.z() + 1 * MIN_PLANNING_SPACE_LOCAL);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
 
   for (auto it = ufoMAP.beginLeaves(aabb, false, true, false, false, PLANNING_CHECK_DEPTH), it_end = ufoMAP.endLeaves(); it != it_end; ++it)
@@ -684,16 +685,10 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
   SCALER_Y = highest_y - lowest_y;
   SCALER_Z = highest_z - lowest_z;
 
-  // for (std::list<node *>::iterator it_clear_helper = temporary_Graph.begin(); it_clear_helper != --temporary_Graph.end(); it_clear_helper++)
-  // {
-  //   (*it_clear_helper)->readyForDeletion();
-  //   delete (*it_clear_helper);
-  // }
-
-  // temporary_Graph.clear();
   node *current_pos = new node(source_node.x(), source_node.y(), source_node.z());
   current_pos->addParent(nullptr);
   temporary_Graph.push_back(current_pos);
+  // Reserved_Graph.push_back(current_pos);
 
   srand(time(0));
   itterations = 0;
@@ -724,15 +719,13 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
       ufo::math::Vector3 start_point(parent->point->x(), parent->point->y(), parent->point->z());
       ufo::math::Vector3 direction = random_point - start_point;
       ufo::geometry::LineSegment myline(random_point, start_point);
-      // ufo::geometry::OBB obb = makeOBB (start_point, random_point, RAW_GRAPH_COLISSION_MARGIN);
-      if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) and calculateDistance(random_point, start_point) > 0.5)
+      if (!isInCollision(ufoMAP, myline, true, false, true, PLANNING_CHECK_DEPTH) and calculateDistance(random_point, start_point) > 2)
 
       {
         node *new_node = new node(x, y, z);
         new_node->addParent(parent);
         parent->addChild(new_node);
         temporary_Graph.push_back(new_node);
-        // Reserved_Graph.push_back(new_node);
       }
     };
     itterations++;
@@ -742,7 +735,7 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
     Reserved_Graph.push_back(*i);
   }
   temporary_Graph.clear();
-  ROS_INFO_STREAM ( "Reserved Graph Exists With --> " << Reserved_Graph.size() << " Nodes\n");
+  // ROS_INFO_STREAM ( "Reserved Graph Exists With --> " << Reserved_Graph.size() << " Nodes\n");
 };
 
 
@@ -1537,7 +1530,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     {
       m_prevPose = *msg;
       positionslist.push_back(oldPoint);
-      buildReservedGraph(current.position, 10);
+      buildReservedGraph(current.position, 2);
     }
     if (calculateDistance(newPoint, oldPoint) > 1.6)
     {
@@ -2076,9 +2069,12 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
                         std::vector<Graph::planning_node>::iterator>> PAIRS;
   std::vector<std::pair<std::vector<Graph::planning_node>::iterator,
                         std::vector<Graph::planning_node>::iterator>> RESERVED_PAIRS;
+  std::vector<std::pair<std::vector<Graph::planning_node>::iterator,
+                        std::vector<Graph::planning_node>::iterator>> TEMP_PAIRS;
 
   PAIRS.clear();
   RESERVED_PAIRS.clear();
+  TEMP_PAIRS.clear();
   planning.node_container.clear();
   parent_nodes.clear();
   child_nodes.clear();
@@ -2194,25 +2190,25 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       }
     }
 
-    for (auto it = reserved_nodes.begin(); it != --reserved_nodes.end(); it++)
-    {
-      ufo::math::Vector3 p1((*it).myposition.x, (*it).myposition.y, (*it).myposition.z);
-      for (auto it2 = it; it2 != reserved_nodes.end(); it2++)
-      {
-        ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
-
-        double dist = calculateDistance(p1, p2);
-        // if (dist > 2 and dist < 4) {
-        if (dist < 2)
+    if (!request_global.navigate) {
+      TEMP_PAIRS = PAIRS;
+    } else {
+        for (auto it = reserved_nodes.begin(); it != --reserved_nodes.end(); it++)
         {
-          RESERVED_PAIRS.push_back(std::make_pair(it, it2));
+          ufo::math::Vector3 p1((*it).myposition.x, (*it).myposition.y, (*it).myposition.z);
+          for (auto it2 = it; it2 != reserved_nodes.end(); it2++)
+          {
+            ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
+            double dist = calculateDistance(p1, p2);
+            if (dist < 4)
+            {
+              RESERVED_PAIRS.push_back(std::make_pair(it, it2));
+            }
+          }
         }
-      }
+        TEMP_PAIRS = RESERVED_PAIRS;
     }
-
-    cout << "reserved pairs " <<  RESERVED_PAIRS.size() << endl;
-
-    for (auto i = PAIRS.begin(); i != PAIRS.end(); i++)
+    for (auto i = TEMP_PAIRS.begin(); i != TEMP_PAIRS.end(); i++)
     {
 
       ufo::math::Vector3 n1(((*i).first)->myposition.x, ((*i).first)->myposition.y, ((*i).first)->myposition.z);
@@ -2289,51 +2285,115 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
   // ROS_INFO_STREAM ("\033[;34m Making the planning graph takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
 }
 
-void findPath()
+void findPath(bool request_global_path)
 {
+  request_global.navigate = false;
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   if (!home.navigate)
   {
     double close_dis = std::numeric_limits<double>::max();
     double end_dis = std::numeric_limits<double>::max();
+    double end_dis_reserved = std::numeric_limits<double>::max();
+    double my_end_dis_reserved = std::numeric_limits<double>::max();
     double my_end_dis = std::numeric_limits<double>::max();
     double my_close_dis = std::numeric_limits<double>::max();
+    ufo::math::Vector3 frontier_global = published.list.back();
 
-    for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++)
-    {
+      for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++) {
 
-      close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) +
-                            std::pow((*closest_it).myposition.y - current.position.y(), 2) +
-                            std::pow((*closest_it).myposition.z - current.position.z(), 2));
+        close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) +
+                              std::pow((*closest_it).myposition.y - current.position.y(), 2) +
+                              std::pow((*closest_it).myposition.z - current.position.z(), 2));
 
-      end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((planning.graph_pointer)->point)->x(), 2) +
-                          std::pow((*closest_it).myposition.y - ((planning.graph_pointer)->point)->y(), 2) +
-                          std::pow((*closest_it).myposition.z - ((planning.graph_pointer)->point)->z(), 2));
+        end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((planning.graph_pointer)->point)->x(), 2) +
+                            std::pow((*closest_it).myposition.y - ((planning.graph_pointer)->point)->y(), 2) +
+                            std::pow((*closest_it).myposition.z - ((planning.graph_pointer)->point)->z(), 2));
 
-      if (close_dis < my_close_dis)
-      {
-        my_close_dis = close_dis;
-        starting.x_ref = ((*closest_it).myposition.x);
-        starting.y_ref = ((*closest_it).myposition.y);
-        starting.z_ref = ((*closest_it).myposition.z);
+        end_dis_reserved = std::sqrt(std::pow((*closest_it).myposition.x - frontier_global.x(), 2) +
+                                     std::pow((*closest_it).myposition.y - frontier_global.y(), 2) +
+                                     std::pow((*closest_it).myposition.z - frontier_global.z(), 2));
+
+        if (close_dis < my_close_dis)
+        {
+          my_close_dis = close_dis;
+          starting.x_ref = ((*closest_it).myposition.x);
+          starting.y_ref = ((*closest_it).myposition.y);
+          starting.z_ref = ((*closest_it).myposition.z);
+        }
+
+        if (!request_global_path) {
+          if (end_dis < my_end_dis)
+          {
+            my_end_dis = end_dis;
+            ending.x_ref = ((*closest_it).myposition.x);
+            ending.y_ref = ((*closest_it).myposition.y);
+            ending.z_ref = ((*closest_it).myposition.z);
+          }
+        } else {
+          if (end_dis_reserved < my_end_dis_reserved)
+          {
+            my_end_dis_reserved = end_dis_reserved;
+            ending.x_ref = ((*closest_it).myposition.x);
+            ending.y_ref = ((*closest_it).myposition.y);
+            ending.z_ref = ((*closest_it).myposition.z);
+          }
+          // ufo::math::Vector3 global_end_node (ending.x_ref, ending.y_ref, ending.z_ref);
+          // ufo::math::Vector3 reserved_graph_node ((*closest_it).myposition.x, (*closest_it).myposition.y, (*closest_it).myposition.z);
+          // // ufo::geometry::OBB obb = makeOBB(reserved_graph_node, frontier_global, 0.5);
+          // ufo::geometry::LineSegment line_seg (reserved_graph_node, frontier_global);
+          // if (!isInCollision(ufoMAP, line_seg, true, false, true, PLANNING_CHECK_DEPTH)) {
+          //   ending.x_ref = ((*closest_it).myposition.x);
+          //   ending.y_ref = ((*closest_it).myposition.y);
+          //   ending.z_ref = ((*closest_it).myposition.z);
+          //   ROS_WARN_STREAM("reserved global graph based path END X : " << ending.x_ref);
+          // }
+        }
       }
-      if (end_dis < my_end_dis)
-      {
-        my_end_dis = end_dis;
-        ending.x_ref = ((*closest_it).myposition.x);
-        ending.y_ref = ((*closest_it).myposition.y);
-        ending.z_ref = ((*closest_it).myposition.z);
-      }
-    }
 
     Graph::Point start_pos{starting.x_ref, starting.y_ref, starting.z_ref};
     Graph::Point end_pos{ending.x_ref, ending.y_ref, ending.z_ref};
 
     Graph exploration_graph;
     planned.traj = exploration_graph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
-
+    // cout << "planned path size " << planned.traj.size() << endl;
     ROS_INFO_COND(validPath(), "Valid Path\n");
     ROS_WARN_COND(!validPath(), "the planned Path was empty\n");
+
+    // for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++)
+    // {
+
+    //   close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) +
+    //                         std::pow((*closest_it).myposition.y - current.position.y(), 2) +
+    //                         std::pow((*closest_it).myposition.z - current.position.z(), 2));
+
+    //   end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((planning.graph_pointer)->point)->x(), 2) +
+    //                       std::pow((*closest_it).myposition.y - ((planning.graph_pointer)->point)->y(), 2) +
+    //                       std::pow((*closest_it).myposition.z - ((planning.graph_pointer)->point)->z(), 2));
+
+    //   if (close_dis < my_close_dis)
+    //   {
+    //     my_close_dis = close_dis;
+    //     starting.x_ref = ((*closest_it).myposition.x);
+    //     starting.y_ref = ((*closest_it).myposition.y);
+    //     starting.z_ref = ((*closest_it).myposition.z);
+    //   }
+    //   if (end_dis < my_end_dis)
+    //   {
+    //     my_end_dis = end_dis;
+    //     ending.x_ref = ((*closest_it).myposition.x);
+    //     ending.y_ref = ((*closest_it).myposition.y);
+    //     ending.z_ref = ((*closest_it).myposition.z);
+    //   }
+    // }
+
+    // Graph::Point start_pos{starting.x_ref, starting.y_ref, starting.z_ref};
+    // Graph::Point end_pos{ending.x_ref, ending.y_ref, ending.z_ref};
+
+    // Graph exploration_graph;
+    // planned.traj = exploration_graph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
+
+    // ROS_INFO_COND(validPath(), "Valid Path\n");
+    // ROS_WARN_COND(!validPath(), "the planned Path was empty\n");
   }
   else
   {
@@ -2371,7 +2431,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
   frontiersClassification();
   buildPlanningGraph(false, local_nav, planning.improve, reiterate, scale_range);
-  findPath();
+  findPath(request_global.navigate);
   visualize();
   if (validPath())
   {
@@ -2476,8 +2536,9 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
     if (switch_global.navigate or home.navigate) {
       return;
     }
-    if (!validPath() and reiterate < 6)
+    if (!validPath() and reiterate < 3)
     {
+      request_global.navigate = true;
       ROS_WARN("No Good Path .. Graph Expansion Underway.. \n");
       reiterate = reiterate + 1;
       scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
@@ -2507,7 +2568,7 @@ void return_to_base_planning()
   double reiterate = 1;
   double scale_range = 1;
   buildPlanningGraph(true, false, planning.improve, reiterate, scale_range);
-  findPath();
+  findPath(request_global.navigate);
   if (validPath())
   {
     planning.improve = false;
