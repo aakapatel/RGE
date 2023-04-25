@@ -35,7 +35,7 @@ Panels:
         - /Marker10/Namespaces1
         - /Marker11
       Splitter Ratio: 0.5
-    Tree Height: 2294
+    Tree Height: 363
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -64,10 +64,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 14 249
-        "# Leaf Nodes": 39 040
+        "# Inner Nodes": 13 649
+        "# Leaf Nodes": 35 848
         Resolution: 40 cm
-        Size: 638,96 KiB
+        Size: 599,96 KiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -118,8 +118,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 6.143683910369873
-        Min Value: -0.03834986686706543
+        Max Value: 9.465725898742676
+        Min Value: -0.058936119079589844
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -447,7 +447,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 6.27365779876709
+      Yaw: 3.160487174987793
     Saved: ~
 Window Geometry:
   Displays:

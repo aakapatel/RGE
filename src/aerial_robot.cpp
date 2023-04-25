@@ -649,8 +649,8 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
   lowest_y = std::numeric_limits<float>::max();
   lowest_z = std::numeric_limits<float>::max();
 
-  ufo::math::Vector3 minPoint(source_node.x() - 1 * MIN_PLANNING_SPACE_LOCAL , source_node.y() - 1 * MIN_PLANNING_SPACE_LOCAL , source_node.z() - 1 * MIN_PLANNING_SPACE_LOCAL);
-  ufo::math::Vector3 maxPoint(source_node.x() + 1 * MIN_PLANNING_SPACE_LOCAL , source_node.y() + 1 * MIN_PLANNING_SPACE_LOCAL , source_node.z() + 1 * MIN_PLANNING_SPACE_LOCAL);
+  ufo::math::Vector3 minPoint(source_node.x() - 1 * 5 , source_node.y() - 1 * 5 , source_node.z() - 1 * 5);
+  ufo::math::Vector3 maxPoint(source_node.x() + 1 * 5 , source_node.y() + 1 * 5 , source_node.z() + 1 * 5);
   ufo::geometry::AABB aabb(minPoint, maxPoint);
 
   for (auto it = ufoMAP.beginLeaves(aabb, false, true, false, false, PLANNING_CHECK_DEPTH), it_end = ufoMAP.endLeaves(); it != it_end; ++it)
@@ -2264,7 +2264,6 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         // ufo::geometry::LineSegment line_check(d1, d2);
         double rang = calculateDistance(d1, d2);
 
-        // if (rang > 1 and rang < 8)
         if (rang < 8)
         {
           if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) &&
@@ -2333,67 +2332,28 @@ void findPath(bool request_global_path)
           if (end_dis_reserved < my_end_dis_reserved)
           {
             my_end_dis_reserved = end_dis_reserved;
+          
+          ufo::math::Vector3 global_end_node = published.list.back();
+          ufo::math::Vector3 reserved_graph_node ((*closest_it).myposition.x, (*closest_it).myposition.y, (*closest_it).myposition.z);
+          // ufo::geometry::OBB obb = makeOBB(reserved_graph_node, frontier_global, 0.5);
+          // ufo::geometry::LineSegment line_seg (reserved_graph_node, global_end_node);
+          // if (!isInCollision(ufoMAP, line_seg, true, false, true, PLANNING_CHECK_DEPTH)) {
             ending.x_ref = ((*closest_it).myposition.x);
             ending.y_ref = ((*closest_it).myposition.y);
             ending.z_ref = ((*closest_it).myposition.z);
-          }
-          // ufo::math::Vector3 global_end_node (ending.x_ref, ending.y_ref, ending.z_ref);
-          // ufo::math::Vector3 reserved_graph_node ((*closest_it).myposition.x, (*closest_it).myposition.y, (*closest_it).myposition.z);
-          // // ufo::geometry::OBB obb = makeOBB(reserved_graph_node, frontier_global, 0.5);
-          // ufo::geometry::LineSegment line_seg (reserved_graph_node, frontier_global);
-          // if (!isInCollision(ufoMAP, line_seg, true, false, true, PLANNING_CHECK_DEPTH)) {
-          //   ending.x_ref = ((*closest_it).myposition.x);
-          //   ending.y_ref = ((*closest_it).myposition.y);
-          //   ending.z_ref = ((*closest_it).myposition.z);
-          //   ROS_WARN_STREAM("reserved global graph based path END X : " << ending.x_ref);
+            // ROS_WARN_STREAM("reserved global graph based path END X : " << ending.x_ref);
           // }
+          }
         }
       }
 
     Graph::Point start_pos{starting.x_ref, starting.y_ref, starting.z_ref};
     Graph::Point end_pos{ending.x_ref, ending.y_ref, ending.z_ref};
-
     Graph exploration_graph;
     planned.traj = exploration_graph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
     // cout << "planned path size " << planned.traj.size() << endl;
     ROS_INFO_COND(validPath(), "Valid Path\n");
     ROS_WARN_COND(!validPath(), "the planned Path was empty\n");
-
-    // for (auto closest_it = planning.node_container.begin(); closest_it != planning.node_container.end(); closest_it++)
-    // {
-
-    //   close_dis = std::sqrt(std::pow((*closest_it).myposition.x - current.position.x(), 2) +
-    //                         std::pow((*closest_it).myposition.y - current.position.y(), 2) +
-    //                         std::pow((*closest_it).myposition.z - current.position.z(), 2));
-
-    //   end_dis = std::sqrt(std::pow((*closest_it).myposition.x - ((planning.graph_pointer)->point)->x(), 2) +
-    //                       std::pow((*closest_it).myposition.y - ((planning.graph_pointer)->point)->y(), 2) +
-    //                       std::pow((*closest_it).myposition.z - ((planning.graph_pointer)->point)->z(), 2));
-
-    //   if (close_dis < my_close_dis)
-    //   {
-    //     my_close_dis = close_dis;
-    //     starting.x_ref = ((*closest_it).myposition.x);
-    //     starting.y_ref = ((*closest_it).myposition.y);
-    //     starting.z_ref = ((*closest_it).myposition.z);
-    //   }
-    //   if (end_dis < my_end_dis)
-    //   {
-    //     my_end_dis = end_dis;
-    //     ending.x_ref = ((*closest_it).myposition.x);
-    //     ending.y_ref = ((*closest_it).myposition.y);
-    //     ending.z_ref = ((*closest_it).myposition.z);
-    //   }
-    // }
-
-    // Graph::Point start_pos{starting.x_ref, starting.y_ref, starting.z_ref};
-    // Graph::Point end_pos{ending.x_ref, ending.y_ref, ending.z_ref};
-
-    // Graph exploration_graph;
-    // planned.traj = exploration_graph.fetchPath(start_pos, end_pos, planning.node_container, ufoMAP);
-
-    // ROS_INFO_COND(validPath(), "Valid Path\n");
-    // ROS_WARN_COND(!validPath(), "the planned Path was empty\n");
   }
   else
   {
