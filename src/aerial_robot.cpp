@@ -587,6 +587,9 @@ void buildGraph(bool request_local, float given_x, float given_y, float given_z,
 
   srand(time(0));
   itterations = 0;
+  if (request_local) {
+    
+  }
   while (itterations < max_iterations)
   {
     // Generate a random point
@@ -2676,9 +2679,9 @@ int main(int argc, char *argv[])
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
-
-      // buildReservedGraph(current.position, 500);
-
+      
+      fetchUnknownNodes(current.position, ufoMAP);
+      
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate)
       {
 
