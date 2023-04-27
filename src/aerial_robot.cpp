@@ -137,7 +137,7 @@ public:
     return;
   }
 
-  bool findPathImprovement(struct node *targetNode, ufo::map::OccupancyMapColor const &map, float givenDistance, float givenRadious, auto pathImprovement_start, int givenMax)
+  bool findPathImprovement(struct node *targetNode, ufo::map::OccupancyMapColor const &map, float givenDistance, float givenSAFETY_MARGIN, auto pathImprovement_start, int givenMax)
   {
     bool improvementFound;
     if (targetNode == this and myParent == nullptr)
@@ -146,7 +146,7 @@ public:
     }
     if (myParent != nullptr)
     {
-      improvementFound = myParent->findPathImprovement(targetNode, map, givenDistance, givenRadious, pathImprovement_start, givenMax);
+      improvementFound = myParent->findPathImprovement(targetNode, map, givenDistance, givenSAFETY_MARGIN, pathImprovement_start, givenMax);
       auto pathImprovement_stop = high_resolution_clock::now();
       auto pathImprovement_total = duration_cast<microseconds>(pathImprovement_stop - pathImprovement_start).count();
       if (pathImprovement_total > givenMax)
@@ -162,8 +162,8 @@ public:
         ufo::math::Vector3 newVector(targetNode->point->x() - point->x(), targetNode->point->y() - point->y(), targetNode->point->z() - point->z());
         float distance = newVector.norm();
         // float distance = sqrt(pow(targetNode->point->x() - point->x(), 2) + pow(targetNode->point->y() - point->y(), 2) + pow(targetNode->point->z() - point->z(), 2));
-        float itterations = (distance / givenRadious);
-        float part = givenRadious / distance;
+        float itterations = (distance / givenSAFETY_MARGIN);
+        float part = givenSAFETY_MARGIN / distance;
         float xStep = (targetNode->point->x() - point->x()) * part;
         float yStep = (targetNode->point->y() - point->y()) * part;
         float zStep = (targetNode->point->z() - point->z()) * part;
@@ -176,7 +176,7 @@ public:
             return true;
           }
           ufo::math::Vector3 newVector = ufo::math::Vector3(point->x() + i * xStep, point->y() + i * yStep, point->z() + i * zStep);
-          ufo::geometry::Sphere new_sphere(newVector, givenRadious);
+          ufo::geometry::Sphere new_sphere(newVector, givenSAFETY_MARGIN);
           if (isInCollision(map, new_sphere, true, false, true, PLANNING_CHECK_DEPTH))
           {
             return false;
@@ -197,8 +197,8 @@ public:
       {
         ufo::math::Vector3 newVector(targetNode->point->x() - point->x(), targetNode->point->y() - point->y(), targetNode->point->z() - point->z());
         float distance = newVector.norm();
-        float itterations = (distance / givenRadious);
-        float part = givenRadious / distance;
+        float itterations = (distance / givenSAFETY_MARGIN);
+        float part = givenSAFETY_MARGIN / distance;
         float xStep = (targetNode->point->x() - point->x()) * part;
         float yStep = (targetNode->point->y() - point->y()) * part;
         float zStep = (targetNode->point->z() - point->z()) * part;
@@ -211,14 +211,14 @@ public:
             return true;
           }
           ufo::math::Vector3 newVector = ufo::math::Vector3(point->x() + i * xStep, point->y() + i * yStep, point->z() + i * zStep);
-          ufo::geometry::Sphere new_sphere(newVector, givenRadious);
+          ufo::geometry::Sphere new_sphere(newVector, givenSAFETY_MARGIN);
           if (isInCollision(map, new_sphere, true, false, true, PLANNING_CHECK_DEPTH))
           {
             return false;
           }
         }
         targetNode->addParent(this);
-        improvementFound = findPathImprovement(this, map, givenDistance, givenRadious, pathImprovement_start, givenMax);
+        improvementFound = findPathImprovement(this, map, givenDistance, givenSAFETY_MARGIN, pathImprovement_start, givenMax);
         return true;
       }
       else
@@ -368,7 +368,7 @@ float highest_y;
 float highest_z;
 double NEXT_PUB_DISTANCE;
 double LOCAL_RANGE;
-double RADIOUS;
+double SAFETY_MARGIN;
 double RESOLUTION;
 double roll = 0;
 double pitch = 0;
@@ -404,6 +404,8 @@ double MAX_PLANNING_SPACE_LOCAL;
 double MAX_PLANNING_SPACE_GLOBAL;
 double IMPROVEMENT_SCALE_FACTOR_IT;
 double IMPROVEMENT_SCALE_FACTOR_RANGE;
+double MAX_EDGE_LENGTH;
+double MAX_EDGE_LENGTH_HOMING;
 
 std::string ODOMETRY_IN;
 std::string MAP_TOPIC;
@@ -598,7 +600,7 @@ void buildGraph(bool request_local, float given_x, float given_y, float given_z,
     float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
     // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
-    ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
+    ufo::geometry::Sphere point_sphere(random_point, SAFETY_MARGIN);
     if (!isInCollision(ufoMAP, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
     {
       float distance = std::numeric_limits<float>::max();
@@ -703,7 +705,7 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
     float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
     // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
-    ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
+    ufo::geometry::Sphere point_sphere(random_point, SAFETY_MARGIN);
     if (!isInCollision(ufoMAP, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
     {
       float distance = std::numeric_limits<float>::max();
@@ -1745,12 +1747,12 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
   ufo::math::Vector3 upwards(point.x(), point.y(), point.z() + 1);
 
   // Angles
-  double vertical_angle = 0.275;
-  double horizontal_angle = 3.14;
+  double vertical_angle = 0.393;
+  double horizontal_angle = 0.78;
 
   // Distances
   double near_distance = 0.5;
-  double far_distance = 16;
+  double far_distance = 10;
 
   // Frustums
   ufo::geometry::Frustum frustXP(point, targetXP, upwards, vertical_angle, horizontal_angle, near_distance, far_distance);
@@ -1832,7 +1834,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
     robot_pose->addParent(pos_parent);
     pos_parent->addChild(robot_pose);
     skeleton.push_back(robot_pose);
-  }
+  
 
   // for (auto clear_it = skeleton.begin(); clear_it != skeleton.end(); clear_it++) {
 
@@ -1910,6 +1912,7 @@ void fetchUnknownNodes(ufo::math::Vector3 point,
       global.unknowns.push_back(unknown_node);
     }
   }
+}
 }
 
 double lookAround(ufo::math::Vector3 final_pose)
@@ -2186,7 +2189,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
 
         double dist = calculateDistance(p1, p2);
         // if (dist > 2 and dist < 4) {
-        if (dist < 4)
+        if (dist < MAX_EDGE_LENGTH)
         {
           PAIRS.push_back(std::make_pair(it, it2));
         }
@@ -2203,7 +2206,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
           {
             ufo::math::Vector3 p2((*it2).myposition.x, (*it2).myposition.y, (*it2).myposition.z);
             double dist = calculateDistance(p1, p2);
-            if (dist < 4)
+            if (dist < MAX_EDGE_LENGTH)
             {
               RESERVED_PAIRS.push_back(std::make_pair(it, it2));
             }
@@ -2267,7 +2270,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         // ufo::geometry::LineSegment line_check(d1, d2);
         double rang = calculateDistance(d1, d2);
 
-        if (rang < 8)
+        if (rang < MAX_EDGE_LENGTH_HOMING)
         {
           if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH) &&
               isInCollision(ufoMAP, obb, false, true, false, PLANNING_CHECK_DEPTH))
@@ -2571,7 +2574,9 @@ int main(int argc, char *argv[])
   ros::param::get("/ODOM_FRAME_ID_", ODOM_FRAME_ID);
   ros::param::get("/INITIALIZE_", INITIALIZE);
   ros::param::get("/RESOLUTION_", RESOLUTION);
-  ros::param::get("/RADIOUS_", RADIOUS);
+  ros::param::get("/SAFETY_MARGIN_", SAFETY_MARGIN);
+  ros::param::get("/MAX_EDGE_LENGTH_", MAX_EDGE_LENGTH);
+  ros::param::get("/MAX_EDGE_LENGTH_HOMING_", MAX_EDGE_LENGTH_HOMING);
   ros::param::get("/NEXT_PUB_DISTANCE_", NEXT_PUB_DISTANCE);
   ros::param::get("/LOCAL_RANGE_", LOCAL_RANGE);
   ros::param::get("/RAW_GRAPH_COLISSION_MARGIN_", RAW_GRAPH_COLISSION_MARGIN);
@@ -2680,7 +2685,7 @@ int main(int argc, char *argv[])
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
       
-      fetchUnknownNodes(current.position, ufoMAP);
+      // fetchUnknownNodes(current.position, ufoMAP);
       
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate)
       {

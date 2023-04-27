@@ -35,7 +35,7 @@ Panels:
         - /Marker10/Namespaces1
         - /Marker11
       Splitter Ratio: 0.5
-    Tree Height: 363
+    Tree Height: 2294
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -64,10 +64,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 13 649
-        "# Leaf Nodes": 35 848
-        Resolution: 40 cm
-        Size: 599,96 KiB
+        "# Inner Nodes": 204 761
+        "# Leaf Nodes": 610 416
+        Resolution: 20 cm
+        Size: 9,34 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -118,8 +118,8 @@ Visualization Manager:
     - Alpha: 0.10000000149011612
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 9.465725898742676
-        Min Value: -0.058936119079589844
+        Max Value: 4.59623908996582
+        Min Value: -0.019231557846069336
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -294,7 +294,7 @@ Visualization Manager:
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.10000000149011612
+      Line Width: 0.3499999940395355
       Name: Path
       Offset:
         X: 0
@@ -386,19 +386,19 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /current_unknowns
       Name: Marker
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /not_traversable_by_drone_nodes
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -429,7 +429,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 86.08860778808594
+      Distance: 120.8222427368164
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -437,9 +437,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -3.3074004650115967
-        Y: -1.9759377241134644
-        Z: -0.49750736355781555
+        X: 4.810975551605225
+        Y: -2.572920560836792
+        Z: -8.566534996032715
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -447,7 +447,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.160487174987793
+      Yaw: 3.140467643737793
     Saved: ~
 Window Geometry:
   Displays:

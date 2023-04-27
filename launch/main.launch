@@ -9,13 +9,17 @@
 
       <param name="/FIRST_REF_X_" type="double" value="0" />
       <param name="/FIRST_REF_Y_" type="double" value="0" />
-      <param name="/FIRST_REF_Z_" type="double" value="2" />
+      <param name="/FIRST_REF_Z_" type="double" value="1" />
       
       <param name="/RESOLUTION_" type="double" value="0.2" />
 
       <param name="/MIN_DIST_NODE_" type="double" value="0.5" />
             
-      <param name="/RADIOUS_" type="double" value="0.5" />
+      <param name="/SAFETY_MARGIN_" type="double" value="0.5" />
+
+      <param name="/MAX_EDGE_LENGTH_" type="double" value="4" />
+
+      <param name="/MAX_EDGE_LENGTH_HOMING" type="double" value="8" />
 
       <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
       
@@ -29,7 +33,7 @@
       
       <param name="/PLANNING_CHECK_DEPTH_" type="double" value="0" />
       
-      <param name="/MIN_ITERATION_LOCAL_" type="double" value="500" />
+      <param name="/MIN_ITERATION_LOCAL_" type="double" value="2000" />
       
       <param name="/MIN_ITERATION_GLOBAL_" type="double" value="2000" />
       
@@ -49,7 +53,6 @@
       
       <param name="/IMPROVEMENT_SCALE_FACTOR_RANGE_" type="double" value="1" />
       
-
       <node pkg="acl_exploration" type="aerial_robot_node" name="aerial_robot_node" output="screen">
 
       <remap from="/ODOMETRY_IN_" to="/hummingbird/ground_truth/odometry"/>

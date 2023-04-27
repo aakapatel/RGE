@@ -137,7 +137,7 @@ public:
     return;
   }
 
-  bool findPathImprovement(struct node *targetNode, ufo::map::OccupancyMapColor const &map, float givenDistance, float givenRadious, auto pathImprovement_start, int givenMax)
+  bool findPathImprovement(struct node *targetNode, ufo::map::OccupancyMapColor const &map, float givenDistance, float givenSAFETY_MARGIN, auto pathImprovement_start, int givenMax)
   {
     bool improvementFound;
     if (targetNode == this and myParent == nullptr)
@@ -146,7 +146,7 @@ public:
     }
     if (myParent != nullptr)
     {
-      improvementFound = myParent->findPathImprovement(targetNode, map, givenDistance, givenRadious, pathImprovement_start, givenMax);
+      improvementFound = myParent->findPathImprovement(targetNode, map, givenDistance, givenSAFETY_MARGIN, pathImprovement_start, givenMax);
       auto pathImprovement_stop = high_resolution_clock::now();
       auto pathImprovement_total = duration_cast<microseconds>(pathImprovement_stop - pathImprovement_start).count();
       if (pathImprovement_total > givenMax)
@@ -162,8 +162,8 @@ public:
         ufo::math::Vector3 newVector(targetNode->point->x() - point->x(), targetNode->point->y() - point->y(), targetNode->point->z() - point->z());
         float distance = newVector.norm();
         // float distance = sqrt(pow(targetNode->point->x() - point->x(), 2) + pow(targetNode->point->y() - point->y(), 2) + pow(targetNode->point->z() - point->z(), 2));
-        float itterations = (distance / givenRadious);
-        float part = givenRadious / distance;
+        float itterations = (distance / givenSAFETY_MARGIN);
+        float part = givenSAFETY_MARGIN / distance;
         float xStep = (targetNode->point->x() - point->x()) * part;
         float yStep = (targetNode->point->y() - point->y()) * part;
         float zStep = (targetNode->point->z() - point->z()) * part;
@@ -176,7 +176,7 @@ public:
             return true;
           }
           ufo::math::Vector3 newVector = ufo::math::Vector3(point->x() + i * xStep, point->y() + i * yStep, point->z() + i * zStep);
-          ufo::geometry::Sphere new_sphere(newVector, givenRadious);
+          ufo::geometry::Sphere new_sphere(newVector, givenSAFETY_MARGIN);
           if (isInCollision(map, new_sphere, true, false, true, PLANNING_CHECK_DEPTH))
           {
             return false;
@@ -197,8 +197,8 @@ public:
       {
         ufo::math::Vector3 newVector(targetNode->point->x() - point->x(), targetNode->point->y() - point->y(), targetNode->point->z() - point->z());
         float distance = newVector.norm();
-        float itterations = (distance / givenRadious);
-        float part = givenRadious / distance;
+        float itterations = (distance / givenSAFETY_MARGIN);
+        float part = givenSAFETY_MARGIN / distance;
         float xStep = (targetNode->point->x() - point->x()) * part;
         float yStep = (targetNode->point->y() - point->y()) * part;
         float zStep = (targetNode->point->z() - point->z()) * part;
@@ -211,14 +211,14 @@ public:
             return true;
           }
           ufo::math::Vector3 newVector = ufo::math::Vector3(point->x() + i * xStep, point->y() + i * yStep, point->z() + i * zStep);
-          ufo::geometry::Sphere new_sphere(newVector, givenRadious);
+          ufo::geometry::Sphere new_sphere(newVector, givenSAFETY_MARGIN);
           if (isInCollision(map, new_sphere, true, false, true, PLANNING_CHECK_DEPTH))
           {
             return false;
           }
         }
         targetNode->addParent(this);
-        improvementFound = findPathImprovement(this, map, givenDistance, givenRadious, pathImprovement_start, givenMax);
+        improvementFound = findPathImprovement(this, map, givenDistance, givenSAFETY_MARGIN, pathImprovement_start, givenMax);
         return true;
       }
       else
@@ -368,7 +368,7 @@ float highest_y;
 float highest_z;
 double NEXT_PUB_DISTANCE;
 double LOCAL_RANGE;
-double RADIOUS;
+double SAFETY_MARGIN;
 double RESOLUTION;
 double roll = 0;
 double pitch = 0;
@@ -595,7 +595,7 @@ void buildGraph(bool request_local, float given_x, float given_y, float given_z,
     float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
     // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
-    ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
+    ufo::geometry::Sphere point_sphere(random_point, SAFETY_MARGIN);
     if (!isInCollision(ufoMAP, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
     {
       float distance = std::numeric_limits<float>::max();
@@ -700,7 +700,7 @@ void buildReservedGraph(ufo::math::Vector3 source_node, int max_iterations)
     float z = lowest_z + abs(1024 * rand() / (RAND_MAX + 1.0)) * SCALER_Z;
     // float z = current.position.z();
     ufo::math::Vector3 random_point(x, y, z);
-    ufo::geometry::Sphere point_sphere(random_point, RADIOUS);
+    ufo::geometry::Sphere point_sphere(random_point, SAFETY_MARGIN);
     if (!isInCollision(ufoMAP, point_sphere, true, false, true, PLANNING_CHECK_DEPTH) and isInCollision(ufoMAP, point_sphere, false, true, false, PLANNING_CHECK_DEPTH))
     {
       float distance = std::numeric_limits<float>::max();
@@ -2568,7 +2568,7 @@ int main(int argc, char *argv[])
   ros::param::get("/ODOM_FRAME_ID_", ODOM_FRAME_ID);
   ros::param::get("/INITIALIZE_", INITIALIZE);
   ros::param::get("/RESOLUTION_", RESOLUTION);
-  ros::param::get("/RADIOUS_", RADIOUS);
+  ros::param::get("/SAFETY_MARGIN_", SAFETY_MARGIN);
   ros::param::get("/NEXT_PUB_DISTANCE_", NEXT_PUB_DISTANCE);
   ros::param::get("/LOCAL_RANGE_", LOCAL_RANGE);
   ros::param::get("/RAW_GRAPH_COLISSION_MARGIN_", RAW_GRAPH_COLISSION_MARGIN);
