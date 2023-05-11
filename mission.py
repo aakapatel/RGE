@@ -24,12 +24,12 @@ m = 0
 class Server:
 
 
-    
+
     def __init__(self, current_time=None):
 
         global mission_timer, mission_duration, start
         mission_timer = time.time()
-        
+
         self.waypoint = False
         self.frontier_received = False
         self.xbee_return_flag = False
@@ -50,17 +50,17 @@ class Server:
         mission_duration = 80000
 
         #############################################################################################
-        
+
         self.sample_time = 0.00
         self.current_time = current_time if current_time is not None else time.time()
         self.last_time = self.current_time
 
         self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
-                
+
         self.vel_msg = PoseStamped()
 
         self.safety_publisher = rospy.Publisher('/hummingbird/safety_land', String, queue_size= 10)
-                
+
         self.safety_msg = String()
 
         self.return_publisher = rospy.Publisher('/return_home', String, queue_size= 10)
@@ -68,13 +68,13 @@ class Server:
 
         self.explore_publisher = rospy.Publisher('/explore', String, queue_size= 10)
         self.explore_command = String()
-        
+
         rospy.Subscriber("/hummingbird/ground_truth/odometry", Odometry, self.read_callback)
 
         rospy.Subscriber('/return_home',  String, self.return_to_base)
 
         self.waypoint_subscriber = rospy.Subscriber('/hummingbird/exploration_path', path, self.waypoint_callback)
-        
+
         self.f_x = 0
         self.f_y = 0
         self.f_z = 0
@@ -93,7 +93,7 @@ class Server:
     def waypoint_callback(self, msg):
 
         self.wp_index = 0
-        
+
         self.path = msg.path
         self.path_type = msg.type.data
         self.x_r = msg.path.poses[self.wp_index].pose.position.x
@@ -129,20 +129,20 @@ class Server:
         return
 
     def read_callback(self, msg):
-        
+
         self.x_c = msg.pose.pose.position.x
         self.y_c = msg.pose.pose.position.y
         self.z_c = msg.pose.pose.position.z
 
         start = time.time()
 
-        self.d = sqrt((self.x_c)*(self.x_c) + (self.y_c)*(self.y_c) + (self.z_c)*(self.z_c)) 
+        self.d = sqrt((self.x_c)*(self.x_c) + (self.y_c)*(self.y_c) + (self.z_c)*(self.z_c))
 
 
         if ((start - mission_timer) < mission_duration):
 
             print("%.2f" % (start - mission_timer))
-            
+
             self.explore_publisher.publish(self.explore_command)
 
             if (self.xbee_return_flag == False):
@@ -150,12 +150,12 @@ class Server:
                 if (self.waypoint and self.path_type == "local"):
                     self.navigate()
                     print("Local Exploration ..")
-                
+
                 if (self.waypoint and self.path_type == "global"):
                     self.navigate()
                     print("Reposition to GLobal Vertex ..")
-                    
-            
+
+
             else:
                 self.request_homing = True
                 self.return_publisher.publish(self.return_command)
@@ -163,7 +163,7 @@ class Server:
                 if (self.waypoint and self.path_type == "homing"):
                     self.navigate()
                     print("Returning To Base ----    ^_^ ^_^ ")
-                    
+
                 if (self.d < 1.5):
                     self.safety_publisher.publish(self.safety_msg)
                     self.land_flag = True
@@ -179,7 +179,7 @@ class Server:
             if (self.waypoint and self.path_type == "homing"):
                 self.navigate()
                 print("Returning To Base ----    ^_^ ^_^ ")
-                
+
                 if (self.d < 1.5):
                     self.safety_publisher.publish(self.safety_msg)
                     self.land_flag = True
@@ -201,6 +201,6 @@ if __name__ == "__main__":
         while not rospy.is_shutdown():
             rospy.spin()
 
-        rospy.loginfo("If not at base, I am in trouble...")
+        rospy.loginfo("If not at base, I am in trouble... send searh and rescue !!!! ")
     except rospy.ROSInterruptException:
         pass

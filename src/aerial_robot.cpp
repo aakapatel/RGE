@@ -45,6 +45,8 @@
 #include <fstream>
 #include <variant>
 #include <shared_mutex>
+#include <execution>
+
 using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
@@ -602,7 +604,7 @@ std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std
   planning_node start_node;
   planning_node end_node;
 
-  for (planning_node &node : all_nodes)
+  for (planning_node& node : all_nodes)
   {
     if (node.myposition == end_pos)
       start_node = node;
@@ -635,7 +637,7 @@ std::vector<Graph::Point> Graph::fetchPath(Point &start_pos, Point &end_pos, std
       return (found_path);
     }
 
-    for (planning_node &node : *current_node.connections)
+    for (planning_node& node : *current_node.connections)
     {
       planning_node child(node);
       child.parent.reset(new planning_node(current_node));
@@ -2035,6 +2037,10 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
     }
 
     // ALC_POINTS = LoopClosurePath(all.list);
+
+
+
+
     for (auto it = parent_nodes.begin(); it != --parent_nodes.end(); it++)
     {
       ufo::math::Vector3 p1((*it).myposition.x, (*it).myposition.y, (*it).myposition.z);
@@ -2074,6 +2080,121 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       }
       TEMP_PAIRS = RESERVED_PAIRS;
     }
+
+high_resolution_clock::time_point start_total = high_resolution_clock::now();
+
+
+    std::vector<std::vector<std::pair<Graph::planning_node, Graph::planning_node>>> main_pair;
+
+    std::vector<std::pair<Graph::planning_node, Graph::planning_node>> pair1;
+
+    std::vector<std::pair<Graph::planning_node, Graph::planning_node>> pair2;
+
+    std::vector<std::pair<Graph::planning_node, Graph::planning_node>> pair3;
+
+    std::vector<std::pair<Graph::planning_node, Graph::planning_node>> pair4;
+
+    #pragma omp parallel 
+    {
+
+    #pragma omp single 
+      {
+        
+        #pragma omp task 
+        {  
+          for (auto i = TEMP_PAIRS.begin(); i != std::next(TEMP_PAIRS.begin(), TEMP_PAIRS.size() / 4); i++) {
+            
+            ufo::math::Vector3 n1(((*i).first)->myposition.x, ((*i).first)->myposition.y, ((*i).first)->myposition.z);
+            ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
+            ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
+
+            if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+            {
+              pair1.push_back(std::make_pair(*i->first, *i->second));
+            }
+          
+          }
+        }  
+        #pragma omp task 
+        {
+          for (auto i = std::next(TEMP_PAIRS.begin(), TEMP_PAIRS.size() / 4); i != std::next(TEMP_PAIRS.begin(), TEMP_PAIRS.size() / 2); i++) {
+            
+            ufo::math::Vector3 n1(((*i).first)->myposition.x, ((*i).first)->myposition.y, ((*i).first)->myposition.z);
+            ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
+            ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
+
+            if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+            {
+              pair2.push_back(std::make_pair(*i->first, *i->second));
+            }
+          
+          }
+        }
+        #pragma omp task 
+        {  
+          for (auto i = std::next(TEMP_PAIRS.begin(), TEMP_PAIRS.size() / 2); i != std::prev(TEMP_PAIRS.end(), TEMP_PAIRS.size()/4); i++) {
+            
+            ufo::math::Vector3 n1(((*i).first)->myposition.x, ((*i).first)->myposition.y, ((*i).first)->myposition.z);
+            ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
+            ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
+
+            if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+            {
+              pair3.push_back(std::make_pair(*i->first, *i->second));
+            }
+          
+          }
+        }  
+        #pragma omp task 
+        {
+          for (auto i = std::prev(TEMP_PAIRS.end(), TEMP_PAIRS.size()/4); i != TEMP_PAIRS.end(); i++) {
+            
+            ufo::math::Vector3 n1(((*i).first)->myposition.x, ((*i).first)->myposition.y, ((*i).first)->myposition.z);
+            ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
+            ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
+
+            if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+            {
+              pair4.push_back(std::make_pair(*i->first, *i->second));
+            }
+          
+          }
+        }
+
+
+      }
+
+  }
+
+    for (auto i = pair1.begin(); i != pair1.end(); i++) {
+        planning.node_container.push_back((i)->first);
+        planning.node_container.push_back((i)->second);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
+    }
+
+    for (auto i = pair2.begin(); i != pair2.end(); i++) {
+        planning.node_container.push_back((i)->first);
+        planning.node_container.push_back((i)->second);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
+    }
+    for (auto i = pair3.begin(); i != pair3.end(); i++) {
+        planning.node_container.push_back((i)->first);
+        planning.node_container.push_back((i)->second);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
+    }
+
+    for (auto i = pair4.begin(); i != pair4.end(); i++) {
+        planning.node_container.push_back((i)->first);
+        planning.node_container.push_back((i)->second);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
+    }
+
+
+    /*
     for (auto i = TEMP_PAIRS.begin(); i != TEMP_PAIRS.end(); i++)
     {
 
@@ -2081,40 +2202,13 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
       ufo::math::Vector3 n2(((*i).second)->myposition.x, ((*i).second)->myposition.y, ((*i).second)->myposition.z);
       ufo::geometry::OBB obb = makeOBB(n1, n2, PLANNING_GRAPH_COLISSION_MARGIN);
 
-      if (local_exploration)
-      {
-
-        if (calculateDistance(n1, current.position) < LOCAL_RANGE and calculateDistance(n2, current.position) < LOCAL_RANGE)
-        {
-          if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
-          {
-            planning.node_container.push_back(*(i)->first);
-            planning.node_container.push_back(*(i)->second);
-            (*(i)->first).AddConnection(*(i)->second);
-            (*(i)->second).AddConnection(*(i)->first);
-
-            if ( (*(i)->second).num_of_connections()  < 4 ) {
-
-            node *parent_node = new node(((*i).first)->myposition.x, ((*i).first)->myposition.y,
-                                         ((*i).first)->myposition.z);
-            node *child_node = new node(((*i).second)->myposition.x, ((*i).second)->myposition.y,
-                                        ((*i).second)->myposition.z);
-            child_node->addParent(parent_node);
-            parent_node->addChild(child_node);
-            Local_Planning_Graph.push_back(child_node);
-            }
-          }
-        }
-      }
-      else if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
+      if (!isInCollision(ufoMAP, obb, true, false, true, PLANNING_CHECK_DEPTH))
       {
         planning.node_container.push_back(*(i)->first);
         planning.node_container.push_back(*(i)->second);
         (*(i)->first).AddConnection(*(i)->second);
         (*(i)->second).AddConnection(*(i)->first);
         
-        if ( (*(i)->second).num_of_connections()  < 4 ) {
-               
         node *parent_node = new node(((*i).first)->myposition.x, ((*i).first)->myposition.y,
                                       ((*i).first)->myposition.z);
         node *child_node = new node(((*i).second)->myposition.x, ((*i).second)->myposition.y,
@@ -2122,9 +2216,15 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement, 
         child_node->addParent(parent_node);
         parent_node->addChild(child_node);
         Local_Planning_Graph.push_back(child_node);
-        }
       }
     }
+    */
+
+  high_resolution_clock::time_point stop_total = high_resolution_clock::now();
+  auto duration_total = duration_cast<std::chrono::milliseconds>(stop_total - start_total);
+  ROS_INFO_STREAM ("\033[;34m Making the planning graph takes... \033[0m " << duration_total.count() << " \033[;34m ms \033[0m\n ");
+
+
   }
   else if (home.navigate)
   {
@@ -2557,7 +2657,14 @@ int main(int argc, char *argv[])
 
     if ((next_pub() or switch_global.navigate or home.navigate) and !finish.navigate)
     {
+      
+    // std::vector<int> vec = {1, 2, 3, 4, 5, 10, 20, 4 };
 
+    // std::sort(std::execution::par, vec.begin(), vec.end()); // paralleli
+
+    // for (int i : vec) {
+        // cout << "sorted vec " << i << endl;
+      // }
       // fetchUnknownNodes(current.position, ufoMAP);
 
       if (local.navigate and explore.navigate and !home.navigate and !switch_global.navigate)

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(acl_exploration)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(octomap_DIR "/opt/ros/noetic/share/octomap")
 ##set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS} -O3")

@@ -336,6 +336,8 @@ void FrontierExploration::publishFrontiers(const tf::Point& sensorOriginTf, cons
             }
         }
     }
+    
+    std::cout << "frontier points list size  " << frontierPointList.size() << std::endl;
 
     //For visual and topic publishing
     int idx = 0;
