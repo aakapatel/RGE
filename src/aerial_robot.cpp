@@ -2171,6 +2171,13 @@ high_resolution_clock::time_point start_total = high_resolution_clock::now();
         planning.node_container.push_back((i)->second);
         ((i)->first).AddConnection((i)->second);
         ((i)->second).AddConnection((i)->first);
+        node *parent_node = new node(((*i).first).myposition.x, ((*i).first).myposition.y,
+                                      ((*i).first).myposition.z);
+        node *child_node = new node(((*i).second).myposition.x, ((*i).second).myposition.y,
+                                    ((*i).second).myposition.z);
+        child_node->addParent(parent_node);
+        parent_node->addChild(child_node);
+        Local_Planning_Graph.push_back(child_node);
     }
 
     for (auto i = pair2.begin(); i != pair2.end(); i++) {
@@ -2178,12 +2185,26 @@ high_resolution_clock::time_point start_total = high_resolution_clock::now();
         planning.node_container.push_back((i)->second);
         ((i)->first).AddConnection((i)->second);
         ((i)->second).AddConnection((i)->first);
+        node *parent_node = new node(((*i).first).myposition.x, ((*i).first).myposition.y,
+                                      ((*i).first).myposition.z);
+        node *child_node = new node(((*i).second).myposition.x, ((*i).second).myposition.y,
+                                    ((*i).second).myposition.z);
+        child_node->addParent(parent_node);
+        parent_node->addChild(child_node);
+        Local_Planning_Graph.push_back(child_node);
     }
     for (auto i = pair3.begin(); i != pair3.end(); i++) {
         planning.node_container.push_back((i)->first);
         planning.node_container.push_back((i)->second);
         ((i)->first).AddConnection((i)->second);
         ((i)->second).AddConnection((i)->first);
+        node *parent_node = new node(((*i).first).myposition.x, ((*i).first).myposition.y,
+                                      ((*i).first).myposition.z);
+        node *child_node = new node(((*i).second).myposition.x, ((*i).second).myposition.y,
+                                    ((*i).second).myposition.z);
+        child_node->addParent(parent_node);
+        parent_node->addChild(child_node);
+        Local_Planning_Graph.push_back(child_node);
     }
 
     for (auto i = pair4.begin(); i != pair4.end(); i++) {
@@ -2191,6 +2212,13 @@ high_resolution_clock::time_point start_total = high_resolution_clock::now();
         planning.node_container.push_back((i)->second);
         ((i)->first).AddConnection((i)->second);
         ((i)->second).AddConnection((i)->first);
+        node *parent_node = new node(((*i).first).myposition.x, ((*i).first).myposition.y,
+                                      ((*i).first).myposition.z);
+        node *child_node = new node(((*i).second).myposition.x, ((*i).second).myposition.y,
+                                    ((*i).second).myposition.z);
+        child_node->addParent(parent_node);
+        parent_node->addChild(child_node);
+        Local_Planning_Graph.push_back(child_node);
     }
 
 
@@ -2209,10 +2237,10 @@ high_resolution_clock::time_point start_total = high_resolution_clock::now();
         (*(i)->first).AddConnection(*(i)->second);
         (*(i)->second).AddConnection(*(i)->first);
         
-        node *parent_node = new node(((*i).first)->myposition.x, ((*i).first)->myposition.y,
-                                      ((*i).first)->myposition.z);
-        node *child_node = new node(((*i).second)->myposition.x, ((*i).second)->myposition.y,
-                                    ((*i).second)->myposition.z);
+        node *parent_node = new node(((*i).first).myposition.x, ((*i).first).myposition.y,
+                                      ((*i).first).myposition.z);
+        node *child_node = new node(((*i).second).myposition.x, ((*i).second).myposition.y,
+                                    ((*i).second).myposition.z);
         child_node->addParent(parent_node);
         parent_node->addChild(child_node);
         Local_Planning_Graph.push_back(child_node);
