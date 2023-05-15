@@ -58,7 +58,7 @@
       
       <!-- <remap from="/ODOMETRY_IN_" to="/odometry/imu" /> -->
 
-      <remap from="/REF_TOPIC_" to="/hummingbird/reference" />
+      <remap from="/REF_TOPIC_" to="/hummingbird/command/pose" />
       
       <!-- <remap from="/REF_TOPIC_" to="/shafter3d/reference" /> -->
 
