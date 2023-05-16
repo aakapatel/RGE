@@ -8,6 +8,7 @@
 #include <climits>
 #include <cmath>
 #include <dlfcn.h>
+#include <Eigen/Dense>
 #include <dynamic_reconfigure/server.h>
 #include <execution>
 #include <fstream>
@@ -653,6 +654,23 @@ Graph::fetchPath(Point &start_pos, Point &end_pos,
   }
 
   return (found_path);
+}
+
+
+Eigen::Quaternion<float> Euler2Quaternion(ufo::math::Vector3 v)
+{
+	float roll = v.x();
+	float pitch = v.y();
+	float yaw = v.z();
+
+	Eigen::Quaternion<float> q;
+
+	q = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX()) *
+		Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY()) *
+		Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+
+	return q;
+
 }
 
 void visualize() {
@@ -1370,6 +1388,8 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   tf::Matrix3x3 m(q);
   m.getRPY(roll, pitch, yaw);
   current.heading = yaw * (180 / 3.14159);
+
+  
 
   visualization_msgs::Marker ROBOT_BOX;
   ROBOT_BOX.header.frame_id = ODOM_FRAME_ID;
@@ -2198,8 +2218,8 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
     high_resolution_clock::time_point stop_total = high_resolution_clock::now();
     auto duration_total =
         duration_cast<std::chrono::milliseconds>(stop_total - start_total);
-    ROS_INFO_STREAM("\033[;34m Making the planning graph takes... \033[0m "
-                    << duration_total.count() << " \033[;34m ms \033[0m\n ");
+    // ROS_INFO_STREAM("\033[;34m Making the planning graph takes... \033[0m "
+    //                 << duration_total.count() << " \033[;34m ms \033[0m\n ");
 
   } else if (home.navigate) {
     for (auto graph_it = homing_nodes.begin(); graph_it != --homing_nodes.end();
@@ -2373,20 +2393,27 @@ std::vector<geometry_msgs::PoseStamped> linspace (ufo::math::Vector3 start, ufo:
     double temp_y = start.y() + i*(end.y() - start.y())/(floor((double)n) - 1);
     double temp_z = start.z() + i*(end.z() - start.z())/(floor((double)n) - 1);
 
+    ufo::math::Vector3 next_pos (temp_x, temp_y, temp_z);
+    ufo::math::Vector3 v (0,0, calculateAngle(next_pos, current.position, current.heading));
+    Eigen::Quaternion<float> q = Euler2Quaternion(v); 
     geometry_msgs::PoseStamped pose;
     pose.pose.position.x = temp_x;
     pose.pose.position.y = temp_y;
     pose.pose.position.z = temp_z;
+    pose.pose.orientation.x = 0;
+    pose.pose.orientation.y = 0;
+    pose.pose.orientation.z = q.z();
+    pose.pose.orientation.w = q.w();
 
     linspaced_vec.push_back(pose);
     
     iterator += 1;
   }
 
-    geometry_msgs::PoseStamped p;
-    p.pose.position.x = end.x();
-    p.pose.position.y = end.y();
-    p.pose.position.z = end.z();
+    // geometry_msgs::PoseStamped p;
+    // p.pose.position.x = end.x();
+    // p.pose.position.y = end.y();
+    // p.pose.position.z = end.z();
 
   // linspaced_vec.push_back(p);
 
