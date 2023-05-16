@@ -55,7 +55,8 @@ class Server:
         self.current_time = current_time if current_time is not None else time.time()
         self.last_time = self.current_time
 
-        self.vel_publisher = rospy.Publisher('/hummingbird/command/pose', PoseStamped, queue_size = 1)
+        # self.vel_publisher = rospy.Publisher('/hummingbird/command/pose', PoseStamped, queue_size = 1)
+        self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
 
         self.vel_msg = PoseStamped()
 

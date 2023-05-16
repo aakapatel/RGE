@@ -169,7 +169,7 @@ struct Frontier_main {
   ros::Publisher points_pub;
   ros::Publisher reserved_graph_pub;
   ros::Publisher robot_box_vis_pub;
-  ros::Publisher current_goal_vis_pub, current_unknowns_visualization_pub;
+  ros::Publisher current_goal_vis_pub, current_unknowns_visualization_pub, path_points_visualization_pub;
   ros::Publisher alc_points_visualization_pub;
   ros::Publisher alc_path_visualization_pub;
   ros::Publisher map_pub;
@@ -308,6 +308,7 @@ Frontier_main lookAt;
 Frontier_main not_traversable;
 Frontier_main raw_frontiers;
 Frontier_main request_global;
+Frontier_main final_path;
 
 ufo::map::OccupancyMapColor ufoMAP(RESOLUTION);
 
@@ -382,7 +383,7 @@ void planningSpace(bool local_graph, ufo::math::Vector3 end_point, float range,
   ufo::geometry::BoundingVar PLANNING_GEOMETRY;
 
   if (local_graph) {
-    PLANNING_GEOMETRY = obb;
+    PLANNING_GEOMETRY = aabb;
   } else {
     PLANNING_GEOMETRY = aabb;
   }
@@ -657,7 +658,7 @@ Graph::fetchPath(Point &start_pos, Point &end_pos,
 void visualize() {
   visualization_msgs::Marker GRAPH_nodes, GRAPH_line_list, RESERVED_GRAPH_nodes,
       RESERVED_GRAPH_line_list, CURRENT_GOAL, CHOSEN_PATH_line_list, ALC_points,
-      current_unknowns, current_unknown_line_list, local_unknowns,
+      current_unknowns, current_unknown_line_list, local_unknowns, path_points,
       global_unknowns, ALC_line_list, POSITION_point, TRAVERSABLE_points,
       local_frontier_nodes, global_frontier_nodes, not_traversable_nodes;
 
@@ -738,6 +739,34 @@ void visualize() {
     }
     pub.current_unknowns_visualization_pub.publish(local_unknowns);
   }
+
+
+  if (!final_path.list.empty()) {
+    path_points.header.frame_id = ODOM_FRAME_ID;
+    path_points.ns = "local";
+    path_points.action = visualization_msgs::Marker::ADD;
+    path_points.pose.orientation.w = 1.0;
+    path_points.id = 1;
+    path_points.type = visualization_msgs::Marker::SPHERE_LIST;
+    path_points.scale.x = 0.2;
+    path_points.scale.y = 0.2;
+    path_points.scale.z = 0.2;
+    path_points.color.r = 0.2;
+    path_points.color.g = 0.8;
+    path_points.color.b = 0;
+    path_points.color.a = 0.8;
+
+    for (auto it_c = final_path.list.begin(); it_c != final_path.list.end();
+         it_c++) {
+      geometry_msgs::Point pt;
+      pt.x = (*it_c).x();
+      pt.y = (*it_c).y();
+      pt.z = (*it_c).z();
+      path_points.points.push_back(pt);
+    }
+    pub.path_points_visualization_pub.publish(path_points);
+  }
+
 
   if (!global.unknowns.empty()) {
     global_unknowns.header.frame_id = ODOM_FRAME_ID;
@@ -1354,15 +1383,18 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   ROBOT_BOX.pose.orientation.z = msg->pose.pose.orientation.z;
   ROBOT_BOX.pose.orientation.w = msg->pose.pose.orientation.w;
   ROBOT_BOX.id = 0;
-  ROBOT_BOX.type = visualization_msgs::Marker::MESH_RESOURCE;
-  ROBOT_BOX.mesh_resource = "package://acl_exploration/meshes/shafter.dae";
-  ROBOT_BOX.scale.x = 0.001;
-  ROBOT_BOX.scale.y = 0.001;
-  ROBOT_BOX.scale.z = 0.001;
-  ROBOT_BOX.color.r = 1.0;
-  ROBOT_BOX.color.g = 1.0;
-  ROBOT_BOX.color.b = 1.0;
-  ROBOT_BOX.color.a = 1.0;
+  ROBOT_BOX.type = visualization_msgs::Marker::SPHERE;
+  // ROBOT_BOX.mesh_resource = "package://acl_exploration/meshes/shafter.dae";
+  // ROBOT_BOX.scale.x = 0.001;
+  // ROBOT_BOX.scale.y = 0.001;
+  // ROBOT_BOX.scale.z = 0.001;
+  ROBOT_BOX.scale.x = 1;
+  ROBOT_BOX.scale.y = 1;
+  ROBOT_BOX.scale.z = 1;
+  ROBOT_BOX.color.r = 0.5;
+  ROBOT_BOX.color.g = 0;
+  ROBOT_BOX.color.b = 0;
+  ROBOT_BOX.color.a = 0.5;
   pub.robot_box_vis_pub.publish(ROBOT_BOX);
 }
 
@@ -2369,7 +2401,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range) {
   buildPlanningGraph(false, local_nav, planning.improve, reiterate,
                      scale_range);
   findPath(request_global.navigate);
-  visualize();
+  // visualize();
   if (validPath()) {
 
     planning.improve = false;
@@ -2432,7 +2464,9 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range) {
     } else {
       published.traj = planned.traj;
     }
-
+    Graph::Point end_pt{current.position.x(),current.position.y(),current.position.z()};
+    published.traj.insert(published.traj.begin(),end_pt);
+    final_path.list.clear();
     for (auto vert_it = std::next(published.traj.begin(),1); vert_it != published.traj.end();
          vert_it++) {
 
@@ -2443,7 +2477,8 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range) {
       for (auto i = vec.begin(); i != vec.end(); i++) {
         
         if (local_nav) {
-
+        ufo::math::Vector3 v ((*i).pose.position.x, (*i).pose.position.y, (*i).pose.position.z);
+        final_path.list.push_back(v);
         current.temppath_local.poses.push_back(*i);
         current.temppath_global.poses.clear();
 
@@ -2608,6 +2643,8 @@ int main(int argc, char *argv[]) {
       nh.advertise<visualization_msgs::Marker>("/current_goal", 1);
   pub.current_unknowns_visualization_pub =
       nh.advertise<visualization_msgs::Marker>("/current_unknowns", 1);
+  pub.path_points_visualization_pub =
+      nh.advertise<visualization_msgs::Marker>("/path_points", 1);
   pub.alc_points_visualization_pub =
       nh.advertise<visualization_msgs::Marker>("/ALC_POINTS", 1);
   pub.alc_path_visualization_pub =
@@ -2772,6 +2809,7 @@ int main(int argc, char *argv[]) {
     }
 
     visualize();
+    
     ros::spinOnce();
     rate.sleep();
   }
