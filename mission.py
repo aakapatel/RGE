@@ -55,8 +55,8 @@ class Server:
         self.current_time = current_time if current_time is not None else time.time()
         self.last_time = self.current_time
 
-        # self.vel_publisher = rospy.Publisher('/hummingbird/command/pose', PoseStamped, queue_size = 1)
-        self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
+        self.vel_publisher = rospy.Publisher('/hummingbird/command/pose', PoseStamped, queue_size = 1)
+        # self.vel_publisher = rospy.Publisher('/hummingbird/reference', PoseStamped, queue_size = 1)
 
         self.vel_msg = PoseStamped()
 
@@ -122,9 +122,9 @@ class Server:
         self.vel_msg.pose.position.z = self.z_r
         self.vel_msg.pose.orientation.x = 0
         self.vel_msg.pose.orientation.y = 0
-        # self.vel_msg.pose.orientation.z = self.path.poses[self.wp_index].pose.orientation.z
-        self.vel_msg.pose.orientation.z = self.heading_ref
-        self.vel_msg.pose.orientation.w = 0
+        self.vel_msg.pose.orientation.z = self.path.poses[self.wp_index].pose.orientation.z
+        # self.vel_msg.pose.orientation.z = self.heading_ref
+        self.vel_msg.pose.orientation.w = 1
         self.vel_publisher.publish(self.vel_msg)
 
         return
