@@ -120,11 +120,11 @@ class Server:
         self.vel_msg.pose.position.x = self.x_r
         self.vel_msg.pose.position.y = self.y_r
         self.vel_msg.pose.position.z = self.z_r
-        self.vel_msg.pose.orientation.x = 0
-        self.vel_msg.pose.orientation.y = 0
+        self.vel_msg.pose.orientation.x = self.path.poses[self.wp_index].pose.orientation.x
+        self.vel_msg.pose.orientation.y = self.path.poses[self.wp_index].pose.orientation.y
         self.vel_msg.pose.orientation.z = self.path.poses[self.wp_index].pose.orientation.z
         # self.vel_msg.pose.orientation.z = self.heading_ref
-        self.vel_msg.pose.orientation.w = 1
+        self.vel_msg.pose.orientation.w = self.path.poses[self.wp_index].pose.orientation.w
         self.vel_publisher.publish(self.vel_msg)
 
         return

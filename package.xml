@@ -35,6 +35,8 @@
   <build_depend>move_base_msgs</build_depend>
   <build_depend>actionlib</build_depend>
   <build_depend>message_generation</build_depend>
+  <build_depend>mav_msgs</build_depend>
+  <build_depend>mav_planning_msgs</build_depend>
 
 
 <!-- <build_depend>exploration</build_depend> -->

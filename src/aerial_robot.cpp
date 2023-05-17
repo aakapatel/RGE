@@ -46,6 +46,14 @@
 #include <vector>
 #include <visualization_msgs/Marker.h>
 
+
+#include <mav_msgs/Status.h>
+#include <mav_msgs/conversions.h>
+#include <mav_msgs/default_topics.h>
+
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+
+
 using namespace std::chrono;
 using namespace std;
 using namespace std::this_thread;
@@ -185,6 +193,8 @@ struct Frontier_main
   node *graph_pointer;
   std::vector<Graph::Point> traj;
   ros::Publisher points_pub;
+  ros::Publisher trajectory_pub;
+
   ros::Publisher reserved_graph_pub;
   ros::Publisher robot_box_vis_pub;
   ros::Publisher current_goal_vis_pub, current_unknowns_visualization_pub, path_points_visualization_pub;
@@ -212,6 +222,8 @@ struct Frontier_main
   std::list<ufo::math::Vector3> unknowns;
 };
 
+int n_seq_ = 0;
+double dt_ = 0.3;
 bool position_received;
 bool map_received = false;
 int itterations;
@@ -2687,14 +2699,18 @@ std::vector<geometry_msgs::PoseStamped> linspace(ufo::math::Vector3 start, ufo::
   direction /= distance;
   ufo::math::Vector3 new_vec (start.x() + direction.x()*0.1, start.y() + direction.y()*0.1, start.z() + direction.z()*0.1);
 
+  float angle = atan2( direction.y()*0.1 , direction.x()*0.1);
+  ufo::math::Vector3 v(0, 0, angle);
+  Eigen::Quaternion<float> q = Euler2Quaternion(v);
+
   geometry_msgs::PoseStamped p;
   p.pose.position.x = new_vec.x();
   p.pose.position.y = new_vec.y();
   p.pose.position.z = new_vec.z();
-  p.pose.orientation.x = 0;
-  p.pose.orientation.y = 0;
-  p.pose.orientation.z = 0;
-  p.pose.orientation.w = 0;
+  p.pose.orientation.x = q.x();
+  p.pose.orientation.y = q.y();
+  p.pose.orientation.z = q.z();
+  p.pose.orientation.w = q.w();
 
   if (distance > 1000 or distance < 0.06) {
     return linspaced_vec;
@@ -2711,17 +2727,23 @@ std::vector<geometry_msgs::PoseStamped> linspace(ufo::math::Vector3 start, ufo::
     distance = direction.norm();
     direction /= distance;
 
+    ufo::math::Vector3 prev = new_vec;
+
     new_vec.x() = new_vec.x() + direction.x()*0.1;
     new_vec.y() = new_vec.y() + direction.y()*0.1;
     new_vec.z() = new_vec.z() + direction.z()*0.1;
 
+    float angle = atan2( new_vec.y() - prev.y(), new_vec.x() - prev.x());
+    ufo::math::Vector3 v(0, 0, angle);
+    Eigen::Quaternion<float> q = Euler2Quaternion(v);
+
     p.pose.position.x = new_vec.x();
     p.pose.position.y = new_vec.y();
     p.pose.position.z = new_vec.z();
-    p.pose.orientation.x = 0;
-    p.pose.orientation.y = 0;
-    p.pose.orientation.z = 0;
-    p.pose.orientation.w = 0;
+    p.pose.orientation.x = q.y();
+    p.pose.orientation.y = q.x();
+    p.pose.orientation.z = q.z();
+    p.pose.orientation.w = q.w();
 
     linspaced_vec.push_back(p);
 
@@ -2884,6 +2906,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
 
       */
     }
+
     if (local_nav)
     {
       current.path.type.data = "local";
@@ -2896,6 +2919,48 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
       current.path.path = current.temppath_global;
       pub.global_path_pub.publish(current.temppath_global);
     }
+
+      nav_msgs::Path path_new = current.path.path;
+      
+      n_seq_++;
+      trajectory_msgs::MultiDOFJointTrajectory samples_array_;
+      mav_msgs::EigenTrajectoryPoint trajectory_point_;
+      trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
+      std::vector<geometry_msgs::Pose> executing_path_;
+      
+
+      // std::vector<geometry_msgs::Pose> path_intp;
+      // interpolatePath(path_new, path_new);
+      samples_array_.header.seq = n_seq_;
+      samples_array_.header.stamp = ros::Time::now();
+      samples_array_.header.frame_id = ODOM_FRAME_ID;
+      samples_array_.points.clear();
+      double time_sum = 0;
+      // geometry_msgs::PoseArray command_path;
+      // command_path.header.frame_id = ODOM_FRAME_ID;
+      for (int i = 0; i < path_new.poses.size(); i++) {
+        double yaw = tf::getYaw(path_new.poses[i].pose.orientation);
+        Eigen::Vector3d p(path_new.poses[i].pose.position.x, path_new.poses[i].pose.position.y,
+                          path_new.poses[i].pose.position.z);
+        trajectory_point_.position_W.x() = p.x();
+        trajectory_point_.position_W.y() = p.y();
+        trajectory_point_.position_W.z() = p.z();
+        trajectory_point_.setFromYaw(yaw);
+        mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
+            trajectory_point_, &trajectory_point_msg_);
+        time_sum += dt_;
+        trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
+        // samples_array_.points.insert(samples_array_.points.begin(),trajectory_point_msg_);
+        samples_array_.points.push_back(trajectory_point_msg_);
+        // command_path.poses.push_back(path_new[i]);
+      }
+      // trajectory_vis_pub_.publish(
+      //     generateTrajectoryMarkerArray(samples_array_));
+      pub.trajectory_pub.publish(samples_array_);
+      // path_pub_.publish(command_path);
+
+
+
 
     pub.path_to_goal_pub.publish(current.path);
     current.path.path.poses.clear();
@@ -3025,6 +3090,10 @@ int main(int argc, char *argv[])
   // dynamic_reconfigure::Server<acl_exploration::ServerConfig>::CallbackType f;
   // f = boost::bind(&config_callback, _1, _2);
   // server.setCallback(f);
+  
+  pub.trajectory_pub =
+      nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/hummingbird/command/trajectory", 1);
+  
   pub.points_pub =
       nh.advertise<visualization_msgs::Marker>("/planning_graph", 1);
   pub.reserved_graph_pub =
