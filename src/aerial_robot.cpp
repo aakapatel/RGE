@@ -2754,7 +2754,7 @@ std::vector<geometry_msgs::PoseStamped> pathSegmentation(ufo::math::Vector3 star
 
 
 
-void interpolatePath(const std::vector<geometry_msgs::Pose>& path,
+void segmentCurrentPath(const std::vector<geometry_msgs::Pose>& path,
                                  std::vector<geometry_msgs::Pose>& path_res) {
   path_res.clear();
   double v_max_ = 0.6;
@@ -2782,7 +2782,6 @@ void interpolatePath(const std::vector<geometry_msgs::Pose>& path,
     double dist_norm = distance.norm();
     double disc = std::min(dt_ * v_max_ / dist_norm,
                            dt_ * yaw_rate_max_ / abs(yaw_direction));
-    // const double kEpsilon = 0.0001;
 
     bool int_flag = true;
 
@@ -2854,10 +2853,6 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
         ufo::math::Vector3 goal(i2->myposition.x, i2->myposition.y,
                                 i2->myposition.z);
 
-        double dist = calculateDistance(start, goal);
-
-        // if (dist < 8)
-        // {
         ufo::geometry::OBB obb =
             makeOBB(start, goal, PLANNING_GRAPH_COLISSION_MARGIN);
         if (isInCollision(ufoMAP, obb, false, true, false,
@@ -2871,7 +2866,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
           (*i).AddConnection(*i2);
           (*i2).AddConnection(*i);
         }
-        // }
+
       }
     }
 
@@ -2892,52 +2887,33 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
 
     std::vector<geometry_msgs::Pose> raw_path;
 
-    for (auto vert_it = std::next(published.traj.begin(), 1); vert_it != published.traj.end();
-         vert_it++)
+    for (int vert_it = 0; vert_it < published.traj.size(); vert_it++)
     { 
-      ufo::math::Vector3 next(vert_it->x, vert_it->y, vert_it->z);
-      ufo::math::Vector3 prev(std::prev(vert_it, 1)->x, std::prev(vert_it, 1)->y, std::prev(vert_it, 1)->z);
+      ufo::math::Vector3 prev(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
+      ufo::math::Vector3 next(published.traj[vert_it+1].x, published.traj[vert_it+1].y, published.traj[vert_it+1].z);
 
       float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
+      float angle_last = atan2( prev.y(), prev.x());
       ufo::math::Vector3 v(0, 0, angle);
-      Eigen::Quaternion<float> q = Euler2Quaternion(v);
+      ufo::math::Vector3 v_last(0, 0, angle_last);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);;
+      Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
+      if (vert_it == published.traj.size() - 1) { q = q_last; } else { q = q; }
 
       geometry_msgs::Pose raw_path_pose;
-      raw_path_pose.position.x = vert_it->x;
-      raw_path_pose.position.y = vert_it->y;
-      raw_path_pose.position.z = vert_it->z;
+      raw_path_pose.position.x = published.traj[vert_it].x;
+      raw_path_pose.position.y = published.traj[vert_it].y;
+      raw_path_pose.position.z = published.traj[vert_it].z;
       raw_path_pose.orientation.x = q.x();
       raw_path_pose.orientation.y = q.y();
       raw_path_pose.orientation.z = q.z();
       raw_path_pose.orientation.w = q.w();
 
       raw_path.push_back(raw_path_pose);
-
-      ufo::math::Vector3 end(vert_it->x, vert_it->y, vert_it->z);
-      ufo::math::Vector3 start(std::prev(vert_it, 1)->x, std::prev(vert_it, 1)->y, std::prev(vert_it, 1)->z);
-      std::vector<geometry_msgs::PoseStamped> vec = pathSegmentation(start, end);
-
-      for (auto i = vec.begin(); i != vec.end(); i++)
-      {
-
-        if (local_nav)
-        {
-          ufo::math::Vector3 v((*i).pose.position.x, (*i).pose.position.y, (*i).pose.position.z);
-          final_path.list.push_back(v);
-          current.temppath_local.poses.push_back(*i);
-          current.temppath_global.poses.clear();
-        }
-        else
-        {
-
-          current.temppath_global.poses.push_back(*i);
-          current.temppath_local.poses.clear();
-        }
-      }
     }
 
     std::vector<geometry_msgs::Pose> new_path;
-    interpolatePath(raw_path, new_path);
+    segmentCurrentPath(raw_path, new_path);
 
     if (local_nav)
     {
@@ -2953,15 +2929,15 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
     }
 
     n_seq_++;
-    trajectory_msgs::MultiDOFJointTrajectory samples_array_;
+    trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
     mav_msgs::EigenTrajectoryPoint trajectory_point_;
     trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
     std::vector<geometry_msgs::Pose> executing_path_;
     
-    samples_array_.header.seq = n_seq_;
-    samples_array_.header.stamp = ros::Time::now();
-    samples_array_.header.frame_id = ODOM_FRAME_ID;
-    samples_array_.points.clear();
+    trajectory_array_.header.seq = n_seq_;
+    trajectory_array_.header.stamp = ros::Time::now();
+    trajectory_array_.header.frame_id = ODOM_FRAME_ID;
+    trajectory_array_.points.clear();
     double time_sum = 0;
     geometry_msgs::PoseArray command_path;
     // command_path.clear();
@@ -2980,13 +2956,13 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
           trajectory_point_, &trajectory_point_msg_);
       time_sum += 2*dt_;
       trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
-      // samples_array_.points.insert(samples_array_.points.begin(),trajectory_point_msg_);
-      samples_array_.points.push_back(trajectory_point_msg_);
+      // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
+      trajectory_array_.points.push_back(trajectory_point_msg_);
 
       command_path.poses.push_back(new_path[i]);
 
     }
-    pub.trajectory_pub.publish(samples_array_);
+    pub.trajectory_pub.publish(trajectory_array_);
     pub.posearray_pub.publish(command_path);
 
     pub.path_to_goal_pub.publish(current.path);
