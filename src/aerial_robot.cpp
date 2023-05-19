@@ -218,6 +218,7 @@ struct Frontier_main
   ros::Publisher global_execution_pub;
   nav_msgs::Path temppath_homing;
   nav_msgs::Path temppath_local;
+  nav_msgs::Path temppath;
   nav_msgs::Path temppath_global;
   ufo::math::Vector3 end_pt;
   std::list<ufo::math::Vector3> unknowns;
@@ -2805,6 +2806,120 @@ void segmentCurrentPath(const std::vector<geometry_msgs::Pose>& path,
 }
 
 
+void executeCurrentPath(bool local_navigation, bool home_navigation) {
+
+    std::vector<geometry_msgs::Pose> raw_path;
+
+    for (int vert_it = 0; vert_it < published.traj.size(); vert_it++)
+    { 
+      ufo::math::Vector3 prev(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
+      ufo::math::Vector3 next(published.traj[vert_it+1].x, published.traj[vert_it+1].y, published.traj[vert_it+1].z);
+
+      float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
+      float angle_last = atan2( prev.y(), prev.x());
+      ufo::math::Vector3 v(0, 0, angle);
+      ufo::math::Vector3 v_last(0, 0, angle_last);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);;
+      Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
+      if (vert_it == published.traj.size() - 1) { q = q_last; } else { q = q; }
+
+      geometry_msgs::Pose raw_path_pose;
+      raw_path_pose.position.x = published.traj[vert_it].x;
+      raw_path_pose.position.y = published.traj[vert_it].y;
+      raw_path_pose.position.z = published.traj[vert_it].z;
+      raw_path_pose.orientation.x = q.x();
+      raw_path_pose.orientation.y = q.y();
+      raw_path_pose.orientation.z = q.z();
+      raw_path_pose.orientation.w = q.w();
+
+      raw_path.push_back(raw_path_pose);
+    }
+
+    std::vector<geometry_msgs::Pose> new_path;
+    segmentCurrentPath(raw_path, new_path);
+
+    n_seq_++;
+    trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
+    mav_msgs::EigenTrajectoryPoint trajectory_point_;
+    trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
+    std::vector<geometry_msgs::Pose> executing_path_;
+    
+    trajectory_array_.header.seq = n_seq_;
+    trajectory_array_.header.stamp = ros::Time::now();
+    trajectory_array_.header.frame_id = ODOM_FRAME_ID;
+    trajectory_array_.points.clear();
+    double time_sum = 0;
+    geometry_msgs::PoseArray command_path;
+    command_path.header.frame_id = ODOM_FRAME_ID;
+
+    current.temppath.poses.clear();
+    current.path.path.poses.clear();
+    current.path.type.data.clear();
+
+    for (int i = 0; i < new_path.size(); i++) {
+      
+      geometry_msgs::PoseStamped pose_ref;
+
+      double yaw = tf::getYaw(new_path[i].orientation);
+      Eigen::Vector3d p(new_path[i].position.x, new_path[i].position.y,
+                        new_path[i].position.z);
+      trajectory_point_.position_W.x() = p.x();
+      trajectory_point_.position_W.y() = p.y();
+      trajectory_point_.position_W.z() = p.z();
+      trajectory_point_.setFromYaw(yaw);
+      pose_ref.pose.position.x = new_path[i].position.x;
+      pose_ref.pose.position.y = new_path[i].position.y;
+      pose_ref.pose.position.z = new_path[i].position.z;
+      pose_ref.pose.orientation.x = new_path[i].orientation.x;
+      pose_ref.pose.orientation.y = new_path[i].orientation.y;
+      pose_ref.pose.orientation.z = new_path[i].orientation.z;
+      pose_ref.pose.orientation.w = new_path[i].orientation.w;
+      mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
+          trajectory_point_, &trajectory_point_msg_);
+      time_sum += 2*dt_;
+      trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
+      // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
+      trajectory_array_.points.push_back(trajectory_point_msg_);
+      current.temppath.poses.push_back(pose_ref);
+      command_path.poses.push_back(new_path[i]);
+
+    }
+    pub.trajectory_pub.publish(trajectory_array_);
+    pub.posearray_pub.publish(command_path);
+
+    ufo::math::Vector3 lastpub(std::prev(published.traj.end(), 1)->x,
+                               std::prev(published.traj.end(), 1)->y,
+                               std::prev(published.traj.end(), 1)->z);
+    published.reference = publish_goal(lastpub);
+
+    if (local_navigation)
+    {
+      current.path.type.data = "local";
+      current.path.path = current.temppath;
+      pub.path_to_goal_pub.publish(current.path);
+      pub.local_path_pub.publish(current.temppath);
+    }
+    if (!local_navigation)
+    {
+      current.path.type.data = "global";
+      current.path.path = current.temppath;
+      pub.path_to_goal_pub.publish(current.path);
+      pub.global_path_pub.publish(current.temppath);
+    } 
+    if (home_navigation) {
+    current.path.type.data = "homing";
+    current.path.path = current.temppath;
+    pub.path_to_goal_pub.publish(current.path);
+    pub.homing_path_pub.publish(current.temppath);
+    current.path.path.poses.clear();
+    current.path.type.data.clear();
+    current.temppath.poses.clear();
+    ufo::math::Vector3 lastpub(published.traj.back().x, published.traj.back().y,
+                               published.traj.back().z);
+    published.reference = publish_goal(lastpub);
+    }
+}
+
 
 void graph_navigation(bool local_nav, double reiterate, double scale_range)
 {
@@ -2883,96 +2998,10 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
     }
     Graph::Point end_pt{current.position.x(), current.position.y(), current.position.z()};
     published.traj.insert(published.traj.begin(), end_pt);
-    final_path.list.clear();
+    // final_path.list.clear();
 
-    std::vector<geometry_msgs::Pose> raw_path;
+    executeCurrentPath(local_nav, false);
 
-    for (int vert_it = 0; vert_it < published.traj.size(); vert_it++)
-    { 
-      ufo::math::Vector3 prev(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
-      ufo::math::Vector3 next(published.traj[vert_it+1].x, published.traj[vert_it+1].y, published.traj[vert_it+1].z);
-
-      float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
-      float angle_last = atan2( prev.y(), prev.x());
-      ufo::math::Vector3 v(0, 0, angle);
-      ufo::math::Vector3 v_last(0, 0, angle_last);
-      Eigen::Quaternion<float> q = Euler2Quaternion(v);;
-      Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
-      if (vert_it == published.traj.size() - 1) { q = q_last; } else { q = q; }
-
-      geometry_msgs::Pose raw_path_pose;
-      raw_path_pose.position.x = published.traj[vert_it].x;
-      raw_path_pose.position.y = published.traj[vert_it].y;
-      raw_path_pose.position.z = published.traj[vert_it].z;
-      raw_path_pose.orientation.x = q.x();
-      raw_path_pose.orientation.y = q.y();
-      raw_path_pose.orientation.z = q.z();
-      raw_path_pose.orientation.w = q.w();
-
-      raw_path.push_back(raw_path_pose);
-    }
-
-    std::vector<geometry_msgs::Pose> new_path;
-    segmentCurrentPath(raw_path, new_path);
-
-    if (local_nav)
-    {
-      current.path.type.data = "local";
-      current.path.path = current.temppath_local;
-      pub.global_path_pub.publish(current.temppath_local);
-    }
-    else
-    {
-      current.path.type.data = "global";
-      current.path.path = current.temppath_global;
-      pub.global_path_pub.publish(current.temppath_global);
-    }
-
-    n_seq_++;
-    trajectory_msgs::MultiDOFJointTrajectory trajectory_array_;
-    mav_msgs::EigenTrajectoryPoint trajectory_point_;
-    trajectory_msgs::MultiDOFJointTrajectoryPoint trajectory_point_msg_;
-    std::vector<geometry_msgs::Pose> executing_path_;
-    
-    trajectory_array_.header.seq = n_seq_;
-    trajectory_array_.header.stamp = ros::Time::now();
-    trajectory_array_.header.frame_id = ODOM_FRAME_ID;
-    trajectory_array_.points.clear();
-    double time_sum = 0;
-    geometry_msgs::PoseArray command_path;
-    // command_path.clear();
-    command_path.header.frame_id = ODOM_FRAME_ID;
-
-    for (int i = 0; i < new_path.size(); i++) {
-
-      double yaw = tf::getYaw(new_path[i].orientation);
-      Eigen::Vector3d p(new_path[i].position.x, new_path[i].position.y,
-                        new_path[i].position.z);
-      trajectory_point_.position_W.x() = p.x();
-      trajectory_point_.position_W.y() = p.y();
-      trajectory_point_.position_W.z() = p.z();
-      trajectory_point_.setFromYaw(yaw);
-      mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
-          trajectory_point_, &trajectory_point_msg_);
-      time_sum += 2*dt_;
-      trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
-      // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
-      trajectory_array_.points.push_back(trajectory_point_msg_);
-
-      command_path.poses.push_back(new_path[i]);
-
-    }
-    pub.trajectory_pub.publish(trajectory_array_);
-    pub.posearray_pub.publish(command_path);
-
-    pub.path_to_goal_pub.publish(current.path);
-    current.path.path.poses.clear();
-    current.path.type.data.clear();
-
-    ufo::math::Vector3 lastpub(std::prev(published.traj.end(), 1)->x,
-                               std::prev(published.traj.end(), 1)->y,
-                               std::prev(published.traj.end(), 1)->z);
-    published.reference = publish_goal(lastpub);
   }
   else
   {
@@ -2990,8 +3019,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
       not_traversable.list.push_back(published.list.back());
       for (ufo::math::Vector3 untraversable_frontier : all.list)
       {
-        if (calculateDistance(untraversable_frontier, published.list.back()) <
-            1)
+        if (calculateDistance(untraversable_frontier, published.list.back()) < 1)
         {
           not_traversable.list.push_back(untraversable_frontier);
         }
@@ -3022,29 +3050,10 @@ void return_to_base_planning()
         duration_cast<std::chrono::milliseconds>(stop_total - start_total);
     ROS_INFO_STREAM("\033[;34mReturn to base planning took \033[0m "
                     << duration_total.count() << " \033[;34m ms \033[0m\n ");
-    for (auto vert_it = std::next(planned.traj.begin(), 0);
-         vert_it != std::prev(planned.traj.end(), 0); vert_it++)
-    {
-      geometry_msgs::PoseStamped global_nodes;
-      global_nodes.pose.position.x = ((*vert_it)).x;
-      global_nodes.pose.position.y = ((*vert_it)).y;
-      global_nodes.pose.position.z = ((*vert_it)).z;
-      global_nodes.header.stamp = ros::Time::now();
-      global_nodes.header.frame_id = ODOM_FRAME_ID;
-      current.temppath_homing.poses.push_back(global_nodes);
-      current.path.path = current.temppath_homing;
-      current.path.type.data = "homing";
-    }
-    pub.path_to_goal_pub.publish(current.path);
-    pub.homing_path_pub.publish(current.temppath_homing);
-    current.path.path.poses.clear();
-    current.path.type.data.clear();
-    current.temppath_homing.poses.clear();
-    ufo::math::Vector3 lastpub(planned.traj.back().x, planned.traj.back().y,
-                               planned.traj.back().z);
-    published.reference = publish_goal(lastpub);
+    published.traj = planned.traj;
+
+    executeCurrentPath(false, true);
   }
-  planned.traj.clear();
 }
 
 //----------------------------------------- MAIN
@@ -3157,6 +3166,9 @@ int main(int argc, char *argv[])
 
   current.temppath_local.header.stamp = ros::Time::now();
   current.temppath_local.header.frame_id = ODOM_FRAME_ID;
+
+  current.temppath.header.stamp = ros::Time::now();
+  current.temppath.header.frame_id = ODOM_FRAME_ID;
 
   current.temppath_homing.header.stamp = ros::Time::now();
   current.temppath_homing.header.frame_id = ODOM_FRAME_ID;

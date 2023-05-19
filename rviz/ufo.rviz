@@ -67,10 +67,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 115 409
-        "# Leaf Nodes": 325 280
+        "# Inner Nodes": 48 857
+        "# Leaf Nodes": 137 448
         Resolution: 20 cm
-        Size: 5,12 MiB
+        Size: 2,17 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -291,12 +291,12 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 0; 255; 0
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.05000000074505806
       Length: 0.30000001192092896
       Line Style: Billboards
-      Line Width: 0.10000000149011612
+      Line Width: 0.30000001192092896
       Name: Path
       Offset:
         X: 0
@@ -310,7 +310,7 @@ Visualization Manager:
       Shaft Length: 0.15000000596046448
       Topic: /global_path
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -492,7 +492,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 20.862979888916016
+      Distance: 35.79155731201172
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -500,9 +500,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -0.48800164461135864
-        Y: 0.7766844630241394
-        Z: -2.0778310298919678
+        X: 3.4777565002441406
+        Y: 3.5030550956726074
+        Z: -2.0732805728912354
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -510,7 +510,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.1254916191101074
+      Yaw: 3.1954920291900635
     Saved: ~
 Window Geometry:
   Displays:

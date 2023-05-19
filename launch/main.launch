@@ -30,7 +30,7 @@
       
       <param name="/RAW_FRONTIERS_COLISSION_MARGIN_" type="double" value="0.5" />
       
-      <param name="/PLANNING_CHECK_DEPTH_" type="double" value="2" />
+      <param name="/PLANNING_CHECK_DEPTH_" type="double" value="0" />
       
       <param name="/MIN_ITERATION_LOCAL_" type="double" value="2000" />
       
