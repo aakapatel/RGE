@@ -1699,9 +1699,9 @@ void frontiersClassification()
   for (auto i = classifiedFrontiers.begin(); i != classifiedFrontiers.end();
        i++)
   {
-    if (!(*i)->getTraversabilityStatus())
-    {
-    }
+    // if (!(*i)->getTraversabilityStatus())
+    // {
+    // }
     ufo::math::Vector3 sorting_helper((*i)->point->x(), (*i)->point->y(),
                                       (*i)->point->z());
     ufo::geometry::Sphere sphere(sorting_helper,
@@ -2758,8 +2758,8 @@ std::vector<geometry_msgs::PoseStamped> pathSegmentation(ufo::math::Vector3 star
 void segmentCurrentPath(const std::vector<geometry_msgs::Pose>& path,
                                  std::vector<geometry_msgs::Pose>& path_res) {
   path_res.clear();
-  double v_max_ = 0.6;
-  double yaw_rate_max_ = 0.9;
+  double v_max_ = 0.5;
+  double yaw_rate_max_ = 0.5;
   if (path.size() == 0) return;
   if (path.size() == 1) path_res.push_back(path[0]);
 
@@ -2809,20 +2809,37 @@ void segmentCurrentPath(const std::vector<geometry_msgs::Pose>& path,
 void executeCurrentPath(bool local_navigation, bool home_navigation) {
 
     std::vector<geometry_msgs::Pose> raw_path;
+    raw_path.clear();
+    
+    Graph::Point current_point {current.position.x(), current.position.y(), current.position.z()};
 
-    for (int vert_it = 0; vert_it < published.traj.size(); vert_it++)
+    published.traj.insert(published.traj.begin(),current_point);
+
+    for (int vert_it = 0; vert_it < (published.traj.size()); vert_it++)
     { 
+      
       ufo::math::Vector3 prev(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
       ufo::math::Vector3 next(published.traj[vert_it+1].x, published.traj[vert_it+1].y, published.traj[vert_it+1].z);
 
+      ufo::math::Vector3 before_last(published.traj[vert_it-1].x, published.traj[vert_it-1].y, published.traj[vert_it-1].z);
+      ufo::math::Vector3 last(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
+
+      // float angle_start = atan2( prev.y() - current.position.y(), prev.x() - current.position.x());
       float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
-      float angle_last = atan2( prev.y(), prev.x());
+      float angle_last = atan2( last.y() - before_last.y(), last.x() - before_last.x());
+      // ufo::math::Vector3 v_start(0, 0, angle_start);
       ufo::math::Vector3 v(0, 0, angle);
       ufo::math::Vector3 v_last(0, 0, angle_last);
-      Eigen::Quaternion<float> q = Euler2Quaternion(v);;
+      // Eigen::Quaternion<float> q_start = Euler2Quaternion(v_start);
+      Eigen::Quaternion<float> q = Euler2Quaternion(v);
       Eigen::Quaternion<float> q_last = Euler2Quaternion(v_last);
-      if (vert_it == published.traj.size() - 1) { q = q_last; } else { q = q; }
 
+      if (vert_it == published.traj.size()-1) {
+        q = q_last;
+      }
+      // if (vert_it == 0) {
+      //   q = q_start;
+      // }
       geometry_msgs::Pose raw_path_pose;
       raw_path_pose.position.x = published.traj[vert_it].x;
       raw_path_pose.position.y = published.traj[vert_it].y;
@@ -2831,11 +2848,12 @@ void executeCurrentPath(bool local_navigation, bool home_navigation) {
       raw_path_pose.orientation.y = q.y();
       raw_path_pose.orientation.z = q.z();
       raw_path_pose.orientation.w = q.w();
-
       raw_path.push_back(raw_path_pose);
+      
     }
 
     std::vector<geometry_msgs::Pose> new_path;
+    new_path.clear();
     segmentCurrentPath(raw_path, new_path);
 
     n_seq_++;
@@ -2925,11 +2943,10 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
 {
 
   high_resolution_clock::time_point start_total = high_resolution_clock::now();
-  frontiersClassification();
+  // frontiersClassification();
   buildPlanningGraph(false, local_nav, planning.improve, reiterate,
                      scale_range);
   findPath(request_global.navigate);
-  // visualize();
   if (validPath())
   {
 
@@ -3011,7 +3028,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
     }
     if (!validPath() and reiterate < 3)
     {
-      request_global.navigate = true;
+      // request_global.navigate = true;
       ROS_WARN("No Good Path .. Graph Expansion Underway.. \n");
       reiterate = reiterate + 1;
       scale_range = IMPROVEMENT_SCALE_FACTOR_RANGE + scale_range;
@@ -3024,7 +3041,7 @@ void graph_navigation(bool local_nav, double reiterate, double scale_range)
           not_traversable.list.push_back(untraversable_frontier);
         }
       }
-      frontiersClassification();
+      // frontiersClassification();
       graph_navigation(local_nav, reiterate, scale_range);
     }
     else

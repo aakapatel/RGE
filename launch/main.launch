@@ -8,7 +8,7 @@
 
       <param name="/FIRST_REF_X_" type="double" value="4" />
       <param name="/FIRST_REF_Y_" type="double" value="0" />
-      <param name="/FIRST_REF_Z_" type="double" value="1" />
+      <param name="/FIRST_REF_Z_" type="double" value="0.5" />
       
       <param name="/RESOLUTION_" type="double" value="0.2" />
 
@@ -22,7 +22,7 @@
 
       <param name="/NEXT_PUB_DISTANCE_" type="double" value="0.5" />
       
-      <param name="/LOCAL_RANGE_" type="double" value="14" />
+      <param name="/LOCAL_RANGE_" type="double" value="12" />
       
       <param name="/RAW_GRAPH_COLISSION_MARGIN_" type="double" value="0.5" />
       
@@ -36,9 +36,9 @@
       
       <param name="/MIN_ITERATION_GLOBAL_" type="double" value="2000" />
       
-      <param name="/MIN_PLANNING_SPACE_LOCAL_" type="double" value="15" />
+      <param name="/MIN_PLANNING_SPACE_LOCAL_" type="double" value="8" />
       
-      <param name="/MIN_PLANNING_SPACE_GLOBAL_" type="double" value="20" />
+      <param name="/MIN_PLANNING_SPACE_GLOBAL_" type="double" value="8" />
       
       <param name="/MAX_ITERATION_LOCAL_" type="double" value="6000" />
       
