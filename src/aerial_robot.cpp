@@ -930,16 +930,16 @@ void visualize()
     GRAPH_nodes.scale.x = 0.35;
     GRAPH_nodes.scale.y = 0.35;
     GRAPH_nodes.scale.z = 0.35;
-    GRAPH_line_list.scale.x = 0.008;
-    GRAPH_line_list.scale.y = 0.008;
+    GRAPH_line_list.scale.x = 0.01;
+    GRAPH_line_list.scale.y = 0.01;
     GRAPH_nodes.color.r = 0;
     GRAPH_nodes.color.g = 0.5;
-    GRAPH_nodes.color.b = 0.5;
+    GRAPH_nodes.color.b = 0;
     GRAPH_nodes.color.a = 0.8;
     GRAPH_line_list.color.r = 0.5;
     GRAPH_line_list.color.g = 0.5;
     GRAPH_line_list.color.b = 0.5;
-    GRAPH_line_list.color.a = 0.8;
+    GRAPH_line_list.color.a = 1;
     std::list<node *>::iterator it_vis;
     for (it_vis = Local_Planning_Graph.begin();
          it_vis != Local_Planning_Graph.end(); it_vis++)
@@ -2265,7 +2265,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
                               (*it2).myposition.z);
 
         double dist = calculateDistance(p1, p2);
-        // if (dist > 2 and dist < 4) {
+        // if (dist > 2 and dist < 8) {
         if (dist < MAX_EDGE_LENGTH)
         {
           PAIRS.push_back(std::make_pair(it, it2));
@@ -2406,10 +2406,12 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
 
     for (auto i = pair1.begin(); i != pair1.end(); i++)
     {
+
+      if ((i->first).num_of_connections() < 8 and (i->second).num_of_connections() < 8) {
       planning.node_container.push_back((i)->first);
       planning.node_container.push_back((i)->second);
-      ((i)->first).AddConnection((i)->second);
-      ((i)->second).AddConnection((i)->first);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
       node *parent_node =
           new node(((*i).first).myposition.x, ((*i).first).myposition.y,
                    ((*i).first).myposition.z);
@@ -2419,14 +2421,17 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
       child_node->addParent(parent_node);
       parent_node->addChild(child_node);
       Local_Planning_Graph.push_back(child_node);
+      }
+
     }
 
     for (auto i = pair2.begin(); i != pair2.end(); i++)
     {
+      if ((i->first).num_of_connections() < 8 and (i->second).num_of_connections() < 8) {
       planning.node_container.push_back((i)->first);
       planning.node_container.push_back((i)->second);
-      ((i)->first).AddConnection((i)->second);
-      ((i)->second).AddConnection((i)->first);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
       node *parent_node =
           new node(((*i).first).myposition.x, ((*i).first).myposition.y,
                    ((*i).first).myposition.z);
@@ -2436,13 +2441,15 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
       child_node->addParent(parent_node);
       parent_node->addChild(child_node);
       Local_Planning_Graph.push_back(child_node);
+      }
     }
     for (auto i = pair3.begin(); i != pair3.end(); i++)
     {
+      if ((i->first).num_of_connections() < 8 and (i->second).num_of_connections() < 8) {
       planning.node_container.push_back((i)->first);
       planning.node_container.push_back((i)->second);
-      ((i)->first).AddConnection((i)->second);
-      ((i)->second).AddConnection((i)->first);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
       node *parent_node =
           new node(((*i).first).myposition.x, ((*i).first).myposition.y,
                    ((*i).first).myposition.z);
@@ -2452,14 +2459,16 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
       child_node->addParent(parent_node);
       parent_node->addChild(child_node);
       Local_Planning_Graph.push_back(child_node);
+      }
     }
 
     for (auto i = pair4.begin(); i != pair4.end(); i++)
     {
+      if ((i->first).num_of_connections() < 8 and (i->second).num_of_connections() < 8) {
       planning.node_container.push_back((i)->first);
       planning.node_container.push_back((i)->second);
-      ((i)->first).AddConnection((i)->second);
-      ((i)->second).AddConnection((i)->first);
+        ((i)->first).AddConnection((i)->second);
+        ((i)->second).AddConnection((i)->first);
       node *parent_node =
           new node(((*i).first).myposition.x, ((*i).first).myposition.y,
                    ((*i).first).myposition.z);
@@ -2469,6 +2478,7 @@ void buildPlanningGraph(bool go_home, bool local_exploration, bool improvement,
       child_node->addParent(parent_node);
       parent_node->addChild(child_node);
       Local_Planning_Graph.push_back(child_node);
+      }
     }
 
     /*
@@ -2820,13 +2830,11 @@ void executeCurrentPath(bool local_navigation, bool home_navigation) {
       
       ufo::math::Vector3 prev(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
       ufo::math::Vector3 next(published.traj[vert_it+1].x, published.traj[vert_it+1].y, published.traj[vert_it+1].z);
-
       ufo::math::Vector3 before_last(published.traj[vert_it-1].x, published.traj[vert_it-1].y, published.traj[vert_it-1].z);
-      ufo::math::Vector3 last(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
 
       // float angle_start = atan2( prev.y() - current.position.y(), prev.x() - current.position.x());
       float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
-      float angle_last = atan2( last.y() - before_last.y(), last.x() - before_last.x());
+      float angle_last = atan2( prev.y() - before_last.y(), prev.x() - before_last.x());
       // ufo::math::Vector3 v_start(0, 0, angle_start);
       ufo::math::Vector3 v(0, 0, angle);
       ufo::math::Vector3 v_last(0, 0, angle_last);

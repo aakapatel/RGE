@@ -67,10 +67,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 123 137
-        "# Leaf Nodes": 335 200
+        "# Inner Nodes": 56 809
+        "# Leaf Nodes": 160 152
         Resolution: 20 cm
-        Size: 5,38 MiB
+        Size: 2,52 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -452,7 +452,7 @@ Visualization Manager:
       Axes Length: 0.10000000149011612
       Axes Radius: 0.10000000149011612
       Class: rviz/PoseArray
-      Color: 25; 255; 0
+      Color: 239; 41; 41
       Enabled: true
       Head Length: 0.10000000149011612
       Head Radius: 0.30000001192092896
@@ -492,7 +492,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 92.73727416992188
+      Distance: 34.05641174316406
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -500,9 +500,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -4.485014915466309
-        Y: 2.691425323486328
-        Z: -2.1512255668640137
+        X: -2.3844106197357178
+        Y: 0.051621779799461365
+        Z: -2.149242877960205
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -510,7 +510,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: hummingbird/base_link
-      Yaw: 3.2304980754852295
+      Yaw: 3.165496587753296
     Saved: ~
 Window Geometry:
   Displays:
