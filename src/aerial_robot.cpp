@@ -3349,14 +3349,14 @@ int main(int argc, char *argv[])
 
 /*
 1) Fix frontiers detection -- done
-2) Compute information gain -- TBD
+2) Compute volumetric information gain -- done
 3) Fix heading deviation based search -- done
 4) Global graph based strategy -- done
-5) Active loop closing -- candidates can be computed from the graph
+5) Active loop closing -- candidates can be computed from the graph // TBD
 6) Loop closing candidates to be included as part of hueristic function
 7) Compute global path cost based on hueristic and shortest path
-8) Improve computation time
-9) Implement adaptive graph expansion
+8) Improve computation time -- openMP parallel implemented, still in progress
+9) Implement adaptive graph expansion -- done
 10) FIX Plots
--- AP
+-- Akp
 */
