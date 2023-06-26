@@ -38,7 +38,7 @@ Panels:
         - /Marker12
         - /PoseArray1
       Splitter Ratio: 0.5
-    Tree Height: 934
+    Tree Height: 363
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -56,7 +56,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -67,10 +67,10 @@ Visualization Manager:
     - Class: UFOMap
       Enabled: true
       Information:
-        "# Inner Nodes": 194 713
-        "# Leaf Nodes": 551 912
+        "# Inner Nodes": 252 033
+        "# Leaf Nodes": 701 600
         Resolution: 20 cm
-        Size: 8,67 MiB
+        Size: 11,12 MiB
       Min. Depth: 0
       Name: UFOMap
       Occupancy Thresholds:
@@ -103,12 +103,12 @@ Visualization Manager:
         Occupied:
           Alpha: 0.03999999910593033
           Coloring:
-            Color: 114; 159; 207
+            Color: 239; 41; 41
             Factor: 0.800000011920929
-            Value: X-Axis
+            Value: Fixed
           Scale: 1
           Style: Boxes
-          Value: false
+          Value: true
         Unknown:
           Alpha: 0.029999999329447746
           Coloring:
@@ -127,10 +127,10 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 244; 67; 54
-      Color Transformer: Intensity
+      Color: 239; 41; 41
+      Color Transformer: FlatColor
       Decay Time: 1e+09
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -145,7 +145,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /frontier_nodes_vis
@@ -157,9 +157,9 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
-      Length: 1
+      Length: 4
       Name: Axes
-      Radius: 0.10000000149011612
+      Radius: 0.4000000059604645
       Reference Frame: hummingbird/base_link
       Show Trail: false
       Value: true
@@ -200,7 +200,8 @@ Visualization Manager:
       Marker Topic: /planning_graph
       Name: Marker
       Namespaces:
-        {}
+        lines: true
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -208,7 +209,7 @@ Visualization Manager:
       Marker Topic: /ROBOT_BOX
       Name: Marker
       Namespaces:
-        {}
+        points: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -266,7 +267,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 239; 16; 197
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -285,12 +286,12 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /local_path
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 0; 255; 0
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.05000000074505806
       Length: 0.30000001192092896
@@ -309,7 +310,7 @@ Visualization Manager:
       Shaft Length: 0.15000000596046448
       Topic: /global_path
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -383,7 +384,7 @@ Visualization Manager:
       Marker Topic: /current_goal
       Name: Marker
       Namespaces:
-        {}
+        goal: true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -491,7 +492,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 91.66397094726562
+      Distance: 45.955596923828125
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -499,9 +500,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 53.551029205322266
-        Y: -13.811711311340332
-        Z: 2.327806234359741
+        X: 204.03025817871094
+        Y: -55.156009674072266
+        Z: 2.713104009628296
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -509,7 +510,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.1904964447021484
+      Yaw: 3.1954967975616455
     Saved: ~
 Window Geometry:
   Displays:

@@ -930,12 +930,12 @@ void visualize()
     GRAPH_nodes.scale.x = 0.35;
     GRAPH_nodes.scale.y = 0.35;
     GRAPH_nodes.scale.z = 0.35;
-    GRAPH_line_list.scale.x = 0.01;
-    GRAPH_line_list.scale.y = 0.01;
+    GRAPH_line_list.scale.x = 0.05;
+    GRAPH_line_list.scale.y = 0.05;
     GRAPH_nodes.color.r = 0;
-    GRAPH_nodes.color.g = 0.5;
+    GRAPH_nodes.color.g = 1;
     GRAPH_nodes.color.b = 0;
-    GRAPH_nodes.color.a = 0.8;
+    GRAPH_nodes.color.a = 1;
     GRAPH_line_list.color.r = 0.5;
     GRAPH_line_list.color.g = 0.5;
     GRAPH_line_list.color.b = 0.5;
@@ -2825,14 +2825,14 @@ void executeCurrentPath(bool local_navigation, bool home_navigation) {
 
     published.traj.insert(published.traj.begin(),current_point);
 
-    for (int vert_it = 0; vert_it < (published.traj.size()); vert_it++)
+    for (int vert_it = 0; vert_it < (published.traj.size()); ++vert_it)
     { 
       
       ufo::math::Vector3 prev(published.traj[vert_it].x, published.traj[vert_it].y, published.traj[vert_it].z);
       ufo::math::Vector3 next(published.traj[vert_it+1].x, published.traj[vert_it+1].y, published.traj[vert_it+1].z);
       ufo::math::Vector3 before_last(published.traj[vert_it-1].x, published.traj[vert_it-1].y, published.traj[vert_it-1].z);
 
-      // float angle_start = atan2( prev.y() - current.position.y(), prev.x() - current.position.x());
+      // float angle_start = atan2( prev.y(), prev.x());
       float angle = atan2( next.y() - prev.y(), next.x() - prev.x());
       float angle_last = atan2( prev.y() - before_last.y(), prev.x() - before_last.x());
       // ufo::math::Vector3 v_start(0, 0, angle_start);
@@ -2902,7 +2902,7 @@ void executeCurrentPath(bool local_navigation, bool home_navigation) {
       pose_ref.pose.orientation.w = new_path[i].orientation.w;
       mav_msgs::msgMultiDofJointTrajectoryPointFromEigen(
           trajectory_point_, &trajectory_point_msg_);
-      time_sum += 2*dt_;
+      time_sum += dt_;
       trajectory_point_msg_.time_from_start = ros::Duration(time_sum);
       // trajectory_array_.points.insert(trajectory_array_.points.begin(),trajectory_point_msg_);
       trajectory_array_.points.push_back(trajectory_point_msg_);
